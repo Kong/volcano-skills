@@ -34,7 +34,7 @@ function createClient(auth?: { access_token?: string }): VolcanoAuth {
     anonKey: process.env.VOLCANO_ANON_KEY!,
     accessToken: auth?.access_token,
   });
-  volcano.database(process.env.VOLCANO_DB_NAME!);
+  volcano.database(process.env.VOLCANO_DATABASE!);
   return volcano;
 }
 ```
@@ -123,7 +123,7 @@ const { data, error } = await volcano.insert('posts', {
 });
 // data is an array; data[0] is the inserted row including any defaults.
 ```
-If the table has a `user_id` column with default `uid()`, the authenticated user's id is automatically associated.
+If the table has a `user_id` column with default `auth.uid()`, the authenticated user's id is automatically associated.
 
 ## UPDATE
 ```ts
@@ -192,24 +192,24 @@ When the work genuinely requires one of these, route it through a Volcano Functi
 1. Sign-in produces an access token containing the user's id.
 2. Every database call includes that token.
 3. Volcano sets the user context in the DB session.
-4. RLS policies use `uid()` to reference the current user.
+4. RLS policies use `auth.uid()` to reference the current user.
 
 ### Example policies
 ```sql
 -- Users can only read their own posts
 CREATE POLICY "Users can read own posts"
 ON posts FOR SELECT
-USING (user_id = uid());
+USING (user_id = auth.uid());
 
 -- Users can only update their own posts
 CREATE POLICY "Users can update own posts"
 ON posts FOR UPDATE
-USING (user_id = uid());
+USING (user_id = auth.uid());
 
 -- Users can only insert posts owned by themselves
 CREATE POLICY "Users can insert own posts"
 ON posts FOR INSERT
-WITH CHECK (user_id = uid());
+WITH CHECK (user_id = auth.uid());
 
 -- Public-read pattern
 CREATE POLICY "Published posts are public"

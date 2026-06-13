@@ -1,15 +1,21 @@
 ---
 name: volcano-platform
-description: Canonical project shape, Volcano Functions runtime contract, build pipeline, and required canonical files for any Volcano-Hosting-deployable codebase. Self-contained for use without the volcano-standard scaffold.
+description: Canonical Volcano project shape and deploy contract: the volcano/functions/ model, migrations, volcano-config.yaml, env vars, shared-code conventions, and the build/deploy workflow.
 ---
 # Volcano Platform Contract Skill
 
-## Pairing
-This skill is the **mandatory companion** to `volcano_sdk`. The two together cover everything needed to bootstrap a Volcano-Hosting-deployable project: `volcano_sdk` is the slim entrypoint + router that points at the relevant domain skills; this skill is the project/build contract. Neither is sufficient alone.
+## Role & Pairing
+Defines the canonical project shape and deploy contract for any Volcano-Hosting-deployable codebase. Covers the `volcano/functions/` deployment model, migrations, `volcano-config.yaml`, environment variables, shared-code conventions, and the build/deploy workflow.
+
+**Pair with:**
+- `volcano_sdk` — the SDK entrypoint and skill router.
+- `volcano_functions` — function-writing internals: handler templates, invocation contract, user-context patterns, error handling.
+
+This skill focuses on **project shape and deploy mechanics**, not on how to write individual function handlers.
 
 ## Relationship to `volcano init`
 
-`volcano init` (from the Volcano CLI) creates a minimal runtime skeleton in a `volcano/` directory. With no template it creates only the base scaffold:
+`volcano init` (from the Volcano CLI) creates a minimal runtime skeleton in a `volcano/` directory:
 
 ```
 volcano/                        # Volcano-managed project directory
@@ -22,128 +28,184 @@ volcano/README.md               # next-step instructions
 ```
 
 Templates add language-specific files on top of the base scaffold:
-- `volcano init nextjs` (aliases: `next`, `next.js`, `next-js`) — adds a minimal Next.js app under `web/`.
+- `volcano init nextjs` (aliases: `next`, `next.js`, `next-js`) — adds a minimal Next.js app under `web/` plus example functions and migrations.
 - `volcano init javascript` (aliases: `js`, `node`, `nodejs`) — adds a starter function handler and `volcano-config.yaml`.
 - `volcano init python` (alias: `py`) — adds a Python function handler.
 - `volcano init ruby` (alias: `rb`) — adds a Ruby function handler.
 
 Add `--example` for a more complete demo: `volcano init nextjs --example notes`, or `volcano init javascript|python|ruby --example hello-world`.
 
-Note: `volcano-config.yaml` is created only by the `javascript` template, not by the base scaffold.
+Note: `volcano-config.yaml` is created only by the `javascript` template, not by the base scaffold. You can also create it manually at `volcano/volcano-config.yaml`.
 
-This skill describes the **full application layout** to build on top of that skeleton: a TypeScript backend that deploys as a Volcano Function, route dispatcher, shared client, build pipeline, migrations, and optional frontend. The two work together:
-
-1. **`volcano init`** — creates the CLI runtime layout (`volcano/` directory + config + optional starter handler).
-2. **This skill** — guides building the application code within that layout.
-
-The `volcano/` directory created by `volcano init` maps to the project layout below as follows:
-- `volcano/migrations/` is where SQL migration files go.
-- `volcano/functions/` (from language templates) is where standalone function handlers go.
-- `volcano/volcano.env` holds environment variables consumed by the SDK at runtime.
-- `volcano/volcano-config.yaml` (javascript template only) is the declarative config for functions, buckets, etc.
-
-**Important:** The application code structure described below (`src/api/`, `src/shared/`, `package.json`, `tsconfig.json`, `openapi.yaml`, etc.) is created by following this skill — not by `volcano init`. Do not expect `volcano init` to produce the full application layout.
-
-## Role
-Defines the project shape, Volcano Functions runtime contract, build pipeline, and required canonical files for a Volcano-Hosting-deployable codebase. This skill is **self-contained**: any IDE or agentic harness with file-write and shell capability (Claude Code, Cursor, custom agents) can use it to bootstrap a working project from zero, without relying on a scaffold templating system.
-
-## When to use
-- Bootstrapping a new Volcano project from scratch.
-- Verifying an existing project still satisfies platform requirements.
-- Touching the function entry point, build pipeline, shared types, route dispatcher, or migrations.
-- Adding a new route, migration, or frontend page (the conventions live here).
+`volcano init` does **not** create an `src/api/` directory, an OpenAPI dispatcher, or a single bundled entry point. Functions deploy individually from `volcano/functions/`.
 
 ## Project Layout (canonical)
+
 ```
 .
-├── openapi.yaml                # API contract (REQUIRED)
-├── package.json                # Build/deps/scripts (REQUIRED)
-├── tsconfig.json               # TS config (REQUIRED)
-├── .env.example                # Env documentation
-├── .gitignore
-├── scripts/
-│   └── dev-server.mjs          # Local HTTP→function simulator (REQUIRED)
-├── src/
-│   ├── api/
-│   │   ├── index.ts            # Function entry; exports `handler` (REQUIRED)
-│   │   └── <feature>.ts        # Per-feature route handlers
-│   ├── shared/
-│   │   ├── http.ts             # Function event/response types + json() (REQUIRED)
-│   │   ├── client.ts           # createClient(auth) factory (REQUIRED)
-│   │   └── volcano-sdk.d.ts    # SDK type stub (REQUIRED until SDK ships its own .d.ts)
-│   └── migrations/
-│       ├── 20200101000000_init.sql           # Baseline (REQUIRED)
-│       └── YYYYMMDDhhmmss_description.sql    # Subsequent migrations
-├── web/                        # Optional Next.js frontend (only when explicitly requested)
-│   ├── package.json
-│   ├── next.config.ts
-│   ├── tsconfig.json
-│   ├── lib/volcano.ts
-│   ├── app/{layout,page}.tsx
-│   ├── app/globals.css
-│   └── types/volcano-sdk.d.ts
-└── dist/
-    └── index.js                # Build output, deployed as a Volcano Function
+├── volcano/                        # Volcano-managed directory (created by volcano init)
+│   ├── functions/                  # Function handlers (deployment root)
+│   │   ├── hello.js                # → deploys as function "hello"
+│   │   ├── notes-summary.js        # → deploys as function "notes-summary"
+│   │   ├── api/                    # → deploys as function "api" (directory function)
+│   │   │   └── index.js            # entry point inside a directory function
+│   │   └── _shared/                # shared code (underscore-prefixed, auto-bundled)
+│   │       └── volcano-client.js   # canonical client factory
+│   ├── migrations/
+│   │   ├── 001_init.sql            # numeric-prefix alphabetical ordering
+│   │   └── 002_add_posts.sql
+│   ├── volcano-config.yaml         # declarative buckets, policies, function visibility
+│   ├── volcano.env                 # local env vars (gitignored)
+│   ├── volcano.env.example         # env var documentation (committed)
+│   └── .gitignore
+├── package.json                    # optional — needed only for the build model
+├── tsconfig.json                   # optional — needed only for the build model
+└── src/                            # optional — authoring source for the build model
+    ├── functions/
+    │   ├── hello.ts
+    │   └── notes-summary.ts
+    └── lib/
+        └── volcano-client.ts
 ```
 
 **Hard rules:**
-- Backend code lives ONLY under `src/api/` and `src/shared/`.
-- Frontend code lives ONLY under `web/`. Never use `frontend/`.
-- Migrations live ONLY under `src/migrations/` with the UTC timestamp filename format.
-- Single function backend entry point: `src/api/index.ts`.
+- Function handlers live ONLY under `volcano/functions/`.
+- Migrations live ONLY under `volcano/migrations/`.
+- Shared code that functions import at runtime uses the `_`-prefix convention (`_shared/`, `_lib/`) so the scanner skips it as a function candidate but the packager bundles it.
+- `volcano-config.yaml` is the declarative config for buckets, storage policies, and function visibility.
 
-## Volcano Functions Runtime Contract
-- **Runtime:** Node.js 22.
-- **Module format:** ESM (`"type": "module"` in `package.json`).
-- **Entry point:** `src/api/index.ts` MUST export `const handler` (named, not default).
-- **Build output:** Single bundled file at `dist/index.js`.
-- **Build command:** `esbuild src/api/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/index.js`.
-- **Auth context:** Volcano hosting injects `event.__volcano_auth` when the request carries a valid Bearer token. Absent for unauthenticated requests.
+## Function Deployment Model
 
-### Event Shape (IN)
+`volcano functions deploy` scans `volcano/functions/` and deploys each handler as an individual function.
+
+**Scanner rules** (source: `volcano-cli/internal/function/scanner.go`):
+- Scans ONLY the `volcano/functions/` directory (hard-coded path).
+- **One function per file:** `hello.js` → function named `hello`.
+- **One function per directory:** `api/index.js` → function named `api` (the directory name).
+- Entries starting with `_` are **skipped** as function candidates but bundled as shared code when imported.
+- Supported runtimes: `nodejs22.x` (minimum), `nodejs24.x` (default). Also Python and Ruby.
+
+There is **no router, no OpenAPI dispatcher, no single entry point**. Each file is an independent function with its own URL.
+
+## Event & Response Shape
+
+### Event (IN)
+Functions receive the **bare caller payload** as `event`. There is no `httpMethod`, `path`, or `queryStringParameters`. If the caller invokes with `{ name: 'Alice' }`, the handler receives exactly that object.
+
+When the request carries a valid Bearer token **and the payload is an object/map**, Volcano injects `__volcano_auth` into the event:
+
 ```ts
-type LambdaEvent = {
-  httpMethod: string;
-  path: string;
-  body?: string;
-  queryStringParameters?: Record<string, string>;
-  pathParameters?: Record<string, string>;
-  __volcano_auth?: LambdaAuth;
-};
-
-type LambdaAuth = {
+type VolcanoAuth = {
   user_id: string;
   email: string;
-  role: string;
   project_id: string;
+  role: string;
   access_token: string;
 };
 ```
 
-### Response Shape (OUT)
+**Caveat:** if the payload is not an object (string, number, array), `__volcano_auth` is **not** injected — the payload passes through unchanged. Always guard for its absence.
+
+### Response (OUT)
 ```ts
-type ApiResponse = {
+type FunctionResponse = {
   statusCode: number;
+  body: string;              // always JSON.stringify(...) for JSON responses
   headers?: Record<string, string>;
-  body: string;   // STRING, not object — always JSON.stringify(...)
 };
 ```
 
-## Required Files — embed verbatim
+### Handler signature
+```js
+exports.handler = async (event) => {
+  const auth = event && typeof event === 'object' ? event.__volcano_auth : undefined;
+  // ...
+  return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+};
+```
 
-### `package.json`
+For detailed handler templates, invocation patterns, and user-context guidance, see the `volcano_functions` skill.
+
+## Authoring Models
+
+### Model A — Native JavaScript (what `volcano init` scaffolds)
+
+Author `.js` handlers directly in `volcano/functions/`. Share code via `volcano/_shared/` using the underscore-prefix convention. The packager auto-bundles `_shared/` imports into each function archive.
+
+```js
+// volcano/functions/hello.js
+exports.handler = async (event) => {
+  const name = event?.name || 'World';
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ message: `Hello, ${name}!` }),
+  };
+};
+```
+
+```js
+// volcano/_shared/volcano-client.js  — shared across functions
+const { VOLCANO_API_URL, VOLCANO_ANON_KEY, VOLCANO_DATABASE = 'app' } = process.env;
+
+function createVolcanoClient(VolcanoAuthClass, { apiUrl, anonKey, database = 'app', accessToken }) {
+  if (!apiUrl || !anonKey) throw new Error('Missing VOLCANO_API_URL or VOLCANO_ANON_KEY');
+  const volcano = new VolcanoAuthClass({ apiUrl, anonKey, ...(accessToken && { accessToken }) });
+  return volcano.database(database);
+}
+
+const createFunctionVolcanoClient = (VolcanoAuthClass, auth) => {
+  if (!auth?.access_token) throw new Error('Missing function auth access token');
+  return createVolcanoClient(VolcanoAuthClass, {
+    apiUrl: VOLCANO_API_URL,
+    anonKey: VOLCANO_ANON_KEY,
+    database: VOLCANO_DATABASE,
+    accessToken: auth.access_token,
+  });
+};
+
+module.exports = { createVolcanoClient, createFunctionVolcanoClient };
+```
+
+```js
+// volcano/functions/notes-summary.js  — uses shared client
+const { createFunctionVolcanoClient } = require('./_shared/volcano-client');
+
+let VolcanoAuthClass;
+async function getVolcanoAuthClass() {
+  if (!VolcanoAuthClass) {
+    const sdk = await import('@volcano.dev/sdk');
+    VolcanoAuthClass = sdk.VolcanoAuth || sdk.default;
+  }
+  return VolcanoAuthClass;
+}
+
+exports.handler = async (event) => {
+  const input = event && typeof event === 'object' ? event : {};
+  const auth = input.__volcano_auth;
+  if (!auth?.access_token) {
+    return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
+  }
+  const VolcanoAuth = await getVolcanoAuthClass();
+  const volcano = createFunctionVolcanoClient(VolcanoAuth, auth);
+  const { data, error } = await volcano.from('notes').select('id,title').limit(5);
+  if (error) return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+  return { statusCode: 200, body: JSON.stringify({ notes: data ?? [] }) };
+};
+```
+
+### Model B — Build-into-functions (TypeScript)
+
+Author TypeScript in `src/functions/<name>.ts`, bundle each to `volcano/functions/<name>.js` with esbuild, then deploy. This lets you use TypeScript, `src/lib/` shared code, and npm dependencies that esbuild bundles.
+
+**`package.json`:**
 ```json
 {
-  "name": "volcano-typescript-api",
+  "name": "my-volcano-project",
   "version": "1.0.0",
-  "description": "Volcano Functions backend",
-  "main": "dist/index.js",
-  "type": "module",
+  "private": true,
   "scripts": {
-    "build": "npm run typecheck && esbuild src/api/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/index.js",
-    "dev": "npm run build && node scripts/dev-server.mjs",
-    "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "build:functions": "esbuild src/functions/*.ts --bundle --platform=node --target=node22 --format=cjs --outdir=volcano/functions",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@volcano.dev/sdk": "latest"
@@ -152,677 +214,259 @@ type ApiResponse = {
     "@types/node": "^22.10.2",
     "esbuild": "^0.24.0",
     "typescript": "^5.7.2"
-  },
-  "engines": {
-    "node": ">=22.0.0"
   }
 }
 ```
-Required scripts: `build`, `dev`, `typecheck`. Required keys: `name`, `version`, `scripts`, `dependencies`, `devDependencies`.
 
-### `tsconfig.json`
+**`tsconfig.json`:**
 ```json
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
     "strict": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "outDir": "dist",
     "lib": ["ES2022"],
     "types": ["node"]
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["dist", "node_modules"]
+  "include": ["src/**/*.ts"]
 }
 ```
 
-### `openapi.yaml`
-```yaml
-openapi: 3.0.3
-info:
-  title: Volcano API
-  description: REST API for Volcano Hosting
-  version: 1.0.0
-security:
-  - BearerAuth: []
-components:
-  securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-paths:
-  /health:
-    get:
-      operationId: getHealth
-      summary: Health check
-      security: []
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                  timestamp:
-                    type: string
-x-pages: {}
-```
-
-**OpenAPI rules (validated by Volcano):**
-- File MUST exist at repo root.
-- Top-level `security: [{ BearerAuth: [] }]` defaults all endpoints to authenticated. Override per-operation with `security: []` for public routes.
-- EVERY operation MUST have an `operationId` (camelCase).
-- `x-pages` is an EXTENSION used for frontend page routes when `web/` is enabled. Each entry MUST be an object with `summary`, `file`, and `auth` fields. Do NOT add API routes to `x-pages` — those go in `paths`. Leave as `x-pages: {}` when there is no frontend.
-
-### `src/api/index.ts` — function entry + route dispatcher
+**Source handler (`src/functions/hello.ts`):**
 ```ts
-import { json, type ApiResponse, type LambdaAuth, type LambdaEvent } from '../shared/http';
+import { createFunctionVolcanoClient } from '../lib/volcano-client';
 
-type HandlerFn = (event: LambdaEvent, auth?: LambdaAuth) => Promise<ApiResponse>;
-type RouteMap = Record<string, Record<string, HandlerFn>>;
-
-async function getHealth(_event: LambdaEvent): Promise<ApiResponse> {
-  return json(200, { status: 'ok', timestamp: new Date().toISOString() });
-}
-
-const routes: RouteMap = {
-  GET: {
-    '/health': getHealth,
-  },
-};
-
-const publicRoutes: Record<string, Record<string, boolean>> = {
-  GET: {
-    '/health': true,
-  },
-};
-
-export const handler = async (event: LambdaEvent): Promise<ApiResponse> => {
-  const method = (event.httpMethod || 'GET').toUpperCase();
-  const path = (event.path || '/').replace(/\/+$/, '') || '/';
-  const auth = event.__volcano_auth;
-
-  const methodRoutes = routes[method];
-  if (!methodRoutes) {
-    return json(405, { error: 'Method not allowed' });
-  }
-
-  const routeHandler = methodRoutes[path];
-  if (!routeHandler) {
-    return json(404, { error: 'Not found' });
-  }
-
-  if (!publicRoutes[method]?.[path] && !auth) {
-    return json(401, { error: 'Unauthorized' });
-  }
-
-  try {
-    return await routeHandler(event, auth);
-  } catch (err) {
-    console.error('Unhandled error:', err);
-    const statusCode =
-      typeof (err as { statusCode?: unknown }).statusCode === 'number'
-        ? (err as { statusCode: number }).statusCode
-        : 500;
-    return json(statusCode, { error: statusCode === 412 ? (err as Error).message : 'Internal server error' });
-  }
+export const handler = async (event: { name?: string; __volcano_auth?: { access_token?: string } }) => {
+  const name = event.name || 'World';
+  return { statusCode: 200, body: JSON.stringify({ message: `Hello, ${name}!` }) };
 };
 ```
 
-**Notes for the agent:**
-- Route table is `routes[method][path] = handler`. Method-not-allowed → 405. Not-found → 404.
-- The `publicRoutes` allowlist is what makes a route accessible without `event.__volcano_auth`. Anything NOT listed there returns 401 when auth is missing.
-- The catch block has a deliberate "412 passthrough": when a downstream throws an error with `statusCode === 412`, the original `err.message` is returned to the caller (used by `requireEnv` in `src/shared/client.ts` so missing env vars surface clearly). Other thrown errors return generic `Internal server error`.
+After `npm run build:functions`, the output `volcano/functions/hello.js` is what deploys.
 
-### `src/shared/http.ts` — types + json helper
-```ts
-export type LambdaAuth = {
-  user_id: string;
-  email: string;
-  role: string;
-  project_id: string;
-  access_token: string;
-};
+**Critical:** `volcano functions deploy` does NOT run your build. The built `.js` files must already exist under `volcano/functions/` on disk. Always run `npm run build:functions` before deploying. Committing the built output is the safest approach — the packager applies project ignore rules when bundling directory contents and shared libraries, so gitignoring `volcano/functions/` can cause packaging edge cases.
 
-export type LambdaEvent = {
-  httpMethod: string;
-  path: string;
-  body?: string;
-  queryStringParameters?: Record<string, string>;
-  pathParameters?: Record<string, string>;
-  __volcano_auth?: LambdaAuth;
-};
+## Canonical Shared Client Pattern
 
-export type ApiResponse = {
-  statusCode: number;
-  headers?: Record<string, string>;
-  body: string;
-};
+Both models use the same factory pattern, adapted from the `nextjs-notes` starter (`volcano/_shared/volcano-client.js`):
 
-export function json(statusCode: number, data: unknown): ApiResponse {
-  return {
-    statusCode,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  };
-}
+| Factory | When to use |
+|---|---|
+| `createFunctionVolcanoClient(VolcanoAuthClass, auth)` | Inside function handlers — uses `__volcano_auth.access_token` |
+| `createWebVolcanoClient(VolcanoAuthClass)` | Browser/Next.js — uses `NEXT_PUBLIC_*` env vars |
+
+Both read `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, and `VOLCANO_DATABASE` from `process.env` and fall back to database name `'app'`.
+
+For browser-side client setup, see the `volcano_nextjs` skill.
+
+## Environment Variables
+
+Functions receive **only user-defined project variables**. Volcano does **not** auto-inject `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, or `VOLCANO_DATABASE` into the function runtime. You must define these as project variables.
+
+**Deploy variables:**
+```sh
+volcano variables deploy
 ```
+This reads from `volcano/volcano.env` (or a specified file) and sets project-scoped environment variables that all functions in the project receive at runtime.
 
-### `src/shared/client.ts` — Volcano client factory
-```ts
-import { VolcanoAuth } from '@volcano.dev/sdk';
-import type { LambdaAuth } from './http';
+**Canonical variable names** (the shared client factory expects these):
+| Variable | Purpose |
+|---|---|
+| `VOLCANO_API_URL` | Volcano API endpoint |
+| `VOLCANO_ANON_KEY` | Public anon key |
+| `VOLCANO_DATABASE` | Database name (defaults to `'app'` if unset) |
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    const err = new Error(`Missing ${name} for Volcano SDK`);
-    (err as Error & { statusCode?: number }).statusCode = 412;
-    throw err;
-  }
-  return value;
-}
+**Custom secrets** (any name): `STRIPE_SECRET_KEY`, `SENDGRID_API_KEY`, `SLACK_WEBHOOK_URL`, etc.
 
-export function createClient(auth?: LambdaAuth): VolcanoAuth {
-  const volcano = new VolcanoAuth({
-    apiUrl: requireEnv('VOLCANO_API_URL'),
-    anonKey: requireEnv('VOLCANO_ANON_KEY'),
-    accessToken: auth?.access_token,
-  });
-  volcano.database(requireEnv('VOLCANO_DB_NAME'));
-  return volcano;
-}
-```
-
-`requireEnv` deliberately tags missing-env errors with `statusCode: 412` so the route dispatcher's catch block returns the descriptive message instead of a generic 500. This makes misconfiguration visible in dev.
-
-### `src/shared/volcano-sdk.d.ts` — minimal SDK type stub
-Lets `tsc --noEmit` succeed before `npm install` has run, and prevents type-noise when the SDK ships without complete .d.ts.
-```ts
-declare module '@volcano.dev/sdk' {
-  export class VolcanoAuth {
-    constructor(config: { apiUrl: string; anonKey: string; accessToken?: string });
-    database(name: string): this;
-    from(table: string): any;
-    auth: any;
-    storage: any;
-    functions: any;
-    realtime: any;
-  }
-}
-```
-
-### `scripts/dev-server.mjs` — local HTTP→function simulator
-```js
-#!/usr/bin/env node
-
-import { createServer } from 'node:http';
-import { handler } from '../dist/index.js';
-
-const port = Number(process.env.PORT || '3000');
-
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on('data', (chunk) => chunks.push(chunk));
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-    req.on('error', reject);
-  });
-}
-
-function singleValueQuery(searchParams) {
-  const out = {};
-  for (const [key, value] of searchParams.entries()) {
-    out[key] = value;
-  }
-  return out;
-}
-
-function requestHeaders(headers) {
-  const out = {};
-  for (const [key, value] of Object.entries(headers)) {
-    if (Array.isArray(value)) {
-      out[key] = value.join(',');
-    } else if (value != null) {
-      out[key] = String(value);
-    }
-  }
-  return out;
-}
-
-function decodeBase64URL(input) {
-  const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
-  const padding = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
-  return Buffer.from(normalized + padding, 'base64').toString('utf8');
-}
-
-function parseJWTClaims(token) {
-  const parts = token.split('.');
-  if (parts.length < 2 || !parts[1]) {
-    return null;
-  }
-  try {
-    return JSON.parse(decodeBase64URL(parts[1]));
-  } catch {
-    return null;
-  }
-}
-
-function authFromHeaders(headers) {
-  const authorization = headers.authorization || headers.Authorization;
-  if (!authorization || typeof authorization !== 'string') {
-    return undefined;
-  }
-  const match = authorization.match(/^Bearer\s+(.+)$/i);
-  if (!match) {
-    return undefined;
-  }
-
-  const accessToken = match[1].trim();
-  if (!accessToken) {
-    return undefined;
-  }
-
-  const claims = parseJWTClaims(accessToken) || {};
-  return {
-    access_token: accessToken,
-    user_id: typeof claims.sub === 'string' ? claims.sub : 'debug-user',
-    email: typeof claims.email === 'string' ? claims.email : '',
-    role: typeof claims.role === 'string' && claims.role ? claims.role : 'authenticated',
-    project_id: typeof claims.project_id === 'string' ? claims.project_id : '',
-  };
-}
-
-const server = createServer(async (req, res) => {
-  try {
-    const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-    const body = await readBody(req);
-    const headers = requestHeaders(req.headers);
-
-    const event = {
-      httpMethod: (req.method || 'GET').toUpperCase(),
-      path: url.pathname,
-      body,
-      headers,
-      queryStringParameters: singleValueQuery(url.searchParams),
-      __volcano_auth: authFromHeaders(headers),
-    };
-
-    const result = await handler(event);
-    const statusCode = Number(result?.statusCode || 200);
-    const responseHeaders = result?.headers || {};
-    for (const [key, value] of Object.entries(responseHeaders)) {
-      if (value != null) {
-        res.setHeader(key, String(value));
-      }
-    }
-    res.statusCode = statusCode;
-    res.end(result?.body || '');
-  } catch (err) {
-    console.error('Dev server request failed:', err);
-    res.statusCode = 500;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ error: 'Internal server error' }));
-  }
-});
-
-server.listen(port, '0.0.0.0', () => {
-  console.log(`Volcano dev server listening on http://127.0.0.1:${port}`);
-});
-```
-
-The simulator reads a Bearer JWT, decodes the claims (no signature verification — local dev only), and populates `__volcano_auth` so the route dispatcher behaves the same way it will in production. PORT env var defaults to 3000.
-
-### `src/migrations/20200101000000_init.sql` — baseline (REQUIRED)
-```sql
--- Baseline migration for Volcano scaffold.
-create extension if not exists pgcrypto;
-```
-
-### `.env.example`
+**`volcano/volcano.env.example`** (committed for documentation):
 ```env
-# Volcano SDK
 VOLCANO_API_URL=https://api.volcano.dev
 VOLCANO_ANON_KEY=your-anon-key
-VOLCANO_DB_NAME=your-db-name
+VOLCANO_DATABASE=app
 
-# Optional: service key for admin operations (bypasses RLS); SERVER-ONLY.
-# VOLCANO_SERVICE_KEY=sk-your-service-key
+# Custom secrets (add as needed)
+# STRIPE_SECRET_KEY=sk-...
 ```
 
-### `.gitignore`
-```
-node_modules/
-dist/
-.env
-.env.local
-*.js.map
-*.d.ts.map
-.DS_Store
-.vscode/
-.idea/
-*.log
-deployment.zip
-```
+Never hardcode secrets in handler code. Never use `DATABASE_URL` — all data access goes through the Volcano SDK client.
 
-## Migration Conventions
-- **Filename:** `YYYYMMDDhhmmss_description.sql` — UTC timestamp, snake_case description.
-- **Location:** `src/migrations/` (no subdirectories).
+## Migrations & Row-Level Security
+
+### Migration conventions
+- **Location:** `volcano/migrations/` (no subdirectories).
+- **Filename:** `NNN_description.sql` — numeric prefix for alphabetical ordering (e.g., `001_init.sql`, `002_add_posts.sql`). Ordering is alphabetical; the numeric prefix is a convention, not enforced.
+- **Idempotency:** use `CREATE TABLE IF NOT EXISTS`, `DROP POLICY IF EXISTS` before `CREATE POLICY`, and `CREATE OR REPLACE FUNCTION`.
 - **Atomicity:** wrap multi-statement migrations in `BEGIN; ... COMMIT;`.
-- **RLS helpers:** the Volcano runtime pre-creates `uid()`, `email()`, `role()` functions in the project schema — they read JWT claim session vars (`request.jwt.claim.sub`, etc.) set by the request pipeline. Use them directly in `USING` and `WITH CHECK` clauses.
 
-### Canonical RLS migration shape
+**Deploy:**
+```sh
+volcano migrations deploy --all -d app
+```
+
+### Auth helper functions
+
+Volcano automatically installs these SQL helper functions in **every project database** (source: `volcano-hosting/internal/database/auth_helpers.go`). They read JWT claims from PostgreSQL session variables set by the request pipeline.
+
+| Helper | Session variable | Returns |
+|---|---|---|
+| `auth.uid()` | `request.jwt_sub` | `UUID` — authenticated user's id (or NULL) |
+| `auth.email()` | `request.jwt_email` | `TEXT` — authenticated user's email |
+| `auth.role()` | `request.jwt_role` | `TEXT` — `'authenticated'`, `'anon'`, etc. |
+| `auth.is_authenticated()` | (derived) | `BOOLEAN` — `auth.uid() IS NOT NULL` |
+
+**Important:** the schema prefix `auth.` is required. Write `auth.uid()`, not bare `uid()`.
+
+### Canonical migration with RLS
+
 ```sql
--- Migration: Enable Row Level Security
+-- 001_init.sql
+CREATE TABLE IF NOT EXISTS posts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL DEFAULT auth.uid(),
+    title TEXT NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'draft',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS posts_user_id_idx ON posts(user_id);
+CREATE INDEX IF NOT EXISTS posts_created_at_idx ON posts(created_at DESC);
+
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY posts_select_published ON posts
-    FOR SELECT
-    USING (published = TRUE);
-
+DROP POLICY IF EXISTS posts_select_own ON posts;
 CREATE POLICY posts_select_own ON posts
-    FOR SELECT
-    USING (user_id = uid());
+    FOR SELECT USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS posts_insert_own ON posts;
 CREATE POLICY posts_insert_own ON posts
-    FOR INSERT
-    WITH CHECK (user_id = uid());
+    FOR INSERT WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS posts_update_own ON posts;
 CREATE POLICY posts_update_own ON posts
-    FOR UPDATE
-    USING (user_id = uid());
+    FOR UPDATE USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS posts_delete_own ON posts;
 CREATE POLICY posts_delete_own ON posts
-    FOR DELETE
-    USING (user_id = uid());
+    FOR DELETE USING (user_id = auth.uid());
 ```
 
-### User-table convention
-When the project needs an application-side `users` table (profile data linked to Volcano auth):
-```sql
-CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY,  -- Matches Volcano auth user_id
-    email VARCHAR(255) NOT NULL,
-    display_name VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-The `id` column is the same UUID as `event.__volcano_auth.user_id` and matches `uid()` in RLS policies. Never assign your own ids — always use the auth user_id.
+For public-read patterns, add a policy with `USING (status = 'published')` alongside the owner policies.
 
-## Adding a New Route Handler
+## volcano-config.yaml
 
-1. **Create the handler file** at `src/api/<feature>.ts`:
-```ts
-import { json, type ApiResponse, type LambdaAuth, type LambdaEvent } from '../shared/http';
-import { createClient } from '../shared/client';
+Declarative configuration for storage buckets, storage policies, and function visibility. Deployed via `volcano config deploy`. Located at `volcano/volcano-config.yaml` or root `volcano-config.yaml`.
 
-export async function listPosts(_event: LambdaEvent, auth?: LambdaAuth): Promise<ApiResponse> {
-  const volcano = createClient(auth);
-  const { data, error } = await volcano.from('posts').select('*');
-  if (error) return json(500, { error: error.message });
-  return json(200, { items: data ?? [] });
-}
-```
-
-2. **Register in `src/api/index.ts`:**
-```ts
-import { listPosts } from './posts';
-
-const routes: RouteMap = {
-  GET: {
-    '/health': getHealth,
-    '/posts': listPosts,   // <-- add
-  },
-};
-```
-
-3. **Add to `openapi.yaml`** with an `operationId`:
+**Schema** (source: `volcano-cli/internal/projectconfig/manifest.go`):
 ```yaml
-paths:
-  /posts:
-    get:
-      operationId: listPosts
-      summary: List posts
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  items:
-                    type: array
-                    items:
-                      type: object
+version: 1                          # required — only version 1 is supported
+
+buckets:                            # optional — storage buckets and policies
+  - name: avatars
+    file_size_limit: 5242880        # optional — bytes
+    allowed_mime_types:             # optional — MIME list
+      - image/jpeg
+      - image/png
+    policies:
+      - name: owner-read-write
+        operation: SELECT           # SELECT, INSERT, UPDATE, or DELETE
+        definition: "auth.uid() IS NOT NULL"
+
+functions:                          # optional — function visibility
+  - name: notes-summary
+    public: false                   # required — boolean
+  - name: health-check
+    public: true
 ```
 
-4. **If the route should be public** (no auth required), add it to the `publicRoutes` allowlist in `src/api/index.ts`:
-```ts
-const publicRoutes = {
-  GET: {
-    '/health': true,
-    '/posts': true,
-  },
-};
+**Validation rules:**
+- `version: 1` is required.
+- At least one bucket or function must be declared.
+- Each policy `operation` must be `SELECT`, `INSERT`, `UPDATE`, or `DELETE`.
+- Each function must have `public` set (boolean).
+- Function visibility can also be set imperatively via `volcano cloud functions update --public` / `--private`.
+
+`functions deploy` does **not** read `volcano-config.yaml` — visibility is reconciled separately via `config deploy`.
+
+## Deploy & Local-Dev Workflow
+
+### Local development
+```sh
+volcano start                       # start local Volcano stack (API, DB, functions runtime)
 ```
-Default behavior: routes NOT in `publicRoutes` return 401 when `event.__volcano_auth` is missing.
+The local stack reads `volcano/volcano.env` for environment variables. Functions can be invoked locally through the local API endpoint.
 
-5. **Use extensionless TypeScript imports.** Write `from '../shared/http'`, never `from '../shared/http.ts'`.
+### Local deploy sequence
+```sh
+# 1. Build function output (Model B only — skip for native JS)
+npm run build:functions
 
-## Optional Frontend (`web/`)
-Materialize the `web/` tree only when the project actually needs a frontend.
+# 2. Deploy environment variables
+volcano variables deploy
 
-### `web/package.json`
-```json
-{
-  "name": "volcano-web",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev --hostname 0.0.0.0 --port 3000",
-    "build": "next build",
-    "start": "next start"
-  },
-  "dependencies": {
-    "@volcano.dev/sdk": "latest",
-    "next": "^15.3.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.10.2",
-    "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
-    "typescript": "^5.7.2"
-  }
-}
+# 3. Deploy functions from volcano/functions/
+volcano functions deploy --all
+
+# 4. Reconcile buckets, policies, and function visibility
+volcano config deploy
+
+# 5. Apply database migrations
+volcano migrations deploy --all -d app
 ```
 
-### `web/next.config.ts`
-```ts
-import type { NextConfig } from 'next';
+### Cloud deploy (requires `volcano login` + `volcano use`)
+```sh
+# 1. Build function output (Model B only — skip for native JS)
+npm run build:functions
 
-const nextConfig: NextConfig = {};
+# 2. Deploy environment variables
+volcano cloud variables deploy
 
-export default nextConfig;
+# 3. Deploy functions from volcano/functions/
+volcano cloud functions deploy --all
+
+# 4. Reconcile buckets, policies, and function visibility
+volcano cloud config deploy
+
+# 5. Apply database migrations
+volcano cloud migrations deploy --all -d app
 ```
 
-### `web/tsconfig.json`
-```json
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "incremental": true,
-    "paths": { "@/*": ["./*"] }
-  },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules"]
-}
-```
-
-### `web/lib/volcano.ts` — shared client (canonical pattern)
-```ts
-import { VolcanoAuth } from '@volcano.dev/sdk';
-
-let volcano: VolcanoAuth | null = null;
-
-export function getVolcano(): VolcanoAuth {
-  if (!volcano) {
-    volcano = new VolcanoAuth({
-      apiUrl: process.env.NEXT_PUBLIC_VOLCANO_API_URL!,
-      anonKey: process.env.NEXT_PUBLIC_VOLCANO_ANON_KEY!,
-    });
-    volcano.database(process.env.NEXT_PUBLIC_VOLCANO_DATABASE_NAME!);
-  }
-  return volcano;
-}
-```
-Use `getVolcano()` everywhere; never `new VolcanoAuth(...)` in components.
-
-### `web/types/volcano-sdk.d.ts` — type stub (mirrors backend)
-```ts
-declare module '@volcano.dev/sdk' {
-  export type User = any;
-  export type Session = any;
-
-  export class VolcanoAuth {
-    constructor(config: { apiUrl: string; anonKey: string; accessToken?: string });
-    initialize(): Promise<any>;
-    database(name: string): this;
-    from(table: string): any;
-    auth: any;
-    storage: any;
-    functions: any;
-  }
-}
-
-declare module '@volcano.dev/sdk/next/middleware' {
-  export function createServerClient(config: any): any;
-  export function withAuth(request: any, client: any): Promise<any>;
-  export function getTokenFromRequest(request: any): string | null;
-}
-
-declare module '@volcano.dev/sdk/realtime' {
-  export class VolcanoRealtime {
-    constructor(config: any);
-    [key: string]: any;
-  }
-}
-```
-
-### `web/.env.local`
-```env
-NEXT_PUBLIC_VOLCANO_API_URL=https://api.yourproject.volcano.dev
-NEXT_PUBLIC_VOLCANO_ANON_KEY=ak-your-anon-key
-NEXT_PUBLIC_VOLCANO_DATABASE_NAME=your-database
-```
-
-### `openapi.yaml` `x-pages` — frontend page registration
-For each frontend page, add an entry to `x-pages` in `openapi.yaml`:
-```yaml
-x-pages:
-  /:
-    summary: Home page
-    file: web/app/page.tsx
-    auth: false
-  /dashboard:
-    summary: User dashboard
-    file: web/app/dashboard/page.tsx
-    auth: true
-```
-Each entry is an object with `summary`, `file`, and `auth`. Do NOT put API routes here — those go in `paths`.
-
-For deeper Next.js patterns (AuthProvider, middleware, server actions, OAuth), see the `volcano_nextjs` skill.
-
-## Required Environment Variables
-
-**Server-side (function runtime, populated by Volcano hosting):**
-- `VOLCANO_API_URL` — Volcano API endpoint
-- `VOLCANO_ANON_KEY` — public anon key
-- `VOLCANO_DB_NAME` — database name
-
-**Optional, server-side only:**
-- `VOLCANO_SERVICE_KEY` — service key (`sk-...`) for admin operations bypassing RLS. The SDK throws if a service key is used in browser code.
-
-**Frontend (NEXT_PUBLIC_ prefix exposes to the browser):**
-- `NEXT_PUBLIC_VOLCANO_API_URL`
-- `NEXT_PUBLIC_VOLCANO_ANON_KEY`
-- `NEXT_PUBLIC_VOLCANO_DATABASE_NAME`
-
-The two namespaces are intentional. Never mix `NEXT_PUBLIC_*` into function code or `VOLCANO_*` (without prefix) into browser code.
-
-## Build, Dev, Deploy Workflow
-- `npm install` — install deps (run once after bootstrap).
-- `npm run typecheck` — TS validation only (no emit).
-- `npm run build` — typecheck + esbuild bundle to `dist/index.js`.
-- `npm run dev` — build + start dev server on `:3000`.
-- `npm run clean` — remove `dist/`.
-
-The deploy artifact is `dist/index.js`. Volcano hosting picks it up as the function source. Migrations under `src/migrations/` are applied to the project database in filename order.
-
-### Bootstrap sequence (zero-to-deployable)
-For an external harness (e.g., Claude Code) starting from an empty directory:
-1. (Optional) Run `volcano init` to create the `volcano/` runtime skeleton (env files, migrations dir; `volcano-config.yaml` only with the `javascript` template). Then create the application directory tree above.
-2. Write `package.json`, `tsconfig.json`, `openapi.yaml`, `.env.example`, `.gitignore`.
-3. Write `src/api/index.ts`, `src/shared/http.ts`, `src/shared/client.ts`, `src/shared/volcano-sdk.d.ts`.
-4. Write `scripts/dev-server.mjs`.
-5. Write `src/migrations/20200101000000_init.sql`.
-6. (If frontend requested) Write the `web/` tree with `web/package.json`, `web/tsconfig.json`, `web/next.config.ts`, `web/lib/volcano.ts`, `web/app/layout.tsx`, `web/app/page.tsx`, `web/app/globals.css`, `web/types/volcano-sdk.d.ts`.
-7. Run `npm install` in repo root (and `cd web && npm install` if web/).
-8. Run `npm run build` — must produce `dist/index.js` cleanly.
-9. Run `node scripts/dev-server.mjs` and verify `curl http://localhost:3000/health` returns `{"status":"ok",...}`.
-10. Implement requested features by adding files under `src/api/`, registering in `routes`, and updating `openapi.yaml`.
+**Order matters:** variables before functions (so handlers have env vars on first deploy), config after functions (so visibility targets exist), migrations last (schema is ready for runtime queries).
 
 ## Forbidden Patterns
-- Do NOT use `default` export from `src/api/index.ts` — must be `export const handler`.
-- Do NOT use CommonJS (`module.exports`, `require`) in function code — `"type": "module"` enforces ESM.
-- Do NOT import from `pg`, `pg-pool`, or any direct Postgres driver — all data access goes through the Volcano SDK.
-- Do NOT use `DATABASE_URL` env var — use `VOLCANO_DB_NAME` and the SDK.
+- Do NOT create an `src/api/index.ts` route dispatcher or `openapi.yaml` — Volcano Functions deploy individually from `volcano/functions/`, not through a single entry point.
+- Do NOT expect `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, or `VOLCANO_DATABASE` to be auto-injected — define them as project variables via `volcano variables deploy` (local) or `volcano cloud variables deploy` (cloud).
+- Do NOT use `VOLCANO_DB_NAME` — the canonical variable is `VOLCANO_DATABASE`.
+- Do NOT use bare `uid()`, `email()`, `role()` — always use the `auth.` schema prefix: `auth.uid()`, `auth.email()`, `auth.role()`.
+- Do NOT use `pg`, `pg-pool`, or any direct Postgres driver — all data access goes through the Volcano SDK client.
+- Do NOT use `DATABASE_URL` env var — use `VOLCANO_DATABASE` and the SDK client.
 - Do NOT use `jsonwebtoken` or `bcryptjs` directly — Volcano Auth handles tokens and password hashing.
-- Do NOT put backend code outside `src/api/` and `src/shared/`.
-- Do NOT put frontend code anywhere except `web/`. Never `frontend/`.
-- Do NOT add API routes to `x-pages` (frontend-only) or frontend pages to `paths` (API-only).
-- Do NOT use `.ts`/`.tsx` extensions in TypeScript imports — extensionless relative imports only (`from '../shared/http'`).
-- Do NOT skip `operationId` on any OpenAPI operation — validation rejects it.
-- Do NOT mix `NEXT_PUBLIC_*` env vars into function/server code, or `VOLCANO_*` (un-prefixed) into browser code.
-- Do NOT replace the route dispatcher with a third-party framework (Express, Hono, etc.) — the canonical dispatcher is what platform tooling expects.
-- Do NOT skip the baseline `20200101000000_init.sql` migration — `pgcrypto` is assumed available downstream.
+- Do NOT assume `__volcano_auth` is always present — it is injected only when the payload is an object and the request carries a valid token.
+- Do NOT expect `volcano functions deploy` to run your build — built `.js` files must exist under `volcano/functions/` on disk before deploy.
 
 ## Verification Checklist
-- `package.json` has `"type": "module"`, `"main": "dist/index.js"`, and the `build`/`dev`/`typecheck` scripts.
-- `src/api/index.ts` exports `handler` (named, not default) and routes through the dispatcher pattern.
-- `openapi.yaml` exists at root with `BearerAuth` security scheme; every operation has an `operationId`; `x-pages` is present (`{}` if no frontend).
-- `src/shared/http.ts` defines `LambdaEvent`, `LambdaAuth`, `ApiResponse`, and the `json()` helper.
-- `src/shared/client.ts` exports `createClient(auth)` and uses `requireEnv` for the three Volcano env vars.
-- `scripts/dev-server.mjs` exists and imports `handler` from `../dist/index.js`.
-- `src/migrations/20200101000000_init.sql` exists and creates the `pgcrypto` extension.
-- All TypeScript imports are extensionless.
-- `npm run build` produces `dist/index.js` without errors.
-- `node scripts/dev-server.mjs` listens on `:3000`; `GET /health` returns `200 {"status":"ok",...}`.
-- (If web/) `web/lib/volcano.ts` exports `getVolcano()` using `NEXT_PUBLIC_*` env vars; pages import from there, not `new VolcanoAuth(...)` directly.
+- Function handlers exist under `volcano/functions/` and each exports `handler`.
+- Shared code uses `_`-prefix directories (`_shared/`, `_lib/`).
+- `volcano/migrations/` contains `.sql` files with numeric-prefix alphabetical naming.
+- RLS policies use `auth.uid()` (with schema prefix), not bare `uid()`.
+- `volcano-config.yaml` (if present) has `version: 1` and declares at least one bucket or function.
+- Environment variables are deployed via `volcano variables deploy` (local) or `volcano cloud variables deploy` (cloud) — not assumed auto-injected.
+- `VOLCANO_DATABASE` is used (not `VOLCANO_DB_NAME`).
+- If using the build model: `npm run build:functions` produces `.js` files under `volcano/functions/` before deploy.
+- No `src/api/`, `openapi.yaml`, `dist/index.js`, or `dev-server.mjs` in the project.
 
 ## Companion Skills
-This skill defines the platform contract. For SDK-level guidance, invoke the relevant domain skill:
-- `volcano_sdk` — top-level orientation
-- `volcano_auth`, `volcano_database`, `volcano_functions`, `volcano_storage`, `volcano_realtime`, `volcano_nextjs` — per-domain APIs and patterns
+This skill defines the platform deploy contract. For domain-specific guidance:
+- `volcano_sdk` — top-level orientation and skill router.
+- `volcano_functions` — handler templates, invocation contract, user context, error handling.
+- `volcano_auth`, `volcano_database`, `volcano_storage`, `volcano_realtime` — per-domain APIs and patterns.
+- `volcano_nextjs` — Next.js frontend patterns (AuthProvider, middleware, server actions).
+- `volcano_typescript` — canonical TypeScript type definitions.
+- `volcano_error_handling` — reusable error-handling infrastructure.

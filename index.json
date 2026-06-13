@@ -28,7 +28,7 @@
     },
     {
       "name": "volcano-platform",
-      "description": "Canonical project shape, Volcano Functions runtime contract, build pipeline, and required canonical files for any Volcano-Hosting-deployable codebase. Self-contained for use without the volcano-standard scaffold.",
+      "description": "Canonical Volcano project shape and deploy contract: the volcano/functions/ model, migrations, volcano-config.yaml, env vars, shared-code conventions, and the build/deploy workflow.",
       "path": "/skills/volcano-platform/SKILL.md"
     },
     {

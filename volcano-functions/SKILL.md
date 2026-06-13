@@ -84,7 +84,7 @@ function createClient(auth?: { access_token?: string }): VolcanoAuth {
     anonKey: process.env.VOLCANO_ANON_KEY!,
     accessToken: auth?.access_token,
   });
-  volcano.database(process.env.VOLCANO_DB_NAME!);
+  volcano.database(process.env.VOLCANO_DATABASE!);
   return volcano;
 }
 
@@ -202,9 +202,17 @@ exports.handler = async (event) => {
 ```
 
 ## Environment Variables
-Set in the Volcano dashboard. Always available inside the handler:
-- Volcano: `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, `VOLCANO_DB_NAME`.
-- Custom (any name): `STRIPE_SECRET_KEY`, `SENDGRID_API_KEY`, etc.
+Functions receive **only user-defined project variables**. Volcano does not auto-inject any variables — you must deploy them yourself:
+```sh
+volcano variables deploy           # local
+volcano cloud variables deploy     # cloud (requires volcano login + volcano use)
+```
+This reads from `volcano/volcano.env` and sets project-scoped variables available to all functions at runtime.
+
+**Canonical names** (the shared client factory expects these):
+- `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, `VOLCANO_DATABASE` (defaults to `'app'`).
+
+**Custom secrets** (any name): `STRIPE_SECRET_KEY`, `SENDGRID_API_KEY`, etc.
 
 Never hardcode secrets in code.
 

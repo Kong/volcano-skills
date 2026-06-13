@@ -8,12 +8,12 @@ description: Entrypoint and router for Volcano SDK work. Pair with volcano_platf
 This skill is the **entrypoint and router** for Volcano SDK work. It is intentionally slim: it tells you the mandatory rules that apply to every Volcano build, and which OTHER volcano_* skill to invoke based on the task at hand. Don't try to do deep work from this skill alone — invoke the relevant domain skill(s) first.
 
 ## Mandatory Pairing — `volcano_platform`
-**Always read `volcano_platform` alongside this skill.** It covers the canonical project shape, Volcano Functions runtime contract, build pipeline, and required files (package.json, tsconfig, openapi.yaml, src/api/index.ts dispatcher, src/shared/{http,client,volcano-sdk.d}, dev-server, baseline migration). Without `volcano_platform` you cannot produce a deployable codebase.
+**Always read `volcano_platform` alongside this skill.** It covers the canonical project shape, function deployment model (`volcano/functions/`), migrations, `volcano-config.yaml`, environment variables, shared-code conventions, and the deploy workflow. Without `volcano_platform` you cannot produce a deployable codebase.
 
 If `volcano_platform` content is not visible in your context, invoke it first:
 `action: "invoke", skill_id: "volcano_platform"`.
 
-**Note:** `volcano init` creates a minimal runtime skeleton (`volcano/` dir with env files, migrations, and — for language templates — a starter handler and config). The full application layout described in `volcano_platform` is built on top of that skeleton by following the skill. Do not expect `volcano init` to produce the complete project structure.
+**Note:** `volcano init` creates a minimal runtime skeleton (`volcano/` dir with env files, migrations, and — for language templates — a starter handler and config). Build on top of that skeleton by following `volcano_platform`. Do not expect `volcano init` to produce the complete project structure.
 
 ## Mandatory Usage (volcano-standard template)
 When building on the Volcano platform you MUST use:
@@ -37,7 +37,7 @@ Do NOT implement custom alternatives — no custom JWT auth, no ad-hoc database 
 | Next.js: client components, AuthProvider, middleware (`createServerClient`/`withAuth`), App/Pages router API routes, server actions, Cookie Sync (required for Server Actions) | `volcano_nextjs` | Cross-cutting Next.js patterns including the cookie-sync prerequisite |
 | TypeScript types — `User`, `Session`, `AuthResponse`, `QueryBuilder<T>`, `StorageObject`, `PostgresChange`, `PresenceState`, `JsonValue`, etc. | `volcano_typescript` | Canonical type definitions for every SDK surface |
 | Loading/error/data state, `useApiCall<T>` hook, `fetchWithRetry` with backoff, centralized `handleApiError` dispatcher | `volcano_error_handling` | Reusable error-handling INFRASTRUCTURE (per-domain error MESSAGES live in the relevant domain skill) |
-| Project shape, build pipeline, Volcano Functions runtime contract, required files, migration filename convention, RLS helpers (`uid()`/`email()`/`role()`) | `volcano_platform` | Already mandatory — see "Mandatory Pairing" above |
+| Project shape, function deployment model, migrations, `volcano-config.yaml`, env vars, deploy workflow, RLS helpers (`auth.uid()`/`auth.email()`/`auth.role()`) | `volcano_platform` | Already mandatory — see "Mandatory Pairing" above |
 
 ### How to use the router
 1. Read the user's request and identify which task signal(s) match.
@@ -65,13 +65,13 @@ These apply to every Volcano build, regardless of which domain skills are loaded
 - Do NOT use `jsonwebtoken` directly — use Volcano Auth.
 - Do NOT use `bcryptjs` directly — use Volcano Auth's password handling.
 - Do NOT import from `pg`, `pg-pool`, or any direct Postgres driver — all data access goes through `volcano.from(...)`.
-- Do NOT use a `DATABASE_URL` env var — use `VOLCANO_DB_NAME` plus the SDK.
+- Do NOT use a `DATABASE_URL` env var — use `VOLCANO_DATABASE` plus the SDK.
 - Do NOT mix `NEXT_PUBLIC_*` env vars into function/server code, or `VOLCANO_*` (un-prefixed) into browser code.
 - Do NOT place service keys (`sk-*`) in browser code — the SDK throws if you do.
-- Do NOT use `default` export from `src/api/index.ts` — must be `export const handler`.
+- Do NOT expect `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, or `VOLCANO_DATABASE` to be auto-injected into functions — deploy them via `volcano variables deploy` (local) or `volcano cloud variables deploy` (cloud).
 - Do NOT skip `await volcano.initialize()` before user-scoped flows in the browser.
 - Do NOT use `.ts`/`.tsx` extensions in TypeScript imports — extensionless relative imports only.
-- Do NOT add API routes to `x-pages` or frontend pages to `paths` in `openapi.yaml`.
+- Do NOT use bare `uid()` in RLS policies — always use the schema-qualified `auth.uid()`.
 
 For the deeper context behind any of these (why and what to do instead), the relevant domain skill or `volcano_platform` covers it.
 
@@ -79,7 +79,7 @@ For the deeper context behind any of these (why and what to do instead), the rel
 At the end of each Volcano build response:
 1. **Summarize affected domains** — which volcano_* areas were touched (auth/database/functions/storage/realtime/nextjs).
 2. **Summarize dependency / env / init changes** — new packages, env vars added, init order changes.
-3. **Report validation results** — what you ran (`npm run typecheck`, `npm run build`, `dev-server.mjs` health check), what passed, what couldn't be run, and any remaining risk.
+3. **Report validation results** — what you ran (`npm run typecheck`, `npm run build:functions`, local stack health check), what passed, what couldn't be run, and any remaining risk.
 
 ## Companion Skills (full inventory)
 Always available; invoke as needed:
