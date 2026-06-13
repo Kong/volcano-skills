@@ -453,9 +453,9 @@ type UserMetadata = Record<string, JsonValue>;
 ## Best Practices
 
 ### Define your data models once
-Centralize entity types in `src/shared/types.ts` (or similar) and import them everywhere they're used:
+Centralize entity types in one application-owned shared model file and import them everywhere they're used. In the canonical `web/` frontend this lives under `web/types/` (e.g. `web/types/models.ts`); in a non-web app, use that app's existing shared types path instead of creating `web/` just for types.
 ```ts
-// src/shared/types.ts
+// web/types/models.ts, or your existing shared application types path
 export interface User {
   id: string;
   email: string;
@@ -542,5 +542,5 @@ channel.onPostgresChanges('INSERT', 'public', 'posts', (change) => {
 
 ## Companion Skills
 - `volcano_sdk` — top-level orientation and mandatory usage.
-- `volcano_platform` — project shape, Lambda contract, build pipeline.
+- `volcano_platform` — project shape, Volcano Functions runtime contract, build pipeline.
 - Domain skills (`volcano_auth`, `volcano_database`, `volcano_functions`, `volcano_storage`, `volcano_realtime`, `volcano_nextjs`) — pair with this skill when implementing.

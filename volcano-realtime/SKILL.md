@@ -340,4 +340,3 @@ try {
 - Dependencies: `centrifuge` is present; `ws` only when Node-side realtime is used.
 
 ## Optional Fallback Reference
-- `http://localhost:9000/docs/sdk/realtime.md`

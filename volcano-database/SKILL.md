@@ -274,4 +274,3 @@ export const handler = async (event: { __volcano_auth?: { access_token?: string 
 - Functions doing persistence use a request-scoped client built from `event.__volcano_auth`.
 
 ## Optional Fallback Reference
-- `http://localhost:9000/docs/sdk/database.md`

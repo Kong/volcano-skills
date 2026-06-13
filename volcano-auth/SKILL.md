@@ -47,7 +47,7 @@ if (error) {
 ```ts
 const { user, session, error } = await volcano.auth.signIn({ email, password });
 if (error) {
-  if (error.message.includes('Invalid credentials')) /* wrong creds */;
+  if (error.message.includes('invalid email or password')) /* wrong creds */;
   else if (error.message.includes('email not confirmed')) /* prompt confirm */;
   else if (error.message.includes('too many attempts')) /* rate-limited */;
   return;
@@ -216,7 +216,7 @@ await volcano.auth.deleteAllOtherSessions();
 |---|---|---|
 | `already exists` | Email taken on sign up | Prompt sign in |
 | `weak password` | Password too weak | Show strength rules |
-| `Invalid credentials` | Wrong email/password | Re-prompt |
+| `invalid email or password` | Wrong email/password | Re-prompt |
 | `email not confirmed` | Verification pending | Show resend UI |
 | `too many attempts` | Rate-limited | Back off and inform user |
 | `No active session` | User not logged in | Send to login |
@@ -226,9 +226,8 @@ await volcano.auth.deleteAllOtherSessions();
 - Session restore (`volcano.initialize()`) is wired at app startup.
 - `onAuthStateChange` listener has a paired `unsubscribe()` on teardown.
 - OAuth methods are only called from browser contexts.
-- Invalid credentials and provider errors are handled with user-facing messages.
+- Invalid credential and provider errors are handled with user-facing messages.
 - No service/secret keys are exposed in browser code.
 - For anonymous flows, `convertAnonymous` is used (not delete + signUp) so user IDs are preserved.
 
 ## Optional Fallback Reference
-- `http://localhost:9000/docs/sdk/authentication.md`

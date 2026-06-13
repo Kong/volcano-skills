@@ -28,7 +28,8 @@ Realtime is the one exception: `await channel.subscribe()` may throw, and `realt
 The single most useful primitive: a function that maps a raw error to a `{ message, action }` pair where `action` is a small enum. This decouples error MEANING from error PRESENTATION.
 
 ```ts
-// src/shared/errors.ts
+// Place next to the UI code: web/lib/errors.ts for a web/ frontend,
+// or the existing shared UI helper path for a non-web app.
 export type ErrorAction =
   | 'redirect_login'
   | 'show_error'
@@ -163,7 +164,8 @@ The pattern: render-as-state (loading/error/data), and the hook moves you betwee
 For transient failures (timeouts, network blips, brief rate limits), wrap the call in `fetchWithRetry`. Note the explicit allowlist of NON-retryable errors — re-trying `permission denied` or `not found` will never succeed and just delays user feedback.
 
 ```ts
-// src/shared/retry.ts
+// Place next to the UI code: web/lib/retry.ts for a web/ frontend,
+// or the existing shared UI helper path for a non-web app.
 type ApiResult<T> = { data: T | null; error: Error | null };
 
 export async function fetchWithRetry<T>(
@@ -287,7 +289,7 @@ Each domain skill includes domain-specific error messages. This skill is the cro
 
 | Domain | Skill | Common error messages |
 |---|---|---|
-| Auth | `volcano_auth` | `Invalid credentials`, `email not confirmed`, `already exists`, `weak password`, `too many attempts` |
+| Auth | `volcano_auth` | `invalid email or password`, `email not confirmed`, `already exists`, `weak password`, `too many attempts` |
 | Database | `volcano_database` | `column does not exist`, `permission denied`, `No active session`, `Database name not set`, `violates unique constraint` |
 | Functions | `volcano_functions` | `Function not found`, `timeout`, `rate limit`, `Internal server error` (or business-logic `data.error`) |
 | Storage | `volcano_storage` | `No active session`, `Bucket not found`, `File not found`, `File too large`, `permission denied`, `invalid file type` |
@@ -350,7 +352,7 @@ setData(data);
 `useApiCall` does this for you automatically.
 
 ## Verification Checklist
-- A single `handleApiError` (or equivalent) lives in `src/shared/errors.ts` (or similar) and is used everywhere.
+- A single `handleApiError` (or equivalent) lives next to the UI code (`web/lib/errors.ts` for a `web/` frontend, or the existing shared UI helper path otherwise) and is used everywhere.
 - The action enum is small and exhaustive (`redirect_login`, `show_error`, `retry`, `wait`) — no per-component string actions.
 - Components use `useApiCall<T>` for fetched data, not bespoke `useState({loading, error, data})`.
 - `fetchWithRetry` is wrapped around reads only, OR mutations are designed idempotent.

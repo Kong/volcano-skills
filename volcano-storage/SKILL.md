@@ -295,4 +295,3 @@ URL.revokeObjectURL(url);
 - No path uses random tokens without semantic prefix.
 
 ## Optional Fallback Reference
-- `http://localhost:9000/docs/sdk/storage.md`

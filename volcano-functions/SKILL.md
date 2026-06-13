@@ -49,16 +49,17 @@ const { data, status, version, error } = await volcano.functions.invoke('health-
 
 ## User Context
 Functions automatically receive the caller's identity in `event.__volcano_auth`:
-- `auth.access_token` — JWT for downstream Volcano calls.
 - `auth.user_id` — the authenticated user's id.
 - `auth.email` — the user's email.
 - `auth.role` — the user's role (if set).
+- `auth.project_id` — the project this user is acting in.
+- `auth.access_token` — server-injected bearer token; use to call other Volcano APIs on the user's behalf.
 
 If `__volcano_auth` is absent, the request is unauthenticated.
 
 ## Handler Templates
 
-Volcano Functions follow the AWS Lambda response shape: handlers return `{ statusCode, body, headers? }` where `body` is a string. Use `JSON.stringify(...)` to encode JSON responses.
+Volcano Functions return a standard response shape: handlers return `{ statusCode, body, headers? }` where `body` is a string. Use `JSON.stringify(...)` to encode JSON responses.
 
 ### Basic handler
 ```js
@@ -222,5 +223,3 @@ Never hardcode secrets in code.
 - Input is validated; auth check fires before any side effects.
 
 ## Optional Fallback References
-- `http://localhost:9000/docs/sdk/functions.md`
-- `http://localhost:9000/docs/sdk/database.md`

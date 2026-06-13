@@ -481,5 +481,3 @@ export default function AuthCallbackPage() {
 - Realtime is wrapped in a Client Component with proper cleanup.
 
 ## Optional Fallback References
-- `http://localhost:9000/docs/sdk/nextjs.md`
-- `http://localhost:9000/docs/sdk/authentication.md`

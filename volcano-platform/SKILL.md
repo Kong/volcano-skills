@@ -1,6 +1,6 @@
 ---
 name: volcano-platform
-description: Canonical project shape, Lambda runtime contract, build pipeline, and required canonical files for any Volcano-Hosting-deployable codebase. Self-contained for use without the volcano-standard scaffold.
+description: Canonical project shape, Volcano Functions runtime contract, build pipeline, and required canonical files for any Volcano-Hosting-deployable codebase. Self-contained for use without the volcano-standard scaffold.
 ---
 # Volcano Platform Contract Skill
 
@@ -9,43 +9,48 @@ This skill is the **mandatory companion** to `volcano_sdk`. The two together cov
 
 ## Relationship to `volcano init`
 
-`volcano init` creates a minimal CLI runtime skeleton that the CLI needs to operate:
+`volcano init` (from the Volcano CLI) creates a minimal runtime skeleton in a `volcano/` directory. With no template it creates only the base scaffold:
 
 ```
 volcano/                        # Volcano-managed project directory
 volcano/.gitignore              # ignores volcano.env, .env.local, logs
-volcano/volcano.env             # local environment variables
+volcano/volcano.env             # local environment variables (gitignored)
 volcano/volcano.env.example     # env var documentation (committed)
-volcano/volcano-config.yaml     # declarative config (functions, buckets)
-volcano/functions/hello.js      # starter function handler
 volcano/migrations/             # SQL migration files
 volcano/migrations/README.md    # migration conventions
 volcano/README.md               # next-step instructions
 ```
 
-Other templates: `volcano init nextjs`, `volcano init python`, `volcano init ruby`.
-Add `--example notes` (or `--example hello-world`) for a more complete demo.
+Templates add language-specific files on top of the base scaffold:
+- `volcano init nextjs` (aliases: `next`, `next.js`, `next-js`) — adds a minimal Next.js app under `web/`.
+- `volcano init javascript` (aliases: `js`, `node`, `nodejs`) — adds a starter function handler and `volcano-config.yaml`.
+- `volcano init python` (alias: `py`) — adds a Python function handler.
+- `volcano init ruby` (alias: `rb`) — adds a Ruby function handler.
 
-This skill describes the **full application layout** to build on top of that skeleton: TypeScript Lambda backend, route dispatcher, shared client, build pipeline, migrations, and optional frontend. The two work together:
+Add `--example` for a more complete demo: `volcano init nextjs --example notes`, or `volcano init javascript|python|ruby --example hello-world`.
 
-1. **`volcano init`** — creates the CLI runtime layout (directories + config + starter function)
-2. **This skill** — guides building the application code within that layout
+Note: `volcano-config.yaml` is created only by the `javascript` template, not by the base scaffold.
+
+This skill describes the **full application layout** to build on top of that skeleton: a TypeScript backend that deploys as a Volcano Function, route dispatcher, shared client, build pipeline, migrations, and optional frontend. The two work together:
+
+1. **`volcano init`** — creates the CLI runtime layout (`volcano/` directory + config + optional starter handler).
+2. **This skill** — guides building the application code within that layout.
 
 The `volcano/` directory created by `volcano init` maps to the project layout below as follows:
-- `volcano/migrations/` is where SQL migration files go
-- `volcano/functions/` is where serverless function handlers go
-- `volcano/volcano.env` holds environment variables consumed by the SDK at runtime
-- `volcano/volcano-config.yaml` is the declarative config for function visibility, buckets, etc.
+- `volcano/migrations/` is where SQL migration files go.
+- `volcano/functions/` (from language templates) is where standalone function handlers go.
+- `volcano/volcano.env` holds environment variables consumed by the SDK at runtime.
+- `volcano/volcano-config.yaml` (javascript template only) is the declarative config for functions, buckets, etc.
 
-**Important:** The application code structure described below (src/api/, src/shared/, package.json, tsconfig.json, openapi.yaml, etc.) is created by following this skill — not by `volcano init`. Do not expect `volcano init` to produce the full application layout.
+**Important:** The application code structure described below (`src/api/`, `src/shared/`, `package.json`, `tsconfig.json`, `openapi.yaml`, etc.) is created by following this skill — not by `volcano init`. Do not expect `volcano init` to produce the full application layout.
 
 ## Role
-Defines the project shape, Lambda runtime contract, build pipeline, and required canonical files for a Volcano-Hosting-deployable codebase. This skill is **self-contained**: any IDE or agentic harness with file-write and shell capability (Claude Code, Cursor, custom agents) can use it to bootstrap a working project from zero, without relying on a scaffold templating system.
+Defines the project shape, Volcano Functions runtime contract, build pipeline, and required canonical files for a Volcano-Hosting-deployable codebase. This skill is **self-contained**: any IDE or agentic harness with file-write and shell capability (Claude Code, Cursor, custom agents) can use it to bootstrap a working project from zero, without relying on a scaffold templating system.
 
 ## When to use
 - Bootstrapping a new Volcano project from scratch.
 - Verifying an existing project still satisfies platform requirements.
-- Touching the Lambda entry point, build pipeline, shared types, route dispatcher, or migrations.
+- Touching the function entry point, build pipeline, shared types, route dispatcher, or migrations.
 - Adding a new route, migration, or frontend page (the conventions live here).
 
 ## Project Layout (canonical)
@@ -57,13 +62,13 @@ Defines the project shape, Lambda runtime contract, build pipeline, and required
 ├── .env.example                # Env documentation
 ├── .gitignore
 ├── scripts/
-│   └── dev-server.mjs          # Local HTTP→Lambda simulator (REQUIRED)
+│   └── dev-server.mjs          # Local HTTP→function simulator (REQUIRED)
 ├── src/
 │   ├── api/
-│   │   ├── index.ts            # Lambda entry; exports `handler` (REQUIRED)
+│   │   ├── index.ts            # Function entry; exports `handler` (REQUIRED)
 │   │   └── <feature>.ts        # Per-feature route handlers
 │   ├── shared/
-│   │   ├── http.ts             # Lambda event/response types + json() (REQUIRED)
+│   │   ├── http.ts             # Function event/response types + json() (REQUIRED)
 │   │   ├── client.ts           # createClient(auth) factory (REQUIRED)
 │   │   └── volcano-sdk.d.ts    # SDK type stub (REQUIRED until SDK ships its own .d.ts)
 │   └── migrations/
@@ -78,21 +83,21 @@ Defines the project shape, Lambda runtime contract, build pipeline, and required
 │   ├── app/globals.css
 │   └── types/volcano-sdk.d.ts
 └── dist/
-    └── index.js                # Build output, deployed to Lambda
+    └── index.js                # Build output, deployed as a Volcano Function
 ```
 
 **Hard rules:**
 - Backend code lives ONLY under `src/api/` and `src/shared/`.
 - Frontend code lives ONLY under `web/`. Never use `frontend/`.
 - Migrations live ONLY under `src/migrations/` with the UTC timestamp filename format.
-- Single Lambda backend entry point: `src/api/index.ts`.
+- Single function backend entry point: `src/api/index.ts`.
 
-## Lambda Runtime Contract
-- **Runtime:** AWS Lambda, Node.js 20.
+## Volcano Functions Runtime Contract
+- **Runtime:** Node.js 22.
 - **Module format:** ESM (`"type": "module"` in `package.json`).
 - **Entry point:** `src/api/index.ts` MUST export `const handler` (named, not default).
 - **Build output:** Single bundled file at `dist/index.js`.
-- **Build command:** `esbuild src/api/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js`.
+- **Build command:** `esbuild src/api/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/index.js`.
 - **Auth context:** Volcano hosting injects `event.__volcano_auth` when the request carries a valid Bearer token. Absent for unauthenticated requests.
 
 ### Event Shape (IN)
@@ -131,11 +136,11 @@ type ApiResponse = {
 {
   "name": "volcano-typescript-api",
   "version": "1.0.0",
-  "description": "Volcano Hosting Lambda backend",
+  "description": "Volcano Functions backend",
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "npm run typecheck && esbuild src/api/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js",
+    "build": "npm run typecheck && esbuild src/api/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/index.js",
     "dev": "npm run build && node scripts/dev-server.mjs",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
@@ -144,13 +149,12 @@ type ApiResponse = {
     "@volcano.dev/sdk": "latest"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.145",
     "@types/node": "^22.10.2",
     "esbuild": "^0.24.0",
     "typescript": "^5.7.2"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   }
 }
 ```
@@ -170,7 +174,7 @@ Required scripts: `build`, `dev`, `typecheck`. Required keys: `name`, `version`,
     "noEmit": true,
     "outDir": "dist",
     "lib": ["ES2022"],
-    "types": ["node", "aws-lambda"]
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["dist", "node_modules"]
@@ -218,7 +222,7 @@ x-pages: {}
 - EVERY operation MUST have an `operationId` (camelCase).
 - `x-pages` is an EXTENSION used for frontend page routes when `web/` is enabled. Each entry MUST be an object with `summary`, `file`, and `auth` fields. Do NOT add API routes to `x-pages` — those go in `paths`. Leave as `x-pages: {}` when there is no frontend.
 
-### `src/api/index.ts` — Lambda entry + route dispatcher
+### `src/api/index.ts` — function entry + route dispatcher
 ```ts
 import { json, type ApiResponse, type LambdaAuth, type LambdaEvent } from '../shared/http';
 
@@ -356,7 +360,7 @@ declare module '@volcano.dev/sdk' {
 }
 ```
 
-### `scripts/dev-server.mjs` — local HTTP→Lambda simulator
+### `scripts/dev-server.mjs` — local HTTP→function simulator
 ```js
 #!/usr/bin/env node
 
@@ -753,7 +757,7 @@ For deeper Next.js patterns (AuthProvider, middleware, server actions, OAuth), s
 
 ## Required Environment Variables
 
-**Server-side (Lambda runtime, populated by Volcano hosting):**
+**Server-side (function runtime, populated by Volcano hosting):**
 - `VOLCANO_API_URL` — Volcano API endpoint
 - `VOLCANO_ANON_KEY` — public anon key
 - `VOLCANO_DB_NAME` — database name
@@ -766,7 +770,7 @@ For deeper Next.js patterns (AuthProvider, middleware, server actions, OAuth), s
 - `NEXT_PUBLIC_VOLCANO_ANON_KEY`
 - `NEXT_PUBLIC_VOLCANO_DATABASE_NAME`
 
-The two namespaces are intentional. Never mix `NEXT_PUBLIC_*` into Lambda code or `VOLCANO_*` (without prefix) into browser code.
+The two namespaces are intentional. Never mix `NEXT_PUBLIC_*` into function code or `VOLCANO_*` (without prefix) into browser code.
 
 ## Build, Dev, Deploy Workflow
 - `npm install` — install deps (run once after bootstrap).
@@ -775,11 +779,11 @@ The two namespaces are intentional. Never mix `NEXT_PUBLIC_*` into Lambda code o
 - `npm run dev` — build + start dev server on `:3000`.
 - `npm run clean` — remove `dist/`.
 
-The deploy artifact is `dist/index.js`. Volcano hosting picks it up as the Lambda function source. Migrations under `src/migrations/` are applied to the project database in filename order.
+The deploy artifact is `dist/index.js`. Volcano hosting picks it up as the function source. Migrations under `src/migrations/` are applied to the project database in filename order.
 
 ### Bootstrap sequence (zero-to-deployable)
 For an external harness (e.g., Claude Code) starting from an empty directory:
-1. Run `volcano init` to create the CLI runtime skeleton (`volcano/` dirs, `volcano.env`, `volcano-config.yaml`).
+1. (Optional) Run `volcano init` to create the `volcano/` runtime skeleton (env files, migrations dir; `volcano-config.yaml` only with the `javascript` template). Then create the application directory tree above.
 2. Write `package.json`, `tsconfig.json`, `openapi.yaml`, `.env.example`, `.gitignore`.
 3. Write `src/api/index.ts`, `src/shared/http.ts`, `src/shared/client.ts`, `src/shared/volcano-sdk.d.ts`.
 4. Write `scripts/dev-server.mjs`.
@@ -792,7 +796,7 @@ For an external harness (e.g., Claude Code) starting from an empty directory:
 
 ## Forbidden Patterns
 - Do NOT use `default` export from `src/api/index.ts` — must be `export const handler`.
-- Do NOT use CommonJS (`module.exports`, `require`) in Lambda code — `"type": "module"` enforces ESM.
+- Do NOT use CommonJS (`module.exports`, `require`) in function code — `"type": "module"` enforces ESM.
 - Do NOT import from `pg`, `pg-pool`, or any direct Postgres driver — all data access goes through the Volcano SDK.
 - Do NOT use `DATABASE_URL` env var — use `VOLCANO_DB_NAME` and the SDK.
 - Do NOT use `jsonwebtoken` or `bcryptjs` directly — Volcano Auth handles tokens and password hashing.
@@ -801,7 +805,7 @@ For an external harness (e.g., Claude Code) starting from an empty directory:
 - Do NOT add API routes to `x-pages` (frontend-only) or frontend pages to `paths` (API-only).
 - Do NOT use `.ts`/`.tsx` extensions in TypeScript imports — extensionless relative imports only (`from '../shared/http'`).
 - Do NOT skip `operationId` on any OpenAPI operation — validation rejects it.
-- Do NOT mix `NEXT_PUBLIC_*` env vars into Lambda/server code, or `VOLCANO_*` (un-prefixed) into browser code.
+- Do NOT mix `NEXT_PUBLIC_*` env vars into function/server code, or `VOLCANO_*` (un-prefixed) into browser code.
 - Do NOT replace the route dispatcher with a third-party framework (Express, Hono, etc.) — the canonical dispatcher is what platform tooling expects.
 - Do NOT skip the baseline `20200101000000_init.sql` migration — `pgcrypto` is assumed available downstream.
 
