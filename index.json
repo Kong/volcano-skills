@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "skills": [
+    {
+      "name": "volcano-auth",
+      "description": "Detailed guidance for authentication flows built with the Volcano SDK",
+      "path": "/skills/volcano-auth/SKILL.md"
+    },
+    {
+      "name": "volcano-database",
+      "description": "Detailed guidance for browser and function data access with the Volcano query builder",
+      "path": "/skills/volcano-database/SKILL.md"
+    },
+    {
+      "name": "volcano-error-handling",
+      "description": "Reusable error handling patterns for Volcano SDK apps: centralized error dispatcher with action enum, useApiCall React hook for loading/error/data state, retry with exponential backoff, retry with toast notifications, and cross-domain error message catalog.",
+      "path": "/skills/volcano-error-handling/SKILL.md"
+    },
+    {
+      "name": "volcano-functions",
+      "description": "Detailed guidance for server-side function invocation and orchestration with Volcano",
+      "path": "/skills/volcano-functions/SKILL.md"
+    },
+    {
+      "name": "volcano-nextjs",
+      "description": "Detailed guidance for using the Volcano SDK correctly in Next.js environments",
+      "path": "/skills/volcano-nextjs/SKILL.md"
+    },
+    {
+      "name": "volcano-platform",
+      "description": "Canonical project shape, Lambda runtime contract, build pipeline, and required canonical files for any Volcano-Hosting-deployable codebase. Self-contained for use without the volcano-standard scaffold.",
+      "path": "/skills/volcano-platform/SKILL.md"
+    },
+    {
+      "name": "volcano-realtime",
+      "description": "Detailed guidance for live subscriptions, broadcast, and presence with Volcano Realtime",
+      "path": "/skills/volcano-realtime/SKILL.md"
+    },
+    {
+      "name": "volcano-sdk",
+      "description": "Entrypoint and router for Volcano SDK work. Pair with volcano_platform (mandatory). Indicates which volcano_* domain skill (auth/database/functions/storage/realtime/nextjs/typescript/error_handling) to invoke for each task.",
+      "path": "/skills/volcano-sdk/SKILL.md"
+    },
+    {
+      "name": "volcano-storage",
+      "description": "Detailed guidance for storage buckets, file paths, and upload or download flows with Volcano",
+      "path": "/skills/volcano-storage/SKILL.md"
+    },
+    {
+      "name": "volcano-typescript",
+      "description": "Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime types, Function invocation generics, OAuth providers, middleware types, and utility types.",
+      "path": "/skills/volcano-typescript/SKILL.md"
+    }
+  ]
+}
