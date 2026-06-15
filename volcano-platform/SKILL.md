@@ -144,7 +144,7 @@ exports.handler = async (event) => {
 ```
 
 ```js
-// volcano/_shared/volcano-client.js  — shared across functions
+// volcano/functions/_shared/volcano-client.js  — shared across functions
 const { VOLCANO_API_URL, VOLCANO_ANON_KEY, VOLCANO_DATABASE = 'app' } = process.env;
 
 function createVolcanoClient(VolcanoAuthClass, { apiUrl, anonKey, database = 'app', accessToken }) {
