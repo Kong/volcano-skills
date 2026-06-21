@@ -1,6 +1,6 @@
 ---
 name: volcano-typescript
-description: Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime types, Function invocation generics, OAuth providers, middleware types, and utility types.
+description: "Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime types, Function invocation generics, OAuth providers, middleware types, and utility types."
 ---
 # Volcano TypeScript Types Skill
 

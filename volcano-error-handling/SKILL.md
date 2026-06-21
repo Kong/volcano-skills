@@ -1,6 +1,6 @@
 ---
 name: volcano-error-handling
-description: Reusable error handling patterns for Volcano SDK apps: centralized error dispatcher with action enum, useApiCall React hook for loading/error/data state, retry with exponential backoff, retry with toast notifications, and cross-domain error message catalog.
+description: "Reusable error handling patterns for Volcano SDK apps: centralized error dispatcher with action enum, useApiCall React hook for loading/error/data state, retry with exponential backoff, retry with toast notifications, and cross-domain error message catalog."
 ---
 # Volcano Error Handling Skill
 

@@ -1,6 +1,6 @@
 ---
 name: volcano-platform
-description: Canonical Volcano project shape and deploy contract: the volcano/functions/ model, migrations, volcano-config.yaml, env vars, shared-code conventions, and the build/deploy workflow.
+description: "Canonical Volcano project shape and deploy contract: the volcano/functions/ model, migrations, volcano-config.yaml, env vars, shared-code conventions, and the build/deploy workflow."
 ---
 # Volcano Platform Contract Skill
 
