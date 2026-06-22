@@ -9,16 +9,22 @@ databases, storage, and realtime — driven primarily through the **`volcano` CL
 
 Before any Volcano work, verify the CLI and skills are available:
 
-1. **Check CLI**: run `which volcano`. If not found, tell the user you are about to
-   install the Volcano CLI, skills, and docs, then run:
+1. **Check CLI**: run `which volcano`. If not found and you are running from a
+   Volcano IDE/plugin installation, run the plugin command/skill named
+   `install-volcano` (for example `/install-volcano` or `/volcano:install-volcano`).
+   It installs the CLI without re-downloading plugin-shipped skills. If no plugin
+   installer is available, run the bootstrap fallback:
    ```sh
    curl -fsSL https://volcano.dev/bootstrap.sh -o /tmp/volcano-bootstrap.sh && sh /tmp/volcano-bootstrap.sh --apply
    ```
    Re-run `which volcano` to confirm. If already installed, run `volcano upgrade`
    to ensure the latest version — it only downloads if a newer release exists.
 
-2. **Check skills**: verify `~/.volcano/skills/volcano-platform/SKILL.md` and
-   `~/.volcano/skills/volcano-sdk/SKILL.md` exist. If missing, re-run the bootstrap above.
+2. **Check skills**: if you are running from a Volcano IDE/plugin installation,
+   use the plugin-shipped `volcano-*` skills. Otherwise verify
+   `~/.volcano/skills/volcano-platform/SKILL.md` and
+   `~/.volcano/skills/volcano-sdk/SKILL.md` exist; if missing, re-run the
+   bootstrap fallback above.
 
 ## CLI-first
 
@@ -127,6 +133,6 @@ volcano cloud config deploy
 
 ## Skills
 
-Detailed workflows ship as **skills** under `~/.volcano/skills/<name>/SKILL.md`.
+Detailed workflows ship as **skills** in the active Volcano plugin or, for bootstrap installs, under `~/.volcano/skills/<name>/SKILL.md`.
 Always consult `volcano-platform` (project shape / deploy contract) and `volcano-sdk`
 (SDK entrypoint/router) before writing code for a Volcano project.
