@@ -2,9 +2,9 @@
   "version": 1,
   "skills": [
     {
-      "name": "install",
-      "description": "Install or refresh the Volcano CLI, canonical agent instructions, and Volcano skills.",
-      "path": "/skills/install/SKILL.md"
+      "name": "install-volcano",
+      "description": "Install or upgrade the Volcano CLI from a plugin-shipped skills environment.",
+      "path": "/skills/install-volcano/SKILL.md"
     },
     {
       "name": "volcano-auth",
