@@ -130,7 +130,7 @@ For detailed handler templates, invocation patterns, and user-context guidance, 
 
 ### Model A — Native JavaScript (what `volcano init` scaffolds)
 
-Author `.js` handlers directly in `volcano/functions/`. Share code via `volcano/_shared/` using the underscore-prefix convention. The packager auto-bundles `_shared/` imports into each function archive.
+Author `.js` handlers directly in `volcano/functions/`. Share code via `volcano/functions/_shared/` using the underscore-prefix convention. The packager bundles `_shared/` into each function archive alongside the entrypoint, so `require("./_shared/...")` resolves at runtime.
 
 ```js
 // volcano/functions/hello.js
@@ -252,7 +252,7 @@ After `npm run build:functions`, the output `volcano/functions/hello.js` is what
 
 ## Canonical Shared Client Pattern
 
-Both models use the same factory pattern, adapted from the `nextjs-notes` starter (`volcano/_shared/volcano-client.js`):
+Both models use the same factory pattern, adapted from the `nextjs-notes` starter (`volcano/functions/_shared/volcano-client.js`):
 
 | Factory | When to use |
 |---|---|
