@@ -81,6 +81,13 @@ non-deploying validation when available, such as typecheck, lint, unit tests, or
 variables/config, run migrations, or invoke functions unless the user asks to
 run, test, preview, deploy, verify end-to-end, or otherwise exercise the app.
 
+At the end of a build-only task, suggest concrete next actions instead of taking
+them automatically. For example: "Next, I can locally deploy and test this by
+running `volcano start`, `volcano variables deploy`, `volcano functions deploy
+--all`, `volcano config deploy`, `volcano migrations deploy --all -d app`, then
+invoke the todo functions through the local API." Keep suggestions specific to
+what was built and clearly separate them from work already completed.
+
 During development, use **local mode** by default. Local mode means Volcano CLI
 commands **without** the `cloud` prefix, such as `volcano functions list`,
 `volcano variables deploy`, and `volcano functions deploy --all`. Cloud mode is
