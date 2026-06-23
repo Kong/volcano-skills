@@ -72,25 +72,40 @@ There is no shortcut — only a human with a browser session can approve.
 
 If you cannot reach the user, surface this and stop.
 
-### Deploying
+### Build vs. run/test/deploy
 
-**Default to local.** Unless the user explicitly asks for a cloud deploy, test locally
-first: `volcano start`, then `volcano functions deploy --all`, `volcano variables deploy`,
-`volcano migrations deploy --all -d app`. Test at `http://localhost:8000`.
+Treat a bare request to **build** something (for example, "build a todo API") as a
+request to create or update the project files. After building, run only
+non-deploying validation when available, such as typecheck, lint, unit tests, or
+`npm run build:functions`. Do **not** start services, deploy functions, deploy
+variables/config, run migrations, or invoke functions unless the user asks to
+run, test, preview, deploy, verify end-to-end, or otherwise exercise the app.
 
-**Cloud deploy** (when the user explicitly requests it): verify (1) CLI is authenticated
-(`volcano status`), (2) a project exists and is selected (`volcano projects list`,
-then `volcano use <id-or-name>`). **Cloud deploys require explicit user confirmation.**
+During development, use **local mode** by default. Local mode means Volcano CLI
+commands **without** the `cloud` prefix, such as `volcano functions list`,
+`volcano variables deploy`, and `volcano functions deploy --all`. Cloud mode is
+only the corresponding `volcano cloud ...` command surface.
+
+When the user does ask to run/test/preview locally, stay in local mode rather than
+cloud mode: `volcano start`, then deploy the required local resources (`volcano
+variables deploy`, `volcano functions deploy --all`, `volcano config deploy`,
+`volcano migrations deploy --all -d app`) and test via the local API at
+`http://localhost:8000`.
+
+**Cloud deploy** (only when the user explicitly requests cloud deployment): verify
+(1) CLI is authenticated (`volcano status`), (2) a project exists and is selected
+(`volcano projects list`, then `volcano use <id-or-name>`). **Cloud deploys
+require explicit user confirmation.**
 
 ## Safety model
 
-**Automatic (no confirmation needed):**
+**Automatic when relevant to the user's requested scope (no confirmation needed):**
 - Inspect: `volcano status`, `volcano projects list`, `volcano projects get <id>`
 - Scaffold: `volcano init`
 - List/get: `volcano functions list|get`, `volcano variables list|get`, `volcano databases list|get`, `volcano storage bucket list|get`
 - Logs: `volcano functions logs <name> --type build|runtime`
-- Local dev: `volcano start|stop|restart|status`
-- Local deploy: `volcano functions deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app`
+- Local dev: `volcano start|stop|restart|status` when the user asks to run/test/preview locally
+- Local deploy: `volcano functions deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app` when the user asks to run/test/preview locally
 
 **Confirm-first:**
 - Cloud deploys: `volcano cloud functions deploy`, `volcano cloud frontends deploy`, `volcano cloud config deploy`, `volcano cloud variables deploy`
