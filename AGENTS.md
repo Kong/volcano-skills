@@ -34,9 +34,11 @@ flags before guessing.
 
 ### Building a new project
 
-Always run `volcano init` **first**, before writing any code. Templates: `volcano init`
-(JavaScript, default), `volcano init nextjs`, `volcano init python`, `volcano init ruby`.
-Add `--example notes` (or `--example hello-world`) for a demo. After init, use the
+Always run `volcano init` **first**, before writing any code. `volcano init`
+creates the base scaffold only. Use `volcano init javascript` for the JavaScript
+function/config template, or `volcano init nextjs`, `volcano init python`, or
+`volcano init ruby` for framework/language-specific templates. Add
+`--example notes` (or `--example hello-world`) for a demo. After init, use the
 `volcano-platform` skill to build the application code on top of the scaffold.
 
 If `volcano init` is skipped, deploy commands will fail to find the expected scaffold.
@@ -77,15 +79,15 @@ first: `volcano start`, then `volcano functions deploy --all`, `volcano variable
 `volcano migrations deploy --all -d app`. Test at `http://localhost:8000`.
 
 **Cloud deploy** (when the user explicitly requests it): verify (1) CLI is authenticated
-(`volcano status`), (2) a project exists and is selected (`volcano projects --json`,
-then `volcano use <id>`). **Cloud deploys require explicit user confirmation.**
+(`volcano status`), (2) a project exists and is selected (`volcano projects list`,
+then `volcano use <id-or-name>`). **Cloud deploys require explicit user confirmation.**
 
 ## Safety model
 
 **Automatic (no confirmation needed):**
-- Inspect: `volcano status`, `volcano projects`, `volcano projects get <id>`
+- Inspect: `volcano status`, `volcano projects list`, `volcano projects get <id>`
 - Scaffold: `volcano init`
-- List/get: `volcano functions list|get`, `volcano variables list`, `volcano databases list|get`, `volcano storage buckets list|get`
+- List/get: `volcano functions list|get`, `volcano variables list|get`, `volcano databases list|get`, `volcano storage bucket list|get`
 - Logs: `volcano functions logs <name> --type build|runtime`
 - Local dev: `volcano start|stop|restart|status`
 - Local deploy: `volcano functions deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app`
@@ -101,17 +103,19 @@ When in doubt, treat the action as confirm-first.
 
 ## Machine-readable usage
 
-Use `--json` for structured output, `--non-interactive` to fail fast, `--yes` to
-auto-confirm after user approval. Check exit codes; non-zero means failure.
+Use machine-readable flags only when the specific command help advertises them;
+`--json` and `--non-interactive` are not currently global flags. Use `--yes` only
+when the command help advertises it, primarily delete commands, and only after
+explicit user approval. Check exit codes; non-zero means failure.
 
 ## Command surface
 
 ```bash
 # Auth & project
-volcano login | logout | projects | projects get <id> | use <id-or-name>
+volcano login | logout | projects list | projects get <id> | use <id-or-name>
 
 # Scaffold
-volcano init [nextjs|python|ruby]
+volcano init [javascript|nextjs|python|ruby]
 
 # Local development (targets local dev server)
 volcano start|stop|restart|status
@@ -119,7 +123,7 @@ volcano functions deploy --all | deploy -f <name> | list | get | logs
 volcano variables deploy | list | get
 volcano config deploy
 volcano databases list|get
-volcano storage buckets list|get
+volcano storage bucket list|get
 volcano migrations deploy --all -d app
 
 # Cloud (requires login + use)
