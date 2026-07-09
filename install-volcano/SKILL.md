@@ -10,16 +10,19 @@ allowed-tools: Bash, Read
 
 Use this skill when the user asks to install, refresh, update, or set up Volcano from this plugin.
 
-This plugin already ships the canonical Volcano skills, so this installer only ensures the `volcano` CLI exists and is current. It does **not** download skills into `~/.volcano/skills`.
+This installer is adaptive. When run from a Volcano plugin, it uses the plugin-carried `skills/` directory as the primary skills source and copies the plugin-carried `AGENTS.md` into `~/.volcano/AGENTS.md` as a stable fallback/reference. When run outside a plugin/manual pathway, it installs `AGENTS.md` and skills into `~/.volcano` so `~/.volcano/skills` remains discoverable.
 
 ## What to do
 
 Run the shell block below. It is idempotent:
 
 - If `volcano` is already on `PATH`, it runs `volcano upgrade`.
-- If `volcano` is missing, it downloads the latest release for the current OS/architecture.
-- If `VOLCANO_WEB_URL` points at localhost, a first-time install uses the `nightly` CLI channel for local development.
-- It writes only the CLI PATH helper under `~/.volcano/env`; it does not install plugin skills into `~/.volcano`.
+- If `volcano` is missing, it installs `@volcano.dev/cli` from npm by default.
+- If npm is unavailable or the npm install fails, it falls back to the GitHub release download for the current OS/architecture.
+- If `VOLCANO_WEB_URL` points at localhost, the GitHub fallback uses the `nightly` CLI channel for local development.
+- It writes the CLI PATH helper under `~/.volcano/env`.
+- Plugin installs: it copies the plugin-carried `AGENTS.md` to `~/.volcano/AGENTS.md` as a fallback and keeps skills in the plugin-carried `skills/` directory.
+- Manual/non-plugin installs: it downloads `AGENTS.md` plus each skill into `~/.volcano/skills` so agents can discover them from the runtime location.
 
 ```sh
 set -eu
@@ -42,6 +45,188 @@ download() {
     warn "need curl or wget to download the Volcano CLI"
     return 1
   fi
+}
+
+valid_agents_md() {
+  file="$1"
+  [ -s "$file" ] || return 1
+  if head -c 200 "$file" | grep -qi '<!doctype html\|<html'; then
+    return 1
+  fi
+  grep -q 'Volcano' "$file" 2>/dev/null
+}
+
+is_plugin_skills_dir() {
+  dir="$1"
+  [ -f "$dir/AGENTS.md" ] || return 1
+  [ -f "$dir/index.json" ] || return 1
+  [ -f "$dir/volcano-platform/SKILL.md" ] || return 1
+  valid_agents_md "$dir/AGENTS.md"
+}
+
+find_plugin_skills_dir() {
+  # Explicit override for local/dev testing or IDEs that know their install path.
+  if [ -n "${VOLCANO_PLUGIN_SKILLS_DIR:-}" ] && is_plugin_skills_dir "$VOLCANO_PLUGIN_SKILLS_DIR"; then
+    printf '%s\n' "$VOLCANO_PLUGIN_SKILLS_DIR"
+    return 0
+  fi
+
+  # Fast local cases: running from a plugin checkout or from inside skills/.
+  for dir in "$PWD" "$PWD/skills" "$(dirname "$PWD")/skills"; do
+    if is_plugin_skills_dir "$dir"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+
+  # Common marketplace/cache roots. Kept narrow so install doesn't scan all of $HOME.
+  for root in \
+    "$HOME/.codex/plugins" \
+    "$HOME/.claude/plugins" \
+    "$HOME/.claude" \
+    "$HOME/.cursor" \
+    "$HOME/.config"; do
+    [ -d "$root" ] || continue
+    found="$(find "$root" -type f -path '*/skills/AGENTS.md' 2>/dev/null | while IFS= read -r file; do
+      dir="$(dirname "$file")"
+      if is_plugin_skills_dir "$dir"; then
+        printf '%s\n' "$dir"
+        break
+      fi
+    done)"
+    if [ -n "$found" ]; then
+      printf '%s\n' "$found"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+valid_markdown_download() {
+  file="$1"
+  [ -s "$file" ] || return 1
+  if head -c 200 "$file" | grep -qi '<!doctype html\|<html'; then
+    return 1
+  fi
+  return 0
+}
+
+install_manual_skills() {
+  mkdir -p "$HOME/.volcano/skills"
+  manifest="$(mktemp)"
+  if ! download "$VOLCANO_WEB_URL/skills/index.json" "$manifest"; then
+    rm -f "$manifest"
+    warn "skills manifest unavailable at $VOLCANO_WEB_URL/skills/index.json; ~/.volcano/skills not updated"
+    return 1
+  fi
+  if head -c 200 "$manifest" | grep -qi '<!doctype html\|<html'; then
+    rm -f "$manifest"
+    warn "$VOLCANO_WEB_URL/skills/index.json returned HTML, not a skills manifest; ~/.volcano/skills not updated"
+    return 1
+  fi
+
+  names="$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "$manifest" | sed 's/.*"\([^"]*\)"$/\1/')"
+  rm -f "$manifest"
+  if [ -z "$names" ]; then
+    warn "skills manifest had no skill names; ~/.volcano/skills not updated"
+    return 1
+  fi
+
+  for name in $names; do
+    case "$name" in
+      *[!A-Za-z0-9._-]*|'')
+        warn "skipping invalid skill name from manifest: $name"
+        continue
+        ;;
+    esac
+    dir="$HOME/.volcano/skills/$name"
+    tmp="$(mktemp)"
+    if download "$VOLCANO_WEB_URL/skills/$name/SKILL.md" "$tmp" && valid_markdown_download "$tmp"; then
+      mkdir -p "$dir"
+      mv "$tmp" "$dir/SKILL.md"
+      chmod 0644 "$dir/SKILL.md" 2>/dev/null || true
+      log "installed runtime skill: ~/.volcano/skills/$name/SKILL.md"
+    else
+      rm -f "$tmp"
+      warn "skill download failed or invalid: $name"
+    fi
+  done
+}
+
+install_volcano_content() {
+  mkdir -p "$HOME/.volcano"
+
+  if plugin_skills_dir="$(find_plugin_skills_dir 2>/dev/null)"; then
+    cp "$plugin_skills_dir/AGENTS.md" "$HOME/.volcano/AGENTS.md"
+    chmod 0644 "$HOME/.volcano/AGENTS.md" 2>/dev/null || true
+    log "installed fallback AGENTS.md from plugin skills: $plugin_skills_dir/AGENTS.md -> $HOME/.volcano/AGENTS.md"
+    log "using plugin-carried skills as primary source: $plugin_skills_dir"
+    VOLCANO_RESOLVED_PLUGIN_SKILLS_DIR="$plugin_skills_dir"
+    export VOLCANO_RESOLVED_PLUGIN_SKILLS_DIR
+    return 0
+  fi
+
+  log "plugin-carried skills not found; installing runtime content under $HOME/.volcano"
+  if ! valid_agents_md "$HOME/.volcano/AGENTS.md"; then
+    tmp="$HOME/.volcano/AGENTS.md.tmp"
+    download "$VOLCANO_WEB_URL/AGENTS.md" "$tmp"
+    if ! valid_agents_md "$tmp"; then
+      rm -f "$tmp"
+      warn "$VOLCANO_WEB_URL/AGENTS.md did not return a valid Markdown AGENTS.md"
+      return 1
+    fi
+    mv "$tmp" "$HOME/.volcano/AGENTS.md"
+    chmod 0644 "$HOME/.volcano/AGENTS.md" 2>/dev/null || true
+    log "installed runtime AGENTS.md to $HOME/.volcano/AGENTS.md"
+  else
+    log "using existing runtime AGENTS.md at $HOME/.volcano/AGENTS.md"
+  fi
+
+  install_manual_skills
+}
+
+upsert_block() {
+  file="$1"
+  body="$2"
+  marker_begin="# >>> VOLCANO MANAGED BLOCK (do not edit) >>>"
+  marker_end="# <<< VOLCANO MANAGED BLOCK <<<"
+  mkdir -p "$(dirname "$file")"
+  [ -f "$file" ] || : >"$file"
+
+  if grep -qF "$marker_begin" "$file" 2>/dev/null; then
+    action="updated"
+  else
+    action="added"
+  fi
+
+  tmp="$(mktemp)"
+  awk -v b="$marker_begin" -v e="$marker_end" '
+    $0==b {inblk=1; next}
+    $0==e {inblk=0; next}
+    !inblk {print}
+  ' "$file" | awk 'NF{last=NR} {line[NR]=$0} END{for(i=1;i<=last;i++) print line[i]}' >"$tmp"
+  mv "$tmp" "$file"
+  [ -s "$file" ] && printf '\n' >>"$file"
+  printf '%s\n%s\n%s\n' "$marker_begin" "$body" "$marker_end" >>"$file"
+  log "$action managed Volcano block in $file"
+}
+
+wire_existing_claude_config() {
+  # Claude Code supports @path imports. Only modify an existing global CLAUDE.md;
+  # plugin skills remain primary, ~/.volcano/AGENTS.md is the fallback.
+  [ -f "$HOME/.claude/CLAUDE.md" ] || return 0
+
+  plugin_line=""
+  if [ -n "${VOLCANO_RESOLVED_PLUGIN_SKILLS_DIR:-}" ] && is_plugin_skills_dir "$VOLCANO_RESOLVED_PLUGIN_SKILLS_DIR"; then
+    plugin_line="@$VOLCANO_RESOLVED_PLUGIN_SKILLS_DIR/AGENTS.md"
+  fi
+
+  body="Before any Volcano work, read the Volcano plugin-carried instructions first, then use ~/.volcano/AGENTS.md as the stable fallback/reference copy. The plugin skills directory remains the primary source for volcano-* skills; ~/.volcano/AGENTS.md is maintained during install as the durable fallback instruction file.
+
+$plugin_line
+@~/.volcano/AGENTS.md"
+  upsert_block "$HOME/.claude/CLAUDE.md" "$body"
 }
 
 ensure_cli_on_path() {
@@ -82,20 +267,63 @@ ENV
   fi
 }
 
+npm_global_bin_dir() {
+  if npm bin -g >/dev/null 2>&1; then
+    npm bin -g
+    return 0
+  fi
+
+  prefix="$(npm prefix -g 2>/dev/null || true)"
+  [ -n "$prefix" ] || return 1
+  case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
+    mingw*|msys*|cygwin*) printf '%s
+' "$prefix" ;;
+    *) printf '%s/bin
+' "$prefix" ;;
+  esac
+}
+
+install_cli_from_npm() {
+  if ! have npm; then
+    warn "npm not found; falling back to GitHub release download"
+    return 1
+  fi
+
+  pkg="${VOLCANO_CLI_NPM_PACKAGE:-@volcano.dev/cli@latest}"
+  log "installing Volcano CLI from npm package $pkg"
+  if ! npm install -g "$pkg"; then
+    warn "npm install failed; falling back to GitHub release download"
+    return 1
+  fi
+
+  bin_dir="$(npm_global_bin_dir 2>/dev/null || true)"
+  if [ -n "$bin_dir" ]; then
+    ensure_cli_on_path "$bin_dir"
+  fi
+
+  if have volcano; then
+    log "installed Volcano CLI from npm: $(command -v volcano)"
+    return 0
+  fi
+
+  warn "npm install completed but 'volcano' is not on PATH; falling back to GitHub release download"
+  return 1
+}
+
 install_cli_from_release() {
   os="$(uname -s | tr '[:upper:]' '[:lower:]')"
   case "$os" in
     linux*) os="linux" ;;
     darwin*) os="macos" ;;
     mingw*|msys*|cygwin*) os="windows" ;;
-    *) warn "unsupported OS '$os'; cannot install Volcano CLI"; return 1 ;;
+    *) warn "unsupported OS '$os'; cannot install Volcano CLI from GitHub release"; return 1 ;;
   esac
 
   arch="$(uname -m)"
   case "$arch" in
     x86_64|amd64) arch="amd64" ;;
     arm64|aarch64) arch="arm64" ;;
-    *) warn "unsupported arch '$arch'; cannot install Volcano CLI"; return 1 ;;
+    *) warn "unsupported arch '$arch'; cannot install Volcano CLI from GitHub release"; return 1 ;;
   esac
 
   ext=""
@@ -104,7 +332,7 @@ install_cli_from_release() {
   case "$VOLCANO_WEB_URL" in
     *localhost*|*127.0.0.1*)
       url="https://github.com/Kong/volcano-cli/releases/download/nightly/volcano-${os}-${arch}${ext}"
-      log "local Volcano web origin detected; installing nightly CLI channel"
+      log "local Volcano web origin detected; using nightly GitHub CLI fallback"
       ;;
     *)
       url="https://github.com/Kong/volcano-cli/releases/latest/download/volcano-${os}-${arch}${ext}"
@@ -122,11 +350,11 @@ install_cli_from_release() {
   mkdir -p "$dir"
   out="$dir/volcano${ext}"
 
-  log "downloading Volcano CLI ($os-$arch) from $url"
+  log "downloading Volcano CLI GitHub fallback ($os-$arch) from $url"
   download "$url" "$out"
   chmod 0755 "$out" 2>/dev/null || true
   ensure_cli_on_path "$dir"
-  log "installed Volcano CLI to $out"
+  log "installed Volcano CLI GitHub fallback to $out"
 }
 
 if have volcano; then
@@ -134,8 +362,8 @@ if have volcano; then
   log "upgrading Volcano CLI with: volcano upgrade"
   volcano upgrade
 else
-  log "Volcano CLI not found; installing latest release"
-  install_cli_from_release
+  log "Volcano CLI not found; installing from npm"
+  install_cli_from_npm || install_cli_from_release
 fi
 
 if ! have volcano && [ -f "$HOME/.volcano/env" ]; then
@@ -150,6 +378,9 @@ else
   warn "Volcano CLI installation did not leave 'volcano' on PATH. Try: . \"$HOME/.volcano/env\""
   exit 1
 fi
+
+install_volcano_content
+wire_existing_claude_config
 ```
 
 ## After install

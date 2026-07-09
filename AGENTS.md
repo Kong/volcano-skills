@@ -7,24 +7,54 @@ databases, storage, and realtime — driven primarily through the **`volcano` CL
 
 ## Prerequisites
 
-Before any Volcano work, verify the CLI and skills are available:
+Before any Volcano work, establish where your instructions/skills come from, then
+verify the CLI. **Do this check before running any download command below.**
 
-1. **Check CLI**: run `which volcano`. If not found and you are running from a
+1. **Locate your instruction/skills source — check this first, always:**
+   - **Plugin-shipped (the common case):** if this `AGENTS.md` sits in a directory
+     that also contains an `index.json` and sibling `volcano-*/SKILL.md` folders
+     (Cursor, Claude Code, Claude Desktop, and Codex plugin installs ship this
+     layout), **you are already reading the primary canonical content.** Use this
+     file and those sibling skills directly. Do **not** run any `curl`/download
+     command to fetch plugin skills — they are already carried by the plugin and
+     would only redownload identical content. The plugin installer also copies
+     this carried `AGENTS.md` to `~/.volcano/AGENTS.md` so a stable fallback exists.
+   - **Bootstrap/runtime install:** if there is no such sibling `skills/` layout,
+     canonical content is expected at `~/.volcano/AGENTS.md` and
+     `~/.volcano/skills/`. Read those if they exist and are non-empty/valid
+     Markdown.
+   - **Neither exists:** only then use the guarded network fallback in step 3.
+
+2. **Check CLI**: run `which volcano`. If not found and you are running from a
    Volcano IDE/plugin installation, run the plugin command/skill named
    `install-volcano` (for example `/install-volcano` or `/volcano:install-volcano`).
    It installs the CLI without re-downloading plugin-shipped skills. If no plugin
-   installer is available, run the bootstrap fallback:
-   ```sh
-   curl -fsSL https://volcano.dev/bootstrap.sh -o /tmp/volcano-bootstrap.sh && sh /tmp/volcano-bootstrap.sh --apply
-   ```
-   Re-run `which volcano` to confirm. If already installed, run `volcano upgrade`
-   to ensure the latest version — it only downloads if a newer release exists.
+   installer is available, run the bootstrap fallback below. Re-run `which volcano`
+   to confirm. If already installed, run `volcano upgrade` to ensure the latest
+   version — it only downloads if a newer release exists.
 
-2. **Check skills**: if you are running from a Volcano IDE/plugin installation,
-   use the plugin-shipped `volcano-*` skills. Otherwise verify
-   `~/.volcano/skills/volcano-platform/SKILL.md` and
-   `~/.volcano/skills/volcano-sdk/SKILL.md` exist; if missing, re-run the
-   bootstrap fallback above.
+3. **Bootstrap fallback** (only when step 1 found no plugin-shipped or
+   `~/.volcano` content, or the CLI install needs it): Volcano plugins target
+   dev, staging, and prod interchangeably, so the origin comes from
+   `VOLCANO_WEB_URL` if set (an IDE/environment may already export it for the
+   target environment), defaulting to production (`https://volcano.dev`) only
+   when unset. Never hardcode a different literal origin in its place.
+   ```sh
+   set -eu
+   VOLCANO_WEB_URL="${VOLCANO_WEB_URL:-https://volcano.dev}"
+   VOLCANO_WEB_URL="${VOLCANO_WEB_URL%/}"
+   curl -fsSL "$VOLCANO_WEB_URL/bootstrap.sh" -o /tmp/volcano-bootstrap.sh
+   # Guard against SPA/CDN fallbacks that return HTTP 200 with an HTML shell
+   # instead of a real 404 for missing paths (curl -f only catches HTTP errors).
+   if head -c 200 /tmp/volcano-bootstrap.sh | grep -qi '<!doctype html\|<html'; then
+     echo "ERROR: $VOLCANO_WEB_URL/bootstrap.sh returned an HTML page, not a shell script." >&2
+     echo "The docs host at VOLCANO_WEB_URL may be misconfigured for this environment;" >&2
+     echo "set VOLCANO_WEB_URL to the correct Volcano web origin and retry." >&2
+     rm -f /tmp/volcano-bootstrap.sh
+     exit 1
+   fi
+   sh /tmp/volcano-bootstrap.sh --apply
+   ```
 
 ## CLI-first
 
@@ -59,7 +89,7 @@ ACTION REQUIRED — Volcano CLI authentication
   Code:  XXXX-XXXX
 
   Open in your browser and approve:
-  https://volcano.dev/device?user_code=XXXX-XXXX
+  ${VOLCANO_WEB_URL:-https://volcano.dev}/device?user_code=XXXX-XXXX
 ------------------------------------------------------------
 ```
 
