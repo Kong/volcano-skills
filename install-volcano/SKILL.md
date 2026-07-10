@@ -21,6 +21,7 @@ Run the shell block below. It is idempotent:
 - If npm is unavailable or the npm install fails, it falls back to the GitHub release download for the current OS/architecture.
 - If `VOLCANO_WEB_URL` points at localhost, the GitHub fallback uses the `nightly` CLI channel for local development.
 - It writes the CLI PATH helper under `~/.volcano/env`.
+- When `VOLCANO_API_URL` is set, it persists that non-production endpoint as `api_url` in `~/.volcano/config.json`; the explicit environment variable remains the higher-precedence runtime override.
 - Plugin installs: it copies the plugin-carried `AGENTS.md` to `~/.volcano/AGENTS.md` as a fallback and keeps skills in the plugin-carried `skills/` directory.
 - Manual/non-plugin installs: it downloads `AGENTS.md` plus each skill into `~/.volcano/skills` so agents can discover them from the runtime location.
 
@@ -229,6 +230,55 @@ $plugin_line
   upsert_block "$HOME/.claude/CLAUDE.md" "$body"
 }
 
+persist_api_url() {
+  cfg="$HOME/.volcano/config.json"
+  mkdir -p "$HOME/.volcano"
+
+  if [ ! -f "$cfg" ] && [ -z "${VOLCANO_API_URL:-}" ]; then
+    return 0
+  fi
+
+  tmp="$(mktemp)"
+  if have node; then
+    if CFG="$cfg" API_URL="${VOLCANO_API_URL:-}" node -e '
+const fs = require("fs");
+const cfg = process.env.CFG;
+const apiURL = process.env.API_URL;
+const data = fs.existsSync(cfg) ? JSON.parse(fs.readFileSync(cfg, "utf8")) : {};
+if (apiURL) data.api_url = apiURL; else delete data.api_url;
+fs.writeFileSync(process.argv[1], JSON.stringify(data, null, 2) + "\n");
+' "$tmp" 2>/dev/null; then
+      :
+    else
+      rm -f "$tmp"
+      warn "could not update $cfg"
+      return 1
+    fi
+  elif have jq; then
+    if [ -n "${VOLCANO_API_URL:-}" ]; then
+      if [ -f "$cfg" ]; then
+        jq --arg url "$VOLCANO_API_URL" '.api_url = $url' "$cfg" >"$tmp" 2>/dev/null
+      else
+        printf '{}' | jq --arg url "$VOLCANO_API_URL" '.api_url = $url' >"$tmp"
+      fi
+    else
+      jq 'del(.api_url)' "$cfg" >"$tmp" 2>/dev/null || { rm -f "$tmp"; warn "could not update $cfg"; return 1; }
+    fi
+  else
+    rm -f "$tmp"
+    warn "need node or jq to persist VOLCANO_API_URL in $cfg"
+    return 1
+  fi
+
+  mv "$tmp" "$cfg"
+  chmod 600 "$cfg" 2>/dev/null || true
+  if [ -n "${VOLCANO_API_URL:-}" ]; then
+    log "persisted non-production API URL to $cfg"
+  else
+    log "removed persisted API URL from $cfg"
+  fi
+}
+
 ensure_cli_on_path() {
   cli_dir="$1"
   case ":$PATH:" in
@@ -379,6 +429,7 @@ else
   exit 1
 fi
 
+persist_api_url
 install_volcano_content
 wire_existing_claude_config
 ```
