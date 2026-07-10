@@ -105,30 +105,44 @@ If you cannot reach the user, surface this and stop.
 ### Build vs. run/test/deploy
 
 Treat a bare request to **build** something (for example, "build a todo API") as a
-request to create or update the project files. After building, run only
-non-deploying validation when available, such as typecheck, lint, unit tests, or
-`npm run build:functions`. Do **not** start services, deploy functions, deploy
-variables/config, run migrations, or invoke functions unless the user asks to
-run, test, preview, deploy, verify end-to-end, or otherwise exercise the app.
+request to create or update the project files, then by default keep going
+automatically through local run, local deploy, and a quick local test — do not
+stop and wait to be asked. Local mode only ever targets `http://localhost:8000`
+and never touches cloud/production resources, so this default is safe:
 
-At the end of a build-only task, suggest the next step instead of taking it
-automatically — see "Suggest the next step" below.
+1. Run non-deploying validation when available, such as typecheck, lint, unit
+   tests, or `npm run build:functions`.
+2. Start local services: `volcano start`.
+3. Deploy the relevant built resources locally: `volcano functions deploy
+   --all`, `volcano variables deploy`, `volcano config deploy`, `volcano
+   migrations deploy --all -d app` (only the pieces relevant to what was
+   built).
+4. Exercise what was built through the local API at `http://localhost:8000`
+   (for example, invoke the new function) and report the result.
 
-During development, use **local mode** by default. Local mode means Volcano CLI
-commands **without** the `cloud` prefix, such as `volcano functions list`,
-`volcano variables deploy`, and `volcano functions deploy --all`. Cloud mode is
-only the corresponding `volcano cloud ...` command surface.
+Only stop at build + validation (skip steps 2–4) when:
+- the user's request explicitly limits scope to writing/updating code only
+  (for example, "just write the code, don't run it" or "build but don't run or
+  deploy it"), or
+- a project- or user-level instruction file outside this plugin's canonical
+  skills (for example, a repo-root `AGENTS.md`/`CLAUDE.md`) explicitly
+  disables auto-run/auto-deploy. Repo- and user-level instructions always take
+  precedence over this default.
 
-When the user does ask to run/test/preview locally, stay in local mode rather than
-cloud mode: `volcano start`, then deploy the required local resources (`volcano
-variables deploy`, `volcano functions deploy --all`, `volcano config deploy`,
-`volcano migrations deploy --all -d app`) and test via the local API at
-`http://localhost:8000`.
+Local mode means Volcano CLI commands **without** the `cloud` prefix, such as
+`volcano functions list`, `volcano variables deploy`, and `volcano functions
+deploy --all`. Cloud mode is only the corresponding `volcano cloud ...` command
+surface.
+
+**Never auto-deploy to the cloud.** The local default above does not extend to
+cloud in any case: `volcano cloud ...` commands are only run when the user
+explicitly requests a cloud deployment, regardless of how automatically the
+local steps ran.
 
 **Cloud deploy** (only when the user explicitly requests cloud deployment): verify
 (1) CLI is authenticated (`volcano status`), (2) a project exists and is selected
 (`volcano projects list`, then `volcano use <id-or-name>`). **Cloud deploys
-require explicit user confirmation.**
+require explicit user confirmation**, with no exceptions.
 
 ### Suggest the next step
 
@@ -144,19 +158,21 @@ then call the new function through the local API at http://localhost:8000.
 ```
 
 Pick the single suggestion that matches where the user is in the build → local
-run/test → local deploy → cloud deploy progression, keep it specific to what
-was actually built (skip resources that weren't touched, such as database
+run/test/deploy → cloud deploy progression, keep it specific to what was
+actually built (skip resources that weren't touched, such as database
 commands when no database was used), and use exact CLI commands:
 
-- After a **build-only** change: suggest running it locally, e.g. "Next: run
-  it locally with `volcano start`, `volcano functions deploy --all`, then call
-  the new function through the local API."
-- After a **local run/test/deploy**: suggest cloud deploy, but check auth
-  first (`volcano status`). If not logged in, lead with login, e.g. "Next:
-  sign in with `volcano login`, then deploy to the cloud with `volcano cloud
-  functions deploy --all`." If already authenticated with a project selected,
-  suggest the deploy directly, e.g. "Next: deploy this to the cloud with
-  `volcano cloud functions deploy --all`."
+- After the default **build → local run/test/deploy** flow: suggest cloud
+  deploy, but check auth first (`volcano status`). If not logged in, lead with
+  login, e.g. "Next: sign in with `volcano login`, then deploy to the cloud
+  with `volcano cloud functions deploy --all`." If already authenticated with
+  a project selected, suggest the deploy directly, e.g. "Next: deploy this to
+  the cloud with `volcano cloud functions deploy --all`."
+- After a **build-only** change (scope explicitly limited by the user, or by a
+  project/user instruction file that disables auto-run/auto-deploy): suggest
+  running it locally, e.g. "Next: run it locally with `volcano start`,
+  `volcano functions deploy --all`, then call the new function through the
+  local API."
 - After a **cloud deploy**: suggest verification, e.g. "Next: check it with
   `volcano cloud functions logs <name>` or by invoking the deployed endpoint."
 
@@ -170,8 +186,8 @@ explicit user confirmation per the safety model below.
 - Scaffold: `volcano init`
 - List/get: `volcano functions list|get`, `volcano variables list|get`, `volcano databases list|get`, `volcano storage bucket list|get`
 - Logs: `volcano functions logs <name> --type build|runtime`
-- Local dev: `volcano start|stop|restart|status` when the user asks to run/test/preview locally
-- Local deploy: `volcano functions deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app` when the user asks to run/test/preview locally
+- Local dev: `volcano start|stop|restart|status` — automatic by default after building (see "Build vs. run/test/deploy"), and whenever the user asks to run/test/preview locally
+- Local deploy: `volcano functions deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app` — automatic by default after building, and whenever the user asks to run/test/preview locally
 
 **Confirm-first:**
 - Cloud deploys: `volcano cloud functions deploy`, `volcano cloud frontends deploy`, `volcano cloud config deploy`, `volcano cloud variables deploy`
