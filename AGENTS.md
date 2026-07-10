@@ -111,12 +111,8 @@ non-deploying validation when available, such as typecheck, lint, unit tests, or
 variables/config, run migrations, or invoke functions unless the user asks to
 run, test, preview, deploy, verify end-to-end, or otherwise exercise the app.
 
-At the end of a build-only task, suggest concrete next actions instead of taking
-them automatically. For example: "Next, I can locally deploy and test this by
-running `volcano start`, `volcano variables deploy`, `volcano functions deploy
---all`, `volcano config deploy`, `volcano migrations deploy --all -d app`, then
-invoke the todo functions through the local API." Keep suggestions specific to
-what was built and clearly separate them from work already completed.
+At the end of a build-only task, suggest the next step instead of taking it
+automatically — see "Suggest the next step" below.
 
 During development, use **local mode** by default. Local mode means Volcano CLI
 commands **without** the `cloud` prefix, such as `volcano functions list`,
@@ -133,6 +129,39 @@ variables deploy`, `volcano functions deploy --all`, `volcano config deploy`,
 (1) CLI is authenticated (`volcano status`), (2) a project exists and is selected
 (`volcano projects list`, then `volcano use <id-or-name>`). **Cloud deploys
 require explicit user confirmation.**
+
+### Suggest the next step
+
+After finishing any stage of work — build, local run/test, local deploy, or
+cloud deploy — end your response with one concrete next-step suggestion. Only
+suggest it; never run it yourself. Put it on its own line, after a blank line,
+formatted as `Next: <action>` so it reads as a clean, separate suggestion
+rather than folded into the summary of what was just done, for example:
+
+```
+Next: run it locally with `volcano start`, `volcano functions deploy --all`,
+then call the new function through the local API at http://localhost:8000.
+```
+
+Pick the single suggestion that matches where the user is in the build → local
+run/test → local deploy → cloud deploy progression, keep it specific to what
+was actually built (skip resources that weren't touched, such as database
+commands when no database was used), and use exact CLI commands:
+
+- After a **build-only** change: suggest running it locally, e.g. "Next: run
+  it locally with `volcano start`, `volcano functions deploy --all`, then call
+  the new function through the local API."
+- After a **local run/test/deploy**: suggest cloud deploy, but check auth
+  first (`volcano status`). If not logged in, lead with login, e.g. "Next:
+  sign in with `volcano login`, then deploy to the cloud with `volcano cloud
+  functions deploy --all`." If already authenticated with a project selected,
+  suggest the deploy directly, e.g. "Next: deploy this to the cloud with
+  `volcano cloud functions deploy --all`."
+- After a **cloud deploy**: suggest verification, e.g. "Next: check it with
+  `volcano cloud functions logs <name>` or by invoking the deployed endpoint."
+
+Suggesting a cloud deploy here is not permission to run it — it still requires
+explicit user confirmation per the safety model below.
 
 ## Safety model
 
