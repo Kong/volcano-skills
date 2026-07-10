@@ -46,7 +46,7 @@ verify the CLI. **Do this check before running any download command below.**
    curl -fsSL "$VOLCANO_WEB_URL/bootstrap.sh" -o /tmp/volcano-bootstrap.sh
    # Guard against SPA/CDN fallbacks that return HTTP 200 with an HTML shell
    # instead of a real 404 for missing paths (curl -f only catches HTTP errors).
-   if head -c 200 /tmp/volcano-bootstrap.sh | grep -qi '<!doctype html\|<html'; then
+   if head -c 200 /tmp/volcano-bootstrap.sh | grep -qiE '<!doctype html|<html'; then
      echo "ERROR: $VOLCANO_WEB_URL/bootstrap.sh returned an HTML page, not a shell script." >&2
      echo "The docs host at VOLCANO_WEB_URL may be misconfigured for this environment;" >&2
      echo "set VOLCANO_WEB_URL to the correct Volcano web origin and retry." >&2
