@@ -51,7 +51,7 @@ download() {
 valid_agents_md() {
   file="$1"
   [ -s "$file" ] || return 1
-  if head -c 200 "$file" | grep -qi '<!doctype html\|<html'; then
+  if head -c 200 "$file" | grep -qiE '<!doctype html|<html'; then
     return 1
   fi
   grep -q 'Volcano' "$file" 2>/dev/null
@@ -107,7 +107,7 @@ find_plugin_skills_dir() {
 valid_markdown_download() {
   file="$1"
   [ -s "$file" ] || return 1
-  if head -c 200 "$file" | grep -qi '<!doctype html\|<html'; then
+  if head -c 200 "$file" | grep -qiE '<!doctype html|<html'; then
     return 1
   fi
   return 0
@@ -121,7 +121,7 @@ install_manual_skills() {
     warn "skills manifest unavailable at $VOLCANO_WEB_URL/skills/index.json; ~/.volcano/skills not updated"
     return 1
   fi
-  if head -c 200 "$manifest" | grep -qi '<!doctype html\|<html'; then
+  if head -c 200 "$manifest" | grep -qiE '<!doctype html|<html'; then
     rm -f "$manifest"
     warn "$VOLCANO_WEB_URL/skills/index.json returned HTML, not a skills manifest; ~/.volcano/skills not updated"
     return 1
@@ -257,9 +257,9 @@ fs.writeFileSync(process.argv[1], JSON.stringify(data, null, 2) + "\n");
   elif have jq; then
     if [ -n "${VOLCANO_API_URL:-}" ]; then
       if [ -f "$cfg" ]; then
-        jq --arg url "$VOLCANO_API_URL" '.api_url = $url' "$cfg" >"$tmp" 2>/dev/null
+        jq --arg url "$VOLCANO_API_URL" '.api_url = $url' "$cfg" >"$tmp" 2>/dev/null || { rm -f "$tmp"; warn "could not update $cfg"; return 1; }
       else
-        printf '{}' | jq --arg url "$VOLCANO_API_URL" '.api_url = $url' >"$tmp"
+        printf '{}' | jq --arg url "$VOLCANO_API_URL" '.api_url = $url' >"$tmp" || { rm -f "$tmp"; warn "could not update $cfg"; return 1; }
       fi
     else
       jq 'del(.api_url)' "$cfg" >"$tmp" 2>/dev/null || { rm -f "$tmp"; warn "could not update $cfg"; return 1; }
@@ -326,11 +326,13 @@ npm_global_bin_dir() {
   prefix="$(npm prefix -g 2>/dev/null || true)"
   [ -n "$prefix" ] || return 1
   case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
-    mingw*|msys*|cygwin*) printf '%s
-' "$prefix" ;;
-    *) printf '%s/bin
-' "$prefix" ;;
+    mingw*|msys*|cygwin*) printf '%s\n' "$prefix" ;;
+    *) printf '%s/bin\n' "$prefix" ;;
   esac
+}
+
+npm_managed_cli_installed() {
+  have npm && npm ls -g --depth=0 @volcano.dev/cli >/dev/null 2>&1
 }
 
 install_cli_from_npm() {
@@ -408,9 +410,16 @@ install_cli_from_release() {
 }
 
 if have volcano; then
-  log "found Volcano CLI at $(command -v volcano)"
-  log "upgrading Volcano CLI with: volcano upgrade"
-  volcano upgrade
+  cli_path="$(command -v volcano)"
+  ensure_cli_on_path "$(dirname "$cli_path")"
+  log "found Volcano CLI at $cli_path"
+  if npm_managed_cli_installed; then
+    log "npm-managed Volcano CLI detected; refreshing through npm"
+    install_cli_from_npm || warn "npm refresh failed; continuing with existing CLI"
+  else
+    log "upgrading non-npm Volcano CLI with: volcano upgrade"
+    volcano upgrade || warn "volcano upgrade failed; continuing with existing CLI"
+  fi
 else
   log "Volcano CLI not found; installing from npm"
   install_cli_from_npm || install_cli_from_release
