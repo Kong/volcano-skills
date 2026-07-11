@@ -163,18 +163,24 @@ actually built (skip resources that weren't touched, such as database
 commands when no database was used), and use exact CLI commands:
 
 - After the default **build → local run/test/deploy** flow: suggest cloud
-  deploy, but check auth first (`volcano status`). If not logged in, lead with
-  login, e.g. "Next: sign in with `volcano login`, then deploy to the cloud
-  with `volcano cloud functions deploy --all`." If already authenticated with
-  a project selected, suggest the deploy directly, e.g. "Next: deploy this to
-  the cloud with `volcano cloud functions deploy --all`."
+  deploy, but check state first with `volcano status` (auth **and** selected
+  project) and branch on exactly what's missing:
+  - Not logged in: "Next: sign in with `volcano login`, then select a project
+    with `volcano projects list` and `volcano use <id-or-name>`, then deploy
+    to the cloud with `volcano cloud functions deploy --all`."
+  - Logged in but no project selected: "Next: select a project with `volcano
+    projects list` and `volcano use <id-or-name>`, then deploy to the cloud
+    with `volcano cloud functions deploy --all`."
+  - Logged in with a project already selected: "Next: deploy this to the
+    cloud with `volcano cloud functions deploy --all`."
 - After a **build-only** change (scope explicitly limited by the user, or by a
   project/user instruction file that disables auto-run/auto-deploy): suggest
   running it locally, e.g. "Next: run it locally with `volcano start`,
   `volcano functions deploy --all`, then call the new function through the
   local API."
-- After a **cloud deploy**: suggest verification, e.g. "Next: check it with
-  `volcano cloud functions logs <name>` or by invoking the deployed endpoint."
+- After a **cloud deploy**: suggest verification with exactly one method, not
+  a menu of options, e.g. "Next: check it with `volcano cloud functions logs
+  <name>`."
 
 Suggesting a cloud deploy here is not permission to run it — it still requires
 explicit user confirmation per the safety model below.
