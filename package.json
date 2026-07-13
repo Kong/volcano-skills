@@ -1,0 +1,16 @@
+{
+  "name": "volcano-skills",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Canonical Volcano agent instructions (AGENTS.md) and volcano-* skills, consumed by volcano-agentic-plugins and volcano-web.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "eval:agent-guidance:lint": "node scripts/eval-agent-guidance.mjs --lint",
+    "eval:agent-guidance:selftest": "node scripts/eval-agent-guidance-selftest.mjs",
+    "eval:agent-guidance": "node scripts/eval-agent-guidance.mjs"
+  }
+}

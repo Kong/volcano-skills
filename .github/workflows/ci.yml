@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Lint agent-behavior eval scenarios
+        run: node scripts/eval-agent-guidance.mjs --lint
+
+      - name: Self-test agent-behavior eval assertion logic
+        run: node scripts/eval-agent-guidance-selftest.mjs

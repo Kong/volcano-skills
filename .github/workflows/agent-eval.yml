@@ -1,0 +1,24 @@
+name: Agent behavior eval
+
+on:
+  pull_request:
+
+jobs:
+  live-eval:
+    runs-on: ubuntu-latest
+    # Skip (not fail) when the secret isn't configured, e.g. forked-repo PRs
+    # without access to repo secrets. See tests/agent-eval/README.md.
+    if: ${{ secrets.OPENAI_API_KEY != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Run live agent-behavior eval
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node scripts/eval-agent-guidance.mjs
