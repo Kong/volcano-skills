@@ -476,7 +476,14 @@ The local stack reads `volcano/volcano.env` for environment variables. Functions
 # 0. (optional, only if volcano-config.yaml doesn't exist yet) seed it from
 #    the current project state — pull refuses to overwrite an existing file
 #    without --force, so skip this if a manifest is already present (for
-#    example the one `volcano init javascript` scaffolds)
+#    example the one `volcano init javascript` scaffolds).
+#    WARNING: a pulled manifest contains plaintext variable values AND a
+#    `variables` section. Before step 4, (a) replace secret values with
+#    ${ENV_VAR} references — never commit a pulled manifest as-is — and
+#    (b) delete the `variables` section unless you intend the manifest to be
+#    the single source of truth, otherwise step 4 (`config deploy`) fully
+#    syncs variables to that list and deletes anything only step 2
+#    (`variables deploy`) set. See the "volcano-config.yaml" warnings above.
 volcano config pull
 
 # 1. Build function output (Model B only — skip for native JS)
@@ -500,7 +507,15 @@ volcano migrations deploy --all -d app
 # 0. (optional, only if volcano-config.yaml doesn't exist yet) seed it from
 #    the current project state — pull refuses to overwrite an existing file
 #    without --force, so skip this if a manifest is already present (for
-#    example the one `volcano init javascript` scaffolds)
+#    example the one `volcano init javascript` scaffolds).
+#    WARNING: a pulled manifest contains plaintext variable values AND a
+#    `variables` section. Before step 4, (a) replace secret values with
+#    ${ENV_VAR} references — never commit a pulled manifest as-is — and
+#    (b) delete the `variables` section unless you intend the manifest to be
+#    the single source of truth, otherwise step 4 (`cloud config deploy`)
+#    fully syncs variables to that list and deletes anything only step 2
+#    (`cloud variables deploy`) set — on cloud this is production data loss.
+#    See the "volcano-config.yaml" warnings above.
 volcano cloud config pull
 
 # 1. Build function output (Model B only — skip for native JS)
@@ -519,7 +534,7 @@ volcano cloud config deploy
 volcano cloud migrations deploy --all -d app
 ```
 
-**Order matters:** variables before functions (so handlers have env vars on first deploy), config after functions (so visibility targets exist), migrations last (schema is ready for runtime queries).
+**Order matters:** variables before functions (so handlers have env vars on first deploy), config after functions (so visibility targets exist), migrations last (schema is ready for runtime queries). Note that step 4 (`config deploy`) runs *after* step 2 (`variables deploy`): if the manifest declares a `variables` section, step 4 wins and will overwrite or delete variables set by step 2 — keep `variables` out of the manifest unless it is the single source of truth (see "volcano-config.yaml" above).
 
 ## Forbidden Patterns
 - Do NOT create an `src/api/index.ts` route dispatcher or `openapi.yaml` — Volcano Functions deploy individually from `volcano/functions/`, not through a single entry point.
