@@ -43,8 +43,8 @@ verify the CLI. **Do this check before running any download command below.**
    script runs immediately — there is no plan/dry-run mode.
    ```sh
    set -eu
-   VOLCANO_WEB_URL="${VOLCANO_WEB_URL:-https://volcano.dev}"
-   VOLCANO_WEB_URL="${VOLCANO_WEB_URL%/}"
+   export VOLCANO_WEB_URL="${VOLCANO_WEB_URL:-https://volcano.dev}"
+   export VOLCANO_WEB_URL="${VOLCANO_WEB_URL%/}"
    curl -fsSL "https://raw.githubusercontent.com/Kong/volcano-agentic-plugins/main/scripts/bootstrap.sh" | sh
    ```
 
