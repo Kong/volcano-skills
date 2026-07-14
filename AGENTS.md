@@ -23,7 +23,7 @@ verify the CLI. **Do this check before running any download command below.**
      canonical content is expected at `~/.volcano/AGENTS.md` and
      `~/.volcano/skills/`. Read those if they exist and are non-empty/valid
      Markdown.
-   - **Neither exists:** only then use the guarded network fallback in step 3.
+   - **Neither exists:** only then use the bootstrap fallback in step 3.
 
 2. **Check CLI**: run `which volcano`. If not found and you are running from a
    Volcano IDE/plugin installation, run the plugin command/skill named
@@ -34,26 +34,18 @@ verify the CLI. **Do this check before running any download command below.**
    version — it only downloads if a newer release exists.
 
 3. **Bootstrap fallback** (only when step 1 found no plugin-shipped or
-   `~/.volcano` content, or the CLI install needs it): Volcano plugins target
-   dev, staging, and prod interchangeably, so the origin comes from
+   `~/.volcano` content, or the CLI install needs it): `bootstrap.sh` is hosted
+   in `Kong/volcano-agentic-plugins`, not the Volcano web app — its URL is
+   stable regardless of environment. It fetches `AGENTS.md`/skills from
    `VOLCANO_WEB_URL` if set (an IDE/environment may already export it for the
    target environment), defaulting to production (`https://volcano.dev`) only
-   when unset. Never hardcode a different literal origin in its place.
+   when unset. Never hardcode a different literal origin in its place. The
+   script runs immediately — there is no plan/dry-run mode.
    ```sh
    set -eu
    VOLCANO_WEB_URL="${VOLCANO_WEB_URL:-https://volcano.dev}"
    VOLCANO_WEB_URL="${VOLCANO_WEB_URL%/}"
-   curl -fsSL "$VOLCANO_WEB_URL/bootstrap.sh" -o /tmp/volcano-bootstrap.sh
-   # Guard against SPA/CDN fallbacks that return HTTP 200 with an HTML shell
-   # instead of a real 404 for missing paths (curl -f only catches HTTP errors).
-   if head -c 200 /tmp/volcano-bootstrap.sh | grep -qi '<!doctype html\|<html'; then
-     echo "ERROR: $VOLCANO_WEB_URL/bootstrap.sh returned an HTML page, not a shell script." >&2
-     echo "The docs host at VOLCANO_WEB_URL may be misconfigured for this environment;" >&2
-     echo "set VOLCANO_WEB_URL to the correct Volcano web origin and retry." >&2
-     rm -f /tmp/volcano-bootstrap.sh
-     exit 1
-   fi
-   sh /tmp/volcano-bootstrap.sh --apply
+   curl -fsSL "https://raw.githubusercontent.com/Kong/volcano-agentic-plugins/main/scripts/bootstrap.sh" | sh
    ```
 
 ## CLI-first
