@@ -54,7 +54,7 @@ Note: `volcano-config.yaml` is created only by the `javascript` template, not by
 │   ├── migrations/
 │   │   ├── 001_init.sql            # numeric-prefix alphabetical ordering
 │   │   └── 002_add_posts.sql
-│   ├── volcano-config.yaml         # declarative buckets, policies, function visibility
+│   ├── volcano-config.yaml         # declarative project config (see "volcano-config.yaml" below)
 │   ├── volcano.env                 # local env vars (gitignored)
 │   ├── volcano.env.example         # env var documentation (committed)
 │   └── .gitignore
@@ -72,7 +72,7 @@ Note: `volcano-config.yaml` is created only by the `javascript` template, not by
 - Function handlers live ONLY under `volcano/functions/`.
 - Migrations live ONLY under `volcano/migrations/`.
 - Shared code that functions import at runtime uses the `_`-prefix convention (`_shared/`, `_lib/`) so the scanner skips it as a function candidate but the packager bundles it.
-- `volcano-config.yaml` is the declarative config for buckets, storage policies, and function visibility.
+- `volcano-config.yaml` is the declarative config for the full project (project settings, databases, variables, buckets/policies, realtime, auth, functions/schedulers, frontends) — see "volcano-config.yaml" below, not just buckets and function visibility.
 
 ## Function Deployment Model
 
@@ -381,6 +381,25 @@ Use `pull` to seed a manifest from an existing project instead of
 hand-writing one from scratch, and `deploy --dry-run` to preview reconcile
 actions before applying.
 
+**Pull exports include plaintext variable values, but not other secrets.**
+Write-only fields (SMTP password, OAuth client secrets, custom domain TLS
+material) are omitted from the export and stay unchanged unless set
+explicitly, but `variables[].value` **is** included in the clear. Never
+commit a pulled manifest as-is: replace secret values with `${ENV_VAR}`
+references (interpolated from the CLI environment before upload) before it
+touches version control.
+
+**A declared `variables` section is a second, competing source of truth for
+variables — don't run both.** If a manifest declares `variables`, `config
+deploy` fully syncs the project's variables to exactly that list, deleting
+any variable not listed. That conflicts with `volcano variables deploy` /
+`volcano cloud variables deploy` (see "Environment Variables" above) if both
+are used for the same variables: whichever runs last wins, and `config
+deploy` will delete anything only `variables deploy` set. Pick one path for
+variables per project — typically `variables deploy` from `volcano.env` for
+day-to-day secrets, and only add `variables` to the manifest if you want it
+to be the single source of truth instead.
+
 **Partial example** (see the full schema at
 `volcano-hosting/docs/projects/configuration.md` — it also covers `project`,
 `databases`, `realtime`, `auth`, and `frontends`, omitted here for brevity):
@@ -454,7 +473,10 @@ The local stack reads `volcano/volcano.env` for environment variables. Functions
 
 ### Local deploy sequence
 ```sh
-# 0. (first time only) seed volcano-config.yaml from the current project state
+# 0. (optional, only if volcano-config.yaml doesn't exist yet) seed it from
+#    the current project state — pull refuses to overwrite an existing file
+#    without --force, so skip this if a manifest is already present (for
+#    example the one `volcano init javascript` scaffolds)
 volcano config pull
 
 # 1. Build function output (Model B only — skip for native JS)
@@ -475,7 +497,10 @@ volcano migrations deploy --all -d app
 
 ### Cloud deploy (requires `volcano login` + `volcano use`)
 ```sh
-# 0. (first time only) seed volcano-config.yaml from the current project state
+# 0. (optional, only if volcano-config.yaml doesn't exist yet) seed it from
+#    the current project state — pull refuses to overwrite an existing file
+#    without --force, so skip this if a manifest is already present (for
+#    example the one `volcano init javascript` scaffolds)
 volcano cloud config pull
 
 # 1. Build function output (Model B only — skip for native JS)
