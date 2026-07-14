@@ -58,7 +58,8 @@ function lintScenarios() {
   if (errors.length > 0) {
     console.error("Scenario lint failed:");
     for (const e of errors) console.error(`- ${e}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   console.log(`Scenario lint passed: ${scenarios.length} scenario(s), all well-formed.`);
@@ -70,7 +71,8 @@ async function runLive() {
     console.error("No model provider available.");
     console.error("Either install/authenticate the `claude` CLI (used automatically, no key needed),");
     console.error("or set OPENAI_API_KEY, or run with --lint to validate scenario structure only.");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log(`Using provider: ${provider}${process.env.AGENT_EVAL_MODEL ? ` (model: ${process.env.AGENT_EVAL_MODEL})` : ""}\n`);
 
@@ -91,7 +93,8 @@ async function runLive() {
   const selected = filter ? scenarios.filter((s) => s.id.includes(filter)) : scenarios;
   if (filter && selected.length === 0) {
     console.error(`AGENT_EVAL_SCENARIO_FILTER="${filter}" matched no scenario ids.`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const scenarioResults = [];
@@ -113,7 +116,10 @@ async function runLive() {
 
   const { text, totalBlockingFailures } = formatReport(scenarioResults);
   console.log(text);
-  process.exit(totalBlockingFailures > 0 ? 1 : 0);
+  // Set exitCode (rather than process.exit) so buffered stdout — the report,
+  // which is the whole point of the run — fully flushes before the process
+  // exits, even when stdout is a pipe (CI/redirection) rather than a TTY.
+  process.exitCode = totalBlockingFailures > 0 ? 1 : 0;
 }
 
 const mode = process.argv[2];

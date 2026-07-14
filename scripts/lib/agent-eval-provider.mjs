@@ -27,6 +27,9 @@ const DEFAULT_CLAUDE_CLI_MODEL = process.env.AGENT_EVAL_MODEL || "sonnet";
 // A full AGENTS.md as system prompt is large; observed real scenario calls
 // taking up to ~160s with the `sonnet` model. Give real headroom by default.
 const CLAUDE_CLI_TIMEOUT_MS = Number(process.env.AGENT_EVAL_CLAUDE_CLI_TIMEOUT_MS || 240_000);
+// Bound each OpenAI request so a stalled connection can't hang the sequential
+// scenario run (and the CI job) indefinitely, mirroring the claude-cli timeout.
+const OPENAI_TIMEOUT_MS = Number(process.env.AGENT_EVAL_OPENAI_TIMEOUT_MS || 120_000);
 
 /**
  * Call an OpenAI-compatible chat completions endpoint.
@@ -39,21 +42,30 @@ export async function callOpenAI({ system, user }, { model = DEFAULT_OPENAI_MODE
     throw new Error("OPENAI_API_KEY is not set; cannot make a live model call");
   }
 
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      temperature: 0.2,
-    }),
-  });
+  let res;
+  try {
+    res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        temperature: 0.2,
+      }),
+      signal: AbortSignal.timeout(OPENAI_TIMEOUT_MS),
+    });
+  } catch (err) {
+    if (err?.name === "TimeoutError") {
+      throw new Error(`OpenAI request timed out after ${OPENAI_TIMEOUT_MS}ms`);
+    }
+    throw err;
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");

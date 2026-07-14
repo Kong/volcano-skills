@@ -4,11 +4,31 @@ on:
   pull_request:
 
 jobs:
-  live-eval:
+  # The `secrets` context is not available in a job-level `if:` (only github,
+  # needs, vars, inputs are), so gate on a preflight job output instead. This
+  # skips (does not fail) the live eval when the secret isn't configured, e.g.
+  # forked-repo PRs without access to repo secrets. See tests/agent-eval/README.md.
+  check-secret:
     runs-on: ubuntu-latest
-    # Skip (not fail) when the secret isn't configured, e.g. forked-repo PRs
-    # without access to repo secrets. See tests/agent-eval/README.md.
-    if: ${{ secrets.OPENAI_API_KEY != '' }}
+    outputs:
+      has-openai-key: ${{ steps.check.outputs.has-openai-key }}
+    steps:
+      - name: Check for OpenAI API key
+        id: check
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "has-openai-key=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-openai-key=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  live-eval:
+    needs: check-secret
+    if: ${{ needs.check-secret.outputs.has-openai-key == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4

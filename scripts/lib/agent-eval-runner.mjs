@@ -57,7 +57,16 @@ export async function evaluateScenario(scenario, responseText, { judgeFn } = {})
         });
         continue;
       }
-      const verdict = await judgeFn(assertion.question, responseText);
+      // A judge call is a real model/network call that can throw. Never let a
+      // transient judge failure reject the whole run — record it as a failed
+      // (but blocking-flag-respecting) result so an advisory judge stays
+      // advisory. See eval-agent-guidance.mjs runLive loop.
+      let verdict;
+      try {
+        verdict = await judgeFn(assertion.question, responseText);
+      } catch (err) {
+        verdict = { pass: false, reason: `judge call failed: ${String(err)}` };
+      }
       results.push({
         label: assertion.label,
         pass: verdict.pass,
