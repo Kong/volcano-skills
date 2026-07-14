@@ -361,38 +361,76 @@ For public-read patterns, add a policy with `USING (status = 'published')` along
 
 ## volcano-config.yaml
 
-Declarative configuration for storage buckets, storage policies, and function visibility. Deployed via `volcano config deploy`. Located at `volcano/volcano-config.yaml` or root `volcano-config.yaml`.
+Declarative configuration for the full project: project settings, database
+assertions, variables, buckets/policies, realtime, auth (providers, email,
+templates, managed pages), function visibility/schedulers, and frontend
+custom domains. Deployed via `volcano config deploy` (local) or
+`volcano cloud config deploy` (cloud). Located at `volcano/volcano-config.yaml`
+or root `volcano-config.yaml`. Only declared sections are reconciled —
+everything else is left untouched.
 
-**Schema** (source: `volcano-cli/internal/projectconfig/manifest.go`):
+**Partial example** (see the full schema at
+`volcano-hosting/docs/projects/configuration.md` — it also covers `project`,
+`databases`, `realtime`, `auth`, and `frontends`, omitted here for brevity):
 ```yaml
 version: 1                          # required — only version 1 is supported
 
-buckets:                            # optional — storage buckets and policies
+variables:
+  - name: STRIPE_SECRET_KEY
+    value: ${STRIPE_SECRET_KEY}     # interpolated from the CLI environment
+
+buckets:                            # bucket must already exist — never created here
   - name: avatars
     file_size_limit: 5242880        # optional — bytes
-    allowed_mime_types:             # optional — MIME list
-      - image/jpeg
-      - image/png
-    policies:
+    allowed_mime_types: [image/jpeg, image/png]
+    policies:                       # fully synced when declared — omit the key to leave untouched
       - name: owner-read-write
         operation: SELECT           # SELECT, INSERT, UPDATE, or DELETE
         definition: "auth.uid() IS NOT NULL"
 
-functions:                          # optional — function visibility
+functions:                          # function must already be deployed — never created here
   - name: notes-summary
     public: false                   # required — boolean
-  - name: health-check
-    public: true
+    schedulers:                     # fully synced when declared
+      - name: refresh-cache
+        cron: "*/5 * * * *"
+        enabled: true
+        payload: { job: refresh }
 ```
 
-**Validation rules:**
-- `version: 1` is required.
-- At least one bucket or function must be declared.
-- Each policy `operation` must be `SELECT`, `INSERT`, `UPDATE`, or `DELETE`.
-- Each function must have `public` set (boolean).
-- Function visibility can also be set imperatively via `volcano cloud functions update --public` / `--private`.
+**Hard rules:**
+- `version: 1` is required. It's a schema version, not a Terraform-style
+  state serial — it never needs bumping between deploys.
+- Functions, frontends, databases, and buckets are **never created or
+  deleted** through the manifest — they must already exist. A declared entry
+  for a resource that doesn't exist is reported `skipped`; a deployed
+  resource missing from a declared section is reported `missing`. Both are
+  non-fatal warnings.
+- Omitted sections/fields are left untouched (patch semantics). An **empty
+  declared list** for a fully-synced collection — `variables`,
+  `buckets[].policies`, `auth.providers.oauth`, `auth.email.templates`,
+  `functions[].schedulers` — deletes everything currently in it. These are
+  destructive by design; declaring the section at all means it's the source
+  of truth.
+- Each bucket policy `operation` must be `SELECT`, `INSERT`, `UPDATE`, or
+  `DELETE`. Each declared function needs `public` set (boolean).
+- Function visibility can also be set imperatively via
+  `volcano cloud functions update --public` / `--private`; `functions deploy`
+  itself does **not** read `volcano-config.yaml`.
 
-`functions deploy` does **not** read `volcano-config.yaml` — visibility is reconciled separately via `config deploy`.
+**There is no state file.** Don't invent one, and don't build a manual
+rollback step for a failed `config deploy` — neither exists or is needed:
+- Every `config deploy` (`--dry-run` included) diffs the manifest against the
+  project's live configuration at request time. There's no cached snapshot of
+  a prior apply to reconcile against.
+- A failed apply still attempts every other planned change and reports
+  `created` / `updated` / `deleted` / `unchanged` / `error` per entry;
+  already-applied changes are **not** rolled back.
+- Re-running `config deploy` with the *same* file is always safe: entries
+  that already landed report `unchanged`; only entries that failed or still
+  differ produce a new action. Fix the underlying issue (bad cron expression,
+  plan-gated field, etc.) and re-run the same command — don't try to track or
+  hand-edit applied state anywhere.
 
 ## Deploy & Local-Dev Workflow
 
