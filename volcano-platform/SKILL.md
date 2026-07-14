@@ -364,10 +364,22 @@ For public-read patterns, add a policy with `USING (status = 'published')` along
 Declarative configuration for the full project: project settings, database
 assertions, variables, buckets/policies, realtime, auth (providers, email,
 templates, managed pages), function visibility/schedulers, and frontend
-custom domains. Deployed via `volcano config deploy` (local) or
-`volcano cloud config deploy` (cloud). Located at `volcano/volcano-config.yaml`
-or root `volcano-config.yaml`. Only declared sections are reconciled —
-everything else is left untouched.
+custom domains. Located at `volcano/volcano-config.yaml` or root
+`volcano-config.yaml`. Only declared sections are reconciled — everything
+else is left untouched.
+
+`pull` exports the target's current configuration to a file; `deploy`
+uploads a file and reconciles the target to match it. Only the command
+namespace changes between local and cloud:
+
+| Target | Export to file | Apply from file |
+|---|---|---|
+| Local (`volcano start`) | `volcano config pull` | `volcano config deploy` |
+| Cloud (`volcano login` + `volcano use`) | `volcano cloud config pull` | `volcano cloud config deploy` |
+
+Use `pull` to seed a manifest from an existing project instead of
+hand-writing one from scratch, and `deploy --dry-run` to preview reconcile
+actions before applying.
 
 **Partial example** (see the full schema at
 `volcano-hosting/docs/projects/configuration.md` — it also covers `project`,
@@ -442,6 +454,9 @@ The local stack reads `volcano/volcano.env` for environment variables. Functions
 
 ### Local deploy sequence
 ```sh
+# 0. (first time only) seed volcano-config.yaml from the current project state
+volcano config pull
+
 # 1. Build function output (Model B only — skip for native JS)
 npm run build:functions
 
@@ -460,6 +475,9 @@ volcano migrations deploy --all -d app
 
 ### Cloud deploy (requires `volcano login` + `volcano use`)
 ```sh
+# 0. (first time only) seed volcano-config.yaml from the current project state
+volcano cloud config pull
+
 # 1. Build function output (Model B only — skip for native JS)
 npm run build:functions
 
@@ -494,7 +512,9 @@ volcano cloud migrations deploy --all -d app
 - Shared code uses `_`-prefix directories (`_shared/`, `_lib/`).
 - `volcano/migrations/` contains `.sql` files with numeric-prefix alphabetical naming.
 - RLS policies use `auth.uid()` (with schema prefix), not bare `uid()`.
-- `volcano-config.yaml` (if present) has `version: 1` and declares at least one bucket or function.
+- `volcano-config.yaml` (if present) has `version: 1`. There is no minimum
+  section requirement — a manifest can declare only `variables`, only
+  `project`, etc.; omitted sections are left untouched, not an error.
 - Environment variables are deployed via `volcano variables deploy` (local) or `volcano cloud variables deploy` (cloud) — not assumed auto-injected.
 - `VOLCANO_DATABASE` is used (not `VOLCANO_DB_NAME`).
 - If using the build model: `npm run build:functions` produces `.js` files under `volcano/functions/` before deploy.
