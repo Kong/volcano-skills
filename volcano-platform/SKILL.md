@@ -495,7 +495,8 @@ volcano variables deploy
 # 3. Deploy functions from volcano/functions/
 volcano functions deploy --all
 
-# 4. Reconcile buckets, policies, and function visibility
+# 4. Reconcile all declared config sections (project, databases, variables,
+#    buckets/policies, realtime, auth, function visibility/schedulers, frontends)
 volcano config deploy
 
 # 5. Apply database migrations
@@ -527,7 +528,8 @@ volcano cloud variables deploy
 # 3. Deploy functions from volcano/functions/
 volcano cloud functions deploy --all
 
-# 4. Reconcile buckets, policies, and function visibility
+# 4. Reconcile all declared config sections (project, databases, variables,
+#    buckets/policies, realtime, auth, function visibility/schedulers, frontends)
 volcano cloud config deploy
 
 # 5. Apply database migrations
