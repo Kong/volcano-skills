@@ -54,7 +54,7 @@ Note: `volcano-config.yaml` is created only by the `javascript` template, not by
 │   ├── migrations/
 │   │   ├── 001_init.sql            # numeric-prefix alphabetical ordering
 │   │   └── 002_add_posts.sql
-│   ├── volcano-config.yaml         # declarative buckets, policies, function visibility
+│   ├── volcano-config.yaml         # declarative project config (see "volcano-config.yaml" below)
 │   ├── volcano.env                 # local env vars (gitignored)
 │   ├── volcano.env.example         # env var documentation (committed)
 │   └── .gitignore
@@ -72,7 +72,7 @@ Note: `volcano-config.yaml` is created only by the `javascript` template, not by
 - Function handlers live ONLY under `volcano/functions/`.
 - Migrations live ONLY under `volcano/migrations/`.
 - Shared code that functions import at runtime uses the `_`-prefix convention (`_shared/`, `_lib/`) so the scanner skips it as a function candidate but the packager bundles it.
-- `volcano-config.yaml` is the declarative config for buckets, storage policies, and function visibility.
+- `volcano-config.yaml` is the declarative config for the full project (project settings, databases, variables, buckets/policies, realtime, auth, functions/schedulers, frontends) — see "volcano-config.yaml" below, not just buckets and function visibility.
 
 ## Function Deployment Model
 
@@ -361,38 +361,107 @@ For public-read patterns, add a policy with `USING (status = 'published')` along
 
 ## volcano-config.yaml
 
-Declarative configuration for storage buckets, storage policies, and function visibility. Deployed via `volcano config deploy`. Located at `volcano/volcano-config.yaml` or root `volcano-config.yaml`.
+Declarative configuration for the full project: project settings, database
+assertions, variables, buckets/policies, realtime, auth (providers, email,
+templates, managed pages), function visibility/schedulers, and frontend
+custom domains. Located at `volcano/volcano-config.yaml` or root
+`volcano-config.yaml`. Only declared sections are reconciled — everything
+else is left untouched.
 
-**Schema** (source: `volcano-cli/internal/projectconfig/manifest.go`):
+`pull` exports the target's current configuration to a file; `deploy`
+uploads a file and reconciles the target to match it. Only the command
+namespace changes between local and cloud:
+
+| Target | Export to file | Apply from file |
+|---|---|---|
+| Local (`volcano start`) | `volcano config pull` | `volcano config deploy` |
+| Cloud (`volcano login` + `volcano use`) | `volcano cloud config pull` | `volcano cloud config deploy` |
+
+Use `pull` to seed a manifest from an existing project instead of
+hand-writing one from scratch, and `deploy --dry-run` to preview reconcile
+actions before applying.
+
+**Pull exports include plaintext variable values, but not other secrets.**
+Write-only fields (SMTP password, OAuth client secrets, custom domain TLS
+material) are omitted from the export and stay unchanged unless set
+explicitly, but `variables[].value` **is** included in the clear. Never
+commit a pulled manifest as-is: replace secret values with `${ENV_VAR}`
+references (interpolated from the CLI environment before upload) before it
+touches version control.
+
+**A declared `variables` section is a second, competing source of truth for
+variables — don't run both.** If a manifest declares `variables`, `config
+deploy` fully syncs the project's variables to exactly that list, deleting
+any variable not listed. That conflicts with `volcano variables deploy` /
+`volcano cloud variables deploy` (see "Environment Variables" above) if both
+are used for the same variables: whichever runs last wins, and `config
+deploy` will delete anything only `variables deploy` set. Pick one path for
+variables per project — typically `variables deploy` from `volcano.env` for
+day-to-day secrets, and only add `variables` to the manifest if you want it
+to be the single source of truth instead.
+
+**Partial example** (see the full schema at
+`volcano-hosting/docs/projects/configuration.md` — it also covers `project`,
+`databases`, `realtime`, `auth`, and `frontends`, omitted here for brevity):
 ```yaml
 version: 1                          # required — only version 1 is supported
 
-buckets:                            # optional — storage buckets and policies
+variables:
+  - name: STRIPE_SECRET_KEY
+    value: ${STRIPE_SECRET_KEY}     # interpolated from the CLI environment
+
+buckets:                            # bucket must already exist — never created here
   - name: avatars
     file_size_limit: 5242880        # optional — bytes
-    allowed_mime_types:             # optional — MIME list
-      - image/jpeg
-      - image/png
-    policies:
+    allowed_mime_types: [image/jpeg, image/png]
+    policies:                       # fully synced when declared — omit the key to leave untouched
       - name: owner-read-write
         operation: SELECT           # SELECT, INSERT, UPDATE, or DELETE
         definition: "auth.uid() IS NOT NULL"
 
-functions:                          # optional — function visibility
+functions:                          # function must already be deployed — never created here
   - name: notes-summary
     public: false                   # required — boolean
-  - name: health-check
-    public: true
+    schedulers:                     # fully synced when declared
+      - name: refresh-cache
+        cron: "*/5 * * * *"
+        enabled: true
+        payload: { job: refresh }
 ```
 
-**Validation rules:**
-- `version: 1` is required.
-- At least one bucket or function must be declared.
-- Each policy `operation` must be `SELECT`, `INSERT`, `UPDATE`, or `DELETE`.
-- Each function must have `public` set (boolean).
-- Function visibility can also be set imperatively via `volcano cloud functions update --public` / `--private`.
+**Hard rules:**
+- `version: 1` is required. It's a schema version, not a Terraform-style
+  state serial — it never needs bumping between deploys.
+- Functions, frontends, databases, and buckets are **never created or
+  deleted** through the manifest — they must already exist. A declared entry
+  for a resource that doesn't exist is reported `skipped`; a deployed
+  resource missing from a declared section is reported `missing`. Both are
+  non-fatal warnings.
+- Omitted sections/fields are left untouched (patch semantics). An **empty
+  declared list** for a fully-synced collection — `variables`,
+  `buckets[].policies`, `auth.providers.oauth`, `auth.email.templates`,
+  `functions[].schedulers` — deletes everything currently in it. These are
+  destructive by design; declaring the section at all means it's the source
+  of truth.
+- Each bucket policy `operation` must be `SELECT`, `INSERT`, `UPDATE`, or
+  `DELETE`. Each declared function needs `public` set (boolean).
+- Function visibility can also be set imperatively via
+  `volcano cloud functions update --public` / `--private`; `functions deploy`
+  itself does **not** read `volcano-config.yaml`.
 
-`functions deploy` does **not** read `volcano-config.yaml` — visibility is reconciled separately via `config deploy`.
+**There is no state file.** Don't invent one, and don't build a manual
+rollback step for a failed `config deploy` — neither exists or is needed:
+- Every `config deploy` (`--dry-run` included) diffs the manifest against the
+  project's live configuration at request time. There's no cached snapshot of
+  a prior apply to reconcile against.
+- A failed apply still attempts every other planned change and reports
+  `created` / `updated` / `deleted` / `unchanged` / `error` per entry;
+  already-applied changes are **not** rolled back.
+- Re-running `config deploy` with the *same* file is always safe: entries
+  that already landed report `unchanged`; only entries that failed or still
+  differ produce a new action. Fix the underlying issue (bad cron expression,
+  plan-gated field, etc.) and re-run the same command — don't try to track or
+  hand-edit applied state anywhere.
 
 ## Deploy & Local-Dev Workflow
 
@@ -404,6 +473,19 @@ The local stack reads `volcano/volcano.env` for environment variables. Functions
 
 ### Local deploy sequence
 ```sh
+# 0. (optional, only if volcano-config.yaml doesn't exist yet) seed it from
+#    the current project state — pull refuses to overwrite an existing file
+#    without --force, so skip this if a manifest is already present (for
+#    example the one `volcano init javascript` scaffolds).
+#    WARNING: a pulled manifest contains plaintext variable values AND a
+#    `variables` section. Before step 4, (a) replace secret values with
+#    ${ENV_VAR} references — never commit a pulled manifest as-is — and
+#    (b) delete the `variables` section unless you intend the manifest to be
+#    the single source of truth, otherwise step 4 (`config deploy`) fully
+#    syncs variables to that list and deletes anything only step 2
+#    (`variables deploy`) set. See the "volcano-config.yaml" warnings above.
+volcano config pull
+
 # 1. Build function output (Model B only — skip for native JS)
 npm run build:functions
 
@@ -413,7 +495,8 @@ volcano variables deploy
 # 3. Deploy functions from volcano/functions/
 volcano functions deploy --all
 
-# 4. Reconcile buckets, policies, and function visibility
+# 4. Reconcile all declared config sections (project, databases, variables,
+#    buckets/policies, realtime, auth, function visibility/schedulers, frontends)
 volcano config deploy
 
 # 5. Apply database migrations
@@ -422,6 +505,20 @@ volcano migrations deploy --all -d app
 
 ### Cloud deploy (requires `volcano login` + `volcano use`)
 ```sh
+# 0. (optional, only if volcano-config.yaml doesn't exist yet) seed it from
+#    the current project state — pull refuses to overwrite an existing file
+#    without --force, so skip this if a manifest is already present (for
+#    example the one `volcano init javascript` scaffolds).
+#    WARNING: a pulled manifest contains plaintext variable values AND a
+#    `variables` section. Before step 4, (a) replace secret values with
+#    ${ENV_VAR} references — never commit a pulled manifest as-is — and
+#    (b) delete the `variables` section unless you intend the manifest to be
+#    the single source of truth, otherwise step 4 (`cloud config deploy`)
+#    fully syncs variables to that list and deletes anything only step 2
+#    (`cloud variables deploy`) set — on cloud this is production data loss.
+#    See the "volcano-config.yaml" warnings above.
+volcano cloud config pull
+
 # 1. Build function output (Model B only — skip for native JS)
 npm run build:functions
 
@@ -431,14 +528,15 @@ volcano cloud variables deploy
 # 3. Deploy functions from volcano/functions/
 volcano cloud functions deploy --all
 
-# 4. Reconcile buckets, policies, and function visibility
+# 4. Reconcile all declared config sections (project, databases, variables,
+#    buckets/policies, realtime, auth, function visibility/schedulers, frontends)
 volcano cloud config deploy
 
 # 5. Apply database migrations
 volcano cloud migrations deploy --all -d app
 ```
 
-**Order matters:** variables before functions (so handlers have env vars on first deploy), config after functions (so visibility targets exist), migrations last (schema is ready for runtime queries).
+**Order matters:** variables before functions (so handlers have env vars on first deploy), config after functions (so visibility targets exist), migrations last (schema is ready for runtime queries). Note that step 4 (`config deploy`) runs *after* step 2 (`variables deploy`): if the manifest declares a `variables` section, step 4 wins and will overwrite or delete variables set by step 2 — keep `variables` out of the manifest unless it is the single source of truth (see "volcano-config.yaml" above).
 
 ## Forbidden Patterns
 - Do NOT create an `src/api/index.ts` route dispatcher or `openapi.yaml` — Volcano Functions deploy individually from `volcano/functions/`, not through a single entry point.
@@ -456,7 +554,9 @@ volcano cloud migrations deploy --all -d app
 - Shared code uses `_`-prefix directories (`_shared/`, `_lib/`).
 - `volcano/migrations/` contains `.sql` files with numeric-prefix alphabetical naming.
 - RLS policies use `auth.uid()` (with schema prefix), not bare `uid()`.
-- `volcano-config.yaml` (if present) has `version: 1` and declares at least one bucket or function.
+- `volcano-config.yaml` (if present) has `version: 1`. There is no minimum
+  section requirement — a manifest can declare only `variables`, only
+  `project`, etc.; omitted sections are left untouched, not an error.
 - Environment variables are deployed via `volcano variables deploy` (local) or `volcano cloud variables deploy` (cloud) — not assumed auto-injected.
 - `VOLCANO_DATABASE` is used (not `VOLCANO_DB_NAME`).
 - If using the build model: `npm run build:functions` produces `.js` files under `volcano/functions/` before deploy.
