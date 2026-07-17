@@ -1,13 +1,25 @@
-name: Agent behavior eval
+name: Agent behavior eval (manual diagnostic)
 
+# On-demand diagnostic, NOT a CI gate. The live model eval is non-deterministic
+# (see tests/agent-eval/README.md), so it runs only when manually triggered —
+# never automatically on push/PR. The deterministic checks (lint + self-test)
+# live in ci.yml and gate every PR instead.
 on:
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      scenario_filter:
+        description: "Only run scenarios whose id contains this substring (blank = all)."
+        required: false
+        default: ""
+      model:
+        description: "OpenAI model to use (blank = harness default)."
+        required: false
+        default: ""
 
 jobs:
   # The `secrets` context is not available in a job-level `if:` (only github,
   # needs, vars, inputs are), so gate on a preflight job output instead. This
-  # skips (does not fail) the live eval when the secret isn't configured, e.g.
-  # forked-repo PRs without access to repo secrets. See tests/agent-eval/README.md.
+  # skips (does not fail) the live eval when OPENAI_API_KEY isn't configured.
   check-secret:
     runs-on: ubuntu-latest
     outputs:
@@ -21,6 +33,7 @@ jobs:
           if [ -n "$OPENAI_API_KEY" ]; then
             echo "has-openai-key=true" >> "$GITHUB_OUTPUT"
           else
+            echo "OPENAI_API_KEY is not configured; the live eval job will be skipped."
             echo "has-openai-key=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -41,4 +54,6 @@ jobs:
       - name: Run live agent-behavior eval
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AGENT_EVAL_SCENARIO_FILTER: ${{ inputs.scenario_filter }}
+          AGENT_EVAL_MODEL: ${{ inputs.model }}
         run: node scripts/eval-agent-guidance.mjs

@@ -57,20 +57,27 @@ system prompt is large). Run a single scenario while iterating:
 AGENT_EVAL_SCENARIO_FILTER=build-bare-not-authenticated pnpm eval:agent-guidance
 ```
 
-To use OpenAI instead (e.g. to match what CI runs), set `OPENAI_API_KEY` —
-it's preferred automatically when present. Force a specific provider with
+To use OpenAI instead (e.g. to match what the manual diagnostic workflow
+runs), set `OPENAI_API_KEY` — it's preferred automatically when present. Force a specific provider with
 `AGENT_EVAL_PROVIDER=claude-cli` or `AGENT_EVAL_PROVIDER=openai`.
 
-## CI wiring
+## CI vs. diagnostic runs
 
-- `.github/workflows/ci.yml` runs `eval:agent-guidance:lint` and
-  `eval:agent-guidance:selftest` unconditionally on every push/PR (fast,
-  free, no secrets, no model call).
-- `.github/workflows/agent-eval.yml` runs the live model eval on pull
-  requests via the OpenAI provider, gated on `secrets.OPENAI_API_KEY` being
-  configured (GitHub Actions runners have no authenticated `claude` CLI
-  session to reuse). It's a no-op (not a failure) when the secret isn't
-  available, so forks/external contributors never get blocked by it.
+The deterministic checks are CI; the live model eval is deliberately **not**.
+
+- **CI — every push/PR:** `.github/workflows/ci.yml` runs
+  `eval:agent-guidance:lint` and `eval:agent-guidance:selftest`
+  unconditionally — fast, free, no secrets, no model call. These are the
+  merge-gating checks.
+- **Occasional diagnostic — manual only:** `.github/workflows/agent-eval.yml`
+  runs the live OpenAI eval, but only via `workflow_dispatch` (Actions tab →
+  "Agent behavior eval (manual diagnostic)" → "Run workflow"). It is
+  intentionally never wired to push/PR. The live run is non-deterministic (see
+  below), so treat it as a tool you reach for when investigating a suspected
+  behavior regression or after a substantive `AGENTS.md` change — not a gate.
+  Optional inputs let you filter scenarios or pick a model; the job is skipped
+  (not failed) when `OPENAI_API_KEY` isn't configured. Locally, just run
+  `pnpm eval:agent-guidance`.
 
 ## Adding a scenario
 
@@ -94,8 +101,9 @@ anti-hedging instruction in the harness's system framing (see
 `buildSystemPrompt` in `scripts/lib/agent-eval-runner.mjs`). Treat a live-run
 failure as a real signal to investigate (it may be a genuine compliance gap,
 as above), not as a hard, always-reproducible regression gate. This is also
-why the CI workflow only runs it as an informational PR check rather than
-blocking merges outright.
+why the live eval is a manual, on-demand diagnostic (`workflow_dispatch`)
+rather than a push/PR CI check — treat any failure as a lead to investigate,
+never as an automatic merge block.
 
 **Gotcha:** the `Next:` line assertions check literal `\n`-delimited lines.
 Don't hand-wrap a `Next: ...` fixture string across multiple array entries in
