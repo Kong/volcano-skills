@@ -15,6 +15,16 @@ on:
     branches:
       - main
 
+# No ambient GITHUB_TOKEN use in this job (auth is entirely via the
+# TEMP_PAT_TOKEN-derived GH_TOKEN below), so drop its default scopes.
+permissions: {}
+
+# Collapse a burst of pushes into a single effective dispatch; cancelling a
+# superseded run is safe here since the newer push's job will dispatch anyway.
+concurrency:
+  group: notify-agentic-plugins-sync
+  cancel-in-progress: true
+
 jobs:
   notify:
     runs-on: ubuntu-latest
@@ -25,7 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${GH_TOKEN:-}" ]; then
-            echo "TEMP_PAT_TOKEN secret is not set; skipping dispatch." >&2
+            echo "TEMP_PAT_TOKEN secret is not set; failing dispatch." >&2
             exit 1
           fi
           gh workflow run sync-skills.yml --repo Kong/volcano-agentic-plugins --ref main
