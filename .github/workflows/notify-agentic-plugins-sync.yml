@@ -1,0 +1,26 @@
+name: Notify volcano-agentic-plugins sync
+
+# Triggers the volcano-agentic-plugins submodule sync immediately on every
+# main-branch update, instead of waiting for its daily cron
+# (.github/workflows/sync-skills.yml there). That workflow's own
+# workflow_dispatch trigger is reused as-is; nothing there needs to change.
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch sync-skills.yml in volcano-agentic-plugins
+        env:
+          GH_TOKEN: ${{ secrets.AGENTIC_PLUGINS_SYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "AGENTIC_PLUGINS_SYNC_TOKEN secret is not set; skipping dispatch." >&2
+            exit 1
+          fi
+          gh workflow run sync-skills.yml --repo Kong/volcano-agentic-plugins --ref main
