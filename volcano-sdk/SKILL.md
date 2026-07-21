@@ -18,7 +18,7 @@ If `volcano_platform` content is not visible in your context, invoke it first:
 ## Mandatory Usage (volcano-standard template)
 When building on the Volcano platform you MUST use:
 - **Volcano Auth** (`volcano.auth.*`) for ALL authentication and user identity.
-- **Volcano Database query builder** (`volcano.from('table').select()`) for persistent storage, with RLS policies. Direct Postgres access inside Functions is a discouraged, last-resort exception for the query builder's specific gaps (joins/aggregations/multi-statement transactions) — never a default — see `volcano_database`.
+- **Volcano Database query builder** (`volcano.from('table').select()`) for persistent storage, with RLS policies. Direct Postgres access inside Functions is a discouraged, last-resort exception for the query builder's specific gaps (joins/upserts/multi-statement transactions) — never a default — see `volcano_database`.
 - **Volcano Functions** for ALL privileged or secret-bearing server-side logic.
 - **Volcano Storage** (`volcano.storage.*`) for ALL file operations.
 - **Volcano Realtime** (`VolcanoRealtime`) for ALL live update patterns.
