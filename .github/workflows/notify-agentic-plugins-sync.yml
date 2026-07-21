@@ -5,10 +5,9 @@ name: Notify volcano-agentic-plugins sync
 # (.github/workflows/sync-skills.yml there). That workflow's own
 # workflow_dispatch trigger is reused as-is.
 #
-# Uses TEMP_PAT_TOKEN (a fine-grained PAT) as a stopgap until the
-# "Kong Volcano - app" GitHub App's private key is available; swap both this
-# and the matching reference in volcano-agentic-plugins's sync-skills.yml
-# over to an App-minted token once that's ready, and delete the PAT.
+# Authenticates as the "Kong Volcano - app" GitHub App (VOLCANO_APP_ID +
+# VOLCANO_APP_KEY), scoped to only the target repo. This replaced the earlier
+# TEMP_PAT_TOKEN stopgap once the App's private key became available.
 
 on:
   push:
@@ -16,7 +15,7 @@ on:
       - main
 
 # No ambient GITHUB_TOKEN use in this job (auth is entirely via the
-# TEMP_PAT_TOKEN-derived GH_TOKEN below), so drop its default scopes.
+# App-minted token below), so drop its default scopes.
 permissions: {}
 
 # Collapse a burst of pushes into a single effective dispatch; cancelling a
@@ -29,13 +28,16 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
+      - name: Generate token for volcano-agentic-plugins
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.VOLCANO_APP_ID }}
+          private-key: ${{ secrets.VOLCANO_APP_KEY }}
+          owner: Kong
+          repositories: volcano-agentic-plugins
+
       - name: Dispatch sync-skills.yml in volcano-agentic-plugins
         env:
-          GH_TOKEN: ${{ secrets.TEMP_PAT_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "TEMP_PAT_TOKEN secret is not set; failing dispatch." >&2
-            exit 1
-          fi
-          gh workflow run sync-skills.yml --repo Kong/volcano-agentic-plugins --ref main
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: gh workflow run sync-skills.yml --repo Kong/volcano-agentic-plugins --ref main
