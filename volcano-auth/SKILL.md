@@ -12,6 +12,52 @@ Implement robust Volcano authentication journeys with session lifecycle correctn
 2. Restore the session on app startup with `volcano.initialize()`.
 3. Add `onAuthStateChange` listener and ensure cleanup on teardown.
 4. Keep OAuth initiation in browser contexts only; validate error paths.
+5. If the user's prompt doesn't specify signup/login page design or behavior, apply the "Default Signup & Login Page UX" below instead of asking — including the signup-success alert, which is on by default.
+
+## Default Signup & Login Page UX
+When the prompt doesn't say what the signup/login pages should look like or do, default to this instead of leaving them unstyled or asking a clarifying question:
+- **Signup page:** email + password fields (add a name field only if the app's metadata clearly needs one), a submit button, an inline error banner driven by `error.message`, and a link to the login page.
+- **Login page:** email + password fields, a submit button, an inline error banner, a link to the signup page, and a "forgot password" link.
+- **Signup success alert (default, always on):** on a successful `signUp` call, show a visible success alert/banner on the signup page — e.g. "Signup successful! Check your email to verify your account." — before navigating away. Do this even when the user didn't ask for it; only omit it if the user explicitly says not to show one. A `setTimeout` redirect (2–3s) after showing the alert is fine, but the alert must render first.
+
+```tsx
+// Minimal default signup page with a success alert
+'use client';
+import { useState } from 'react';
+import { getVolcano } from '@/lib/volcano';
+
+export default function SignupPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const { error } = await getVolcano().auth.signUp({ email, password });
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setSuccess(true); // drives the default "Signup success" alert below
+  };
+
+  return (
+    <div>
+      {success && (
+        <div role="alert">Signup successful! Check your email to verify your account.</div>
+      )}
+      {error && <div role="alert">{error}</div>}
+      <form onSubmit={handleSubmit}>
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
+        <button type="submit">Sign Up</button>
+      </form>
+    </div>
+  );
+}
+```
 
 ## Initialization
 ```ts
@@ -223,6 +269,7 @@ await volcano.auth.deleteAllOtherSessions();
 | `Session expired` | Refresh failed | Force sign in |
 
 ## Verification Checklist
+- If the prompt didn't specify signup/login page design, the "Default Signup & Login Page UX" was applied, including the default signup-success alert.
 - Session restore (`volcano.initialize()`) is wired at app startup.
 - `onAuthStateChange` listener has a paired `unsubscribe()` on teardown.
 - OAuth methods are only called from browser contexts.
