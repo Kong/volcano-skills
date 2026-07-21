@@ -426,15 +426,99 @@ export function LivePosts() {
 }
 ```
 
-## OAuth in Next.js
-OAuth initiation must be in a Client Component; the callback page reconciles the tokens.
+## Default Signup & Login Pages
+When the prompt doesn't specify signup/login page design, apply the `volcano_auth` "Default Signup & Login Page UX" — including the default signup-success alert — on top of the `AuthContext` from this skill.
 
 ```tsx
-// app/login/page.tsx
+// app/signup/page.tsx — default signup page with a success alert
+'use client';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+
+export default function SignupPage() {
+  const { signUp } = useAuth();
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      await signUp(email, password);
+      setSuccess(true); // default "Signup success" alert — shown even if not requested
+      setTimeout(() => router.push('/login'), 2000);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div>
+      {success && (
+        <div role="alert">Signup successful! Check your email to verify your account.</div>
+      )}
+      {error && <div role="alert">{error}</div>}
+      <form onSubmit={handleSubmit}>
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
+        <button type="submit">Sign Up</button>
+      </form>
+    </div>
+  );
+}
+```
+
+```tsx
+// app/login/page.tsx — default login page (email/password)
+'use client';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+
+export default function LoginPage() {
+  const { signIn } = useAuth();
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      await signIn(email, password);
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div>
+      {error && <div role="alert">{error}</div>}
+      <form onSubmit={handleSubmit}>
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
+        <button type="submit">Sign In</button>
+      </form>
+    </div>
+  );
+}
+```
+
+## OAuth in Next.js
+OAuth initiation must be in a Client Component; the callback page reconciles the tokens. Add the OAuth button(s) to the default login page above (or use standalone, as shown) — don't replace the email/password form unless the user asks for OAuth-only login.
+
+```tsx
+// Add to app/login/page.tsx (or standalone) — OAuth button
 'use client';
 import { getVolcano } from '@/lib/volcano';
 
-export default function LoginPage() {
+export function GoogleSignInButton() {
   return (
     <button onClick={() => getVolcano().auth.signInWithGoogle()}>
       Sign in with Google
