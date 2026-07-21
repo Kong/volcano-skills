@@ -54,6 +54,7 @@ export default function SignupPage() {
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
         <button type="submit">Sign Up</button>
       </form>
+      <a href="/login">Already have an account? Log in</a>
     </div>
   );
 }
