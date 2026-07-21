@@ -289,7 +289,7 @@ Each domain skill includes domain-specific error messages. This skill is the cro
 
 | Domain | Skill | Common error messages |
 |---|---|---|
-| Auth | `volcano_auth` | `invalid email or password`, `email not confirmed`, `already exists`, `weak password`, `too many attempts` |
+| Auth | `volcano_auth` | `invalid email or password`, `confirm your email`, `already exists`, `password must`, `rate limit` |
 | Database | `volcano_database` | `column does not exist`, `permission denied`, `No active session`, `Database name not set`, `violates unique constraint` |
 | Functions | `volcano_functions` | `Function not found`, `timeout`, `rate limit`, `Internal server error` (or business-logic `data.error`) |
 | Storage | `volcano_storage` | `No active session`, `Bucket not found`, `File not found`, `File too large`, `permission denied`, `invalid file type` |
