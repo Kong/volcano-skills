@@ -184,7 +184,67 @@ The query builder does NOT currently expose:
 - **Upserts** (insert-on-conflict-update).
 - **Multi-statement transactions.**
 
-When the work genuinely requires one of these, route it through a Volcano Function and use raw SQL via the request-scoped Volcano client. Consult the fallback reference if the SDK has gained these capabilities since this skill was last updated.
+When the work genuinely requires one of these, treat **direct Postgres access** (see below) as a last resort, not the default next step — first check whether the feature can be reshaped to fit the query builder (e.g., denormalize, add a lookup column, split into two queries client-side) before reaching for a raw connection. Consult the fallback reference if the SDK has gained these capabilities since this skill was last updated.
+
+## Direct Postgres Access (discouraged — last resort only)
+
+**Prefer the query builder (`volcano.from(...)`) for essentially everything.** Direct Postgres access inside a Function is an escape hatch for the three specific query-builder gaps above, not a general-purpose alternative data-access layer. Treat every use as exceptional and narrow:
+
+- Do NOT adopt a direct-connection/ORM layer as the project's default architecture. Introducing `pg`, Prisma, Sequelize, TypeORM, etc. opens unbounded surface area (arbitrary SQL, connection lifecycle, pooling bugs, migrations drift) that this skill cannot fully cover or guarantee support for.
+- Reach for it only when a specific piece of work is provably impossible with the query builder (a genuine join/upsert/multi-statement transaction), and scope the raw-SQL usage to that one function/query — not a rewrite of existing query-builder code.
+- Before using it, confirm with the user that this is a deliberate, scoped exception, since it carries more manual RLS-safety responsibility (see the `application_name` rewrite below) than the query builder, which enforces RLS automatically.
+
+**Never browser-side.** Direct connections are Function-only; `DATABASE_URL` is never exposed to browser code.
+
+### The `application_name` rewrite is mandatory
+`DATABASE_URL` is auto-injected into every function's environment, but it already carries `application_name=volcano_full_access` — full admin access that **bypasses RLS**. To scope a connection to the calling user (and get RLS enforcement), you MUST rewrite `application_name` to `volcano_user_access:{user_id}` before connecting:
+
+```js
+// functions/get-posts-with-authors.js
+const { Pool } = require('pg');
+
+// One pool per auth user — the RLS identity is fixed at connection
+// startup, so a shared pool can't switch users per request. Bound this
+// cache in production (e.g. LRU with idle eviction).
+const poolsByUser = new Map();
+
+function poolForUser(userId) {
+  let pool = poolsByUser.get(userId);
+  if (!pool) {
+    const url = new URL(process.env.DATABASE_URL);
+    url.searchParams.set('application_name', `volcano_user_access:${userId}`); // REPLACE, don't append
+    pool = new Pool({ connectionString: url.toString(), max: 5 });
+    poolsByUser.set(userId, pool);
+  }
+  return pool;
+}
+
+exports.handler = async (event) => {
+  const auth = event.__volcano_auth;
+  if (!auth) return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
+
+  const client = await poolForUser(auth.user_id).connect();
+  try {
+    // RLS is active: auth.uid() resolves to auth.user_id inside this query.
+    const { rows } = await client.query(`
+      SELECT p.*, u.name AS author_name
+      FROM posts p JOIN users u ON p.user_id = u.id
+      WHERE p.status = $1
+    `, ['published']);
+    return { statusCode: 200, body: JSON.stringify({ posts: rows }) };
+  } finally {
+    client.release();
+  }
+};
+```
+
+### Rules
+- **Rewrite `application_name`, never append** — a duplicate parameter leaves the startup mode up to the driver's dupe handling. Use `url.searchParams.set(...)`, not string concatenation.
+- **Never trust a client-supplied user id** — only use `event.__volcano_auth.user_id` (server-verified), never a value from the request body.
+- **The identity is fixed at connection startup** — `SET application_name` after `connect()` has no effect on RLS scoping. Pool per user (as above); don't share one pool across users.
+- **Bound the per-user pool cache.** Each entry holds a live `Pool` (`max: 5` in the example) that is never closed, so total open connections scale as (distinct users served by this warm instance) × `max` — with no eviction this grows unbounded and can exhaust the database's connection limit. Cap the cache size (e.g. LRU with idle eviction, calling `pool.end()` on evicted entries) before this pattern reaches production.
+- **Admin/bypass access** (background jobs, migrations, cross-user aggregation) uses the connection string as-is (`volcano_full_access`) or a dedicated service-role connection string — never expose this path to user-triggered requests.
+- **Default to the query builder.** Re-check this section's "discouraged" framing before writing new raw-SQL code — direct access should stay the exception, not grow into a parallel data layer.
 
 ## Row-Level Security (RLS)
 
@@ -272,5 +332,7 @@ export const handler = async (event: { __volcano_auth?: { access_token?: string 
 - RLS policies are assumed to exist; no client-side pseudo-authorization.
 - Mutations have explicit error handling at the call site.
 - Functions doing persistence use a request-scoped client built from `event.__volcano_auth`.
+- The query builder was confirmed insufficient (a genuine join/upsert/multi-statement transaction) before reaching for direct Postgres access — it is not used as a default data-access layer.
+- If using direct Postgres access, `application_name` is rewritten to `volcano_user_access:{user_id}` before connecting — never a bare `DATABASE_URL` for user-scoped queries.
 
 ## Optional Fallback Reference

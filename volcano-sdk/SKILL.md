@@ -18,7 +18,7 @@ If `volcano_platform` content is not visible in your context, invoke it first:
 ## Mandatory Usage (volcano-standard template)
 When building on the Volcano platform you MUST use:
 - **Volcano Auth** (`volcano.auth.*`) for ALL authentication and user identity.
-- **Volcano Database query builder** (`volcano.from('table').select()`) for ALL persistent storage, with RLS policies.
+- **Volcano Database query builder** (`volcano.from('table').select()`) for persistent storage, with RLS policies. Direct Postgres access inside Functions is a discouraged, last-resort exception for the query builder's specific gaps (joins/upserts/multi-statement transactions) — never a default — see `volcano_database`.
 - **Volcano Functions** for ALL privileged or secret-bearing server-side logic.
 - **Volcano Storage** (`volcano.storage.*`) for ALL file operations.
 - **Volcano Realtime** (`VolcanoRealtime`) for ALL live update patterns.
@@ -64,8 +64,7 @@ These apply to every Volcano build, regardless of which domain skills are loaded
 
 - Do NOT use `jsonwebtoken` directly — use Volcano Auth.
 - Do NOT use `bcryptjs` directly — use Volcano Auth's password handling.
-- Do NOT import from `pg`, `pg-pool`, or any direct Postgres driver — all data access goes through `volcano.from(...)`.
-- Do NOT use a `DATABASE_URL` env var — use `VOLCANO_DATABASE` plus the SDK.
+- Do NOT use `pg`/`pg-pool`/`DATABASE_URL` — use `volcano.from(...)` (with `VOLCANO_DATABASE`) instead. Direct Postgres access is a discouraged, untested-surface-area last resort — see `volcano_database`'s "Direct Postgres Access" section before ever reaching for it.
 - Do NOT mix `NEXT_PUBLIC_*` env vars into function/server code, or `VOLCANO_*` (un-prefixed) into browser code.
 - Do NOT place service keys (`sk-*`) in browser code — the SDK throws if you do.
 - Do NOT expect `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, or `VOLCANO_DATABASE` to be auto-injected into functions — deploy them via `volcano variables deploy` (local) or `volcano cloud variables deploy` (cloud).

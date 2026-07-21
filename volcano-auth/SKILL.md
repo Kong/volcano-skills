@@ -82,7 +82,7 @@ const { user, session, error } = await volcano.auth.signUp({
 });
 if (error) {
   if (error.message.includes('already exists')) /* email taken */;
-  else if (error.message.includes('weak password')) /* strengthen */;
+  else if (error.message.includes('password must')) /* strengthen — real messages: "password must be at least 8 characters", "...contain at least one uppercase letter", etc. */;
   else if (error.message.includes('invalid email')) /* validate */;
   return;
 }
@@ -94,8 +94,8 @@ if (error) {
 const { user, session, error } = await volcano.auth.signIn({ email, password });
 if (error) {
   if (error.message.includes('invalid email or password')) /* wrong creds */;
-  else if (error.message.includes('email not confirmed')) /* prompt confirm */;
-  else if (error.message.includes('too many attempts')) /* rate-limited */;
+  else if (error.message.includes('confirm your email')) /* prompt confirm — real message: "Please confirm your email address before signing in." */;
+  else if (error.message.includes('rate limit')) /* rate-limited — real message: "rate limit exceeded, try again later" */;
   return;
 }
 // SDK auto-stores tokens in localStorage (browser) and schedules refresh.
@@ -258,15 +258,15 @@ await volcano.auth.deleteAllOtherSessions();
 - Treat `onAuthStateChange(user => null)` as a definitive sign-out signal: redirect to the login flow.
 
 ## Common Errors
-| Message contains | Meaning | Action |
-|---|---|---|
-| `already exists` | Email taken on sign up | Prompt sign in |
-| `weak password` | Password too weak | Show strength rules |
-| `invalid email or password` | Wrong email/password | Re-prompt |
-| `email not confirmed` | Verification pending | Show resend UI |
-| `too many attempts` | Rate-limited | Back off and inform user |
-| `No active session` | User not logged in | Send to login |
-| `Session expired` | Refresh failed | Force sign in |
+| Message contains | Real example message | Meaning | Action |
+|---|---|---|---|
+| `already exists` | `user with this email already exists` | Email taken on sign up | Prompt sign in |
+| `password must` | `password must be at least 8 characters` / `password must contain at least one uppercase letter` / `...one number` / `...one special character (!@#$%^&*)` | Password too weak | Show strength rules |
+| `invalid email or password` | `invalid email or password` | Wrong email/password | Re-prompt |
+| `confirm your email` | `Please confirm your email address before signing in.` (sign-in gate) or `email confirmation required - please check your email for confirmation link` (signup) | Verification pending | Show resend UI |
+| `rate limit` | `rate limit exceeded, try again later` | Rate-limited | Back off and inform user |
+| `No active session` | `No active session` | User not logged in | Send to login |
+| `Session expired` | `Session expired` | Refresh failed | Force sign in |
 
 ## Verification Checklist
 - If the prompt didn't specify signup/login page design, the "Default Signup & Login Page UX" was applied, including the default signup-success alert.

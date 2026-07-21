@@ -11,7 +11,7 @@ Use Volcano Functions for privileged, secret-bearing, or orchestration-heavy bac
 1. Confirm the operation belongs in Functions (privileged/secrets/heavy orchestration). If it's a plain RLS-protected query, do it client-side via Volcano Database instead.
 2. Implement invocation with explicit success and failure handling.
 3. Enforce user-context assumptions where authorization matters.
-4. Route persistent data access through the Volcano Database query-builder pattern.
+4. Route persistent data access through the Volcano Database query-builder pattern. Only when a specific query-builder gap (joins/upserts/multi-statement transactions) is provably impossible otherwise, fall back to direct Postgres access as a discouraged, narrowly-scoped last resort (see `volcano_database`'s "Direct Postgres Access" section — requires the `application_name=volcano_user_access:{user_id}` rewrite to stay RLS-safe).
 5. Validate the client-vs-function boundary.
 
 ## Invocation Contract
