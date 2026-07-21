@@ -294,7 +294,7 @@ VOLCANO_DATABASE=app
 
 Never hardcode secrets in handler code.
 
-**`DATABASE_URL` is auto-injected** (unlike `VOLCANO_API_URL`/`VOLCANO_ANON_KEY`/`VOLCANO_DATABASE` above) and carries full admin access (`application_name=volcano_full_access`) by default. Always use the SDK client (`volcano.from(...)`), not `DATABASE_URL`. Direct Postgres access is a discouraged, last-resort escape hatch for the handful of query-builder gaps (joins, aggregations, multi-statement transactions) — not a general alternative — and requires an `application_name` rewrite to stay RLS-safe. See the `volcano_database` skill's "Direct Postgres Access" section before ever reaching for it.
+**`DATABASE_URL` is auto-injected** (unlike `VOLCANO_API_URL`/`VOLCANO_ANON_KEY`/`VOLCANO_DATABASE` above) and carries full admin access (`application_name=volcano_full_access`) by default. Always use the SDK client (`volcano.from(...)`), not `DATABASE_URL`. Direct Postgres access is a discouraged last resort with untested, unbounded surface area — see the `volcano_database` skill's "Direct Postgres Access" section before ever reaching for it.
 
 ## Migrations & Row-Level Security
 

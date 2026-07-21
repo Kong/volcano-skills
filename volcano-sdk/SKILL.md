@@ -64,7 +64,7 @@ These apply to every Volcano build, regardless of which domain skills are loaded
 
 - Do NOT use `jsonwebtoken` directly — use Volcano Auth.
 - Do NOT use `bcryptjs` directly — use Volcano Auth's password handling.
-- Do NOT use `pg`/`pg-pool`/`DATABASE_URL` — use `volcano.from(...)` (with `VOLCANO_DATABASE`) instead. Direct Postgres access is a discouraged, last-resort exception ONLY for query-builder gaps that are provably impossible otherwise (joins/aggregations/multi-statement transactions), NOT a general-purpose alternative or a reason to adopt an ORM, and ONLY with `application_name` rewritten to `volcano_user_access:{user_id}` (the raw injected `DATABASE_URL` bypasses RLS) — see `volcano_database`'s "Direct Postgres Access" section.
+- Do NOT use `pg`/`pg-pool`/`DATABASE_URL` — use `volcano.from(...)` (with `VOLCANO_DATABASE`) instead. Direct Postgres access is a discouraged, untested-surface-area last resort — see `volcano_database`'s "Direct Postgres Access" section before ever reaching for it.
 - Do NOT mix `NEXT_PUBLIC_*` env vars into function/server code, or `VOLCANO_*` (un-prefixed) into browser code.
 - Do NOT place service keys (`sk-*`) in browser code — the SDK throws if you do.
 - Do NOT expect `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, or `VOLCANO_DATABASE` to be auto-injected into functions — deploy them via `volcano variables deploy` (local) or `volcano cloud variables deploy` (cloud).
