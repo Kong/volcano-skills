@@ -184,11 +184,15 @@ The query builder does NOT currently expose:
 - **Upserts** (insert-on-conflict-update).
 - **Multi-statement transactions.**
 
-When the work genuinely requires one of these, route it through a Volcano Function and use **direct Postgres access** (see below) instead of the query builder. Consult the fallback reference if the SDK has gained these capabilities since this skill was last updated.
+When the work genuinely requires one of these, treat **direct Postgres access** (see below) as a last resort, not the default next step — first check whether the feature can be reshaped to fit the query builder (e.g., denormalize, add a lookup column, split into two queries client-side) before reaching for a raw connection. Consult the fallback reference if the SDK has gained these capabilities since this skill was last updated.
 
-## Direct Postgres Access (Lambda functions only)
+## Direct Postgres Access (discouraged — last resort only)
 
-For joins, aggregations, multi-statement transactions, or ORM usage (Prisma, Sequelize, TypeORM), connect directly with a standard Postgres client (`pg`, etc.) inside a Volcano Function instead of the query builder. This is an officially supported access path — not a workaround — but it requires one non-obvious step to stay RLS-safe.
+**Prefer the query builder (`volcano.from(...)`) for essentially everything.** Direct Postgres access inside a Function is an escape hatch for the three specific query-builder gaps above, not a general-purpose alternative data-access layer. Treat every use as exceptional and narrow:
+
+- Do NOT adopt a direct-connection/ORM layer as the project's default architecture. Introducing `pg`, Prisma, Sequelize, TypeORM, etc. opens unbounded surface area (arbitrary SQL, connection lifecycle, pooling bugs, migrations drift) that this skill cannot fully cover or guarantee support for.
+- Reach for it only when a specific piece of work is provably impossible with the query builder (a genuine join/aggregation/multi-statement transaction), and scope the raw-SQL usage to that one function/query — not a rewrite of existing query-builder code.
+- Before using it, confirm with the user that this is a deliberate, scoped exception, since it carries more manual RLS-safety responsibility (see the `application_name` rewrite below) than the query builder, which enforces RLS automatically.
 
 **Never browser-side.** Direct connections are Function-only; `DATABASE_URL` is never exposed to browser code.
 
@@ -239,7 +243,7 @@ exports.handler = async (event) => {
 - **Never trust a client-supplied user id** — only use `event.__volcano_auth.user_id` (server-verified), never a value from the request body.
 - **The identity is fixed at connection startup** — `SET application_name` after `connect()` has no effect on RLS scoping. Pool per user (as above); don't share one pool across users.
 - **Admin/bypass access** (background jobs, migrations, cross-user aggregation) uses the connection string as-is (`volcano_full_access`) or a dedicated service-role connection string — never expose this path to user-triggered requests.
-- Prefer the query builder whenever it's sufficient; reach for direct access only for the query builder's documented gaps above.
+- **Default to the query builder.** Re-check this section's "discouraged" framing before writing new raw-SQL code — direct access should stay the exception, not grow into a parallel data layer.
 
 ## Row-Level Security (RLS)
 
@@ -327,6 +331,7 @@ export const handler = async (event: { __volcano_auth?: { access_token?: string 
 - RLS policies are assumed to exist; no client-side pseudo-authorization.
 - Mutations have explicit error handling at the call site.
 - Functions doing persistence use a request-scoped client built from `event.__volcano_auth`.
-- If using direct Postgres access (joins/aggregations/transactions), `application_name` is rewritten to `volcano_user_access:{user_id}` before connecting — never a bare `DATABASE_URL` for user-scoped queries.
+- The query builder was confirmed insufficient (a genuine join/aggregation/multi-statement transaction) before reaching for direct Postgres access — it is not used as a default data-access layer.
+- If using direct Postgres access, `application_name` is rewritten to `volcano_user_access:{user_id}` before connecting — never a bare `DATABASE_URL` for user-scoped queries.
 
 ## Optional Fallback Reference
