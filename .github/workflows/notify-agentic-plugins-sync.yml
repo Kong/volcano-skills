@@ -40,6 +40,10 @@ jobs:
           private-key: ${{ secrets.VOLCANO_APP_KEY }}
           owner: Kong
           repositories: volcano-agentic-plugins
+          # Without an explicit permission-* input, the minted token inherits
+          # every permission the App installation holds on the target repo,
+          # not just what this workflow needs. Scope it down explicitly.
+          permission-contents: write
 
       - name: Dispatch sync-skills.yml in volcano-agentic-plugins
         env:
