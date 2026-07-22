@@ -221,7 +221,7 @@ Never hardcode secrets in code.
 - **Check `__volcano_auth`** and return `401` early for unauthenticated calls.
 - **Keep clients request-scoped** — build the Volcano client inside the handler with the request's auth, not in module globals.
 - **Time-box long ops** — handlers have execution limits; abort or stream early.
-- **Use `console.log`** for debug output; logs surface in the Volcano dashboard.
+- **Use `console.log`** for debug output, then fetch it with the CLI — `volcano functions logs <name> --type runtime` (`--type build` for deploy/packaging errors) — before reaching for the Volcano dashboard, which is a secondary view for cloud projects only. `--follow` streams indefinitely like `tail -f`; bound it (e.g. `timeout 15 ... --follow`) rather than running it as a bare synchronous call.
 
 ## Verification Checklist
 - Secret-bearing logic remains server-side.

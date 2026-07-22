@@ -20,7 +20,7 @@ Implement secure storage flows with explicit bucket, path, and access-control in
 const avatars = volcano.storage.from('avatars');
 const documents = volcano.storage.from('documents');
 ```
-Buckets are created in the dashboard; reference by name.
+Create buckets with the CLI before referencing them — `volcano storage bucket create <name> [--allowed-mime-type <type>] [--file-size-limit <bytes>]` (local) / `volcano cloud storage bucket create ...` (cloud); `volcano storage bucket list|get` to check what already exists. `volcano-config.yaml`'s `buckets` section (see `volcano_platform`) only manages policies on buckets that already exist — it never creates or deletes them.
 
 ### Path conventions (recommended)
 ```

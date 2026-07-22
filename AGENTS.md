@@ -52,7 +52,10 @@ verify the CLI. **Do this check before running any download command below.**
 
 **For any Volcano-related action, check whether the CLI has a supporting command before
 falling back to manual file edits or API calls.** Use `volcano <area> --help` to discover
-flags before guessing.
+flags before guessing. For anything beyond flag discovery — concepts, error messages, or
+which command to use — run `volcano docs search "<topic>"` once (`volcano docs get <doc>`
+for full text, `volcano docs list` for the index) instead of guessing across repeated
+`--help` calls; see "Troubleshooting" below for the full escalation order.
 
 ### Building a new project
 
@@ -177,11 +180,44 @@ commands when no database was used), and use exact CLI commands:
 Suggesting a cloud deploy here is not permission to run it — it still requires
 explicit user confirmation per the safety model below.
 
+## Troubleshooting
+
+When a command fails, a deploy doesn't behave as expected, or output looks wrong, work
+through this order before rewriting code or asking the user to check something manually:
+
+1. **Read the full failure** — the exact error line and exit code, not a truncated
+   summary; harnesses often truncate output, and Volcano CLI errors are usually specific
+   (e.g. "is the volcano-server container running?").
+2. **Check state**: `volcano status` (local) or `volcano projects get <id>` (cloud) —
+   confirms services, project, and credentials before anything else.
+3. **Check logs for the specific resource**: `volcano functions logs <name> --type
+   build|runtime`. `--follow` streams indefinitely like `tail -f` — only use it bounded
+   (e.g. `timeout 15 volcano functions logs <name> --type runtime --follow`); a bare
+   synchronous `--follow` call hangs until the harness's own timeout kills the turn.
+4. **Search the bundled docs** instead of repeatedly guessing flags via `--help`:
+   `volcano docs search "<topic or error text>"` (works offline from a local cache with
+   `--offline`; `volcano docs list` / `volcano docs get <doc>` for full text).
+5. **Check the relevant skill's "Common Errors" or "Forbidden Patterns" section** for
+   the domain involved (auth/database/functions/storage/realtime) — most known failure
+   modes are already catalogued there.
+6. Only after 1–5 come up empty, treat it as a real blocker: report exactly what was
+   checked and ask the user, rather than continuing to guess with new code.
+
+**Never open volcano.dev (or any Volcano web page) in a browser to diagnose a local
+CLI, API, or SDK problem.** The website has no visibility into your local Docker
+services, deployed code, or terminal output, and you cannot usefully drive a browser
+session to debug from here. This rule is about diagnosis specifically — it does not
+cover the handful of one-time dashboard configuration steps documented elsewhere with
+no CLI equivalent yet (for example `volcano-realtime`'s CORS allowed-origins setup),
+which remain legitimate. For diagnosing a problem, the human's device-code approval
+during `volcano login`/`volcano signup` is the only browser step in this workflow —
+never a diagnostic detour.
+
 ## Safety model
 
 **Automatic when relevant to the user's requested scope (no confirmation needed):**
 - Inspect: `volcano status`, `volcano projects list`, `volcano projects get <id>`
-- Scaffold: `volcano init`
+- Scaffold: `volcano init`, `volcano storage bucket create <name>` (local only — creating a bucket needed for what was built is local scaffolding like `volcano init`; cloud bucket creation follows the cloud-deploy confirmation below)
 - List/get: `volcano functions list|get`, `volcano variables list|get`, `volcano databases list|get`, `volcano storage bucket list|get`
 - Logs: `volcano functions logs <name> --type build|runtime`
 - Local dev: `volcano start|stop|restart|status` — automatic by default after building (see "Build vs. run/test/deploy"), and whenever the user asks to run/test/preview locally
