@@ -192,9 +192,8 @@ through this order before rewriting code or asking the user to check something m
    confirms services, project, and credentials before anything else.
 3. **Check logs for the specific resource**: `volcano functions logs <name> --type
    build|runtime`. `--follow` streams indefinitely like `tail -f` — only use it bounded
-   (e.g. `timeout 15 volcano functions logs <name> --type runtime --follow`) or
-   backgrounded; a bare synchronous `--follow` call hangs until the harness's own
-   timeout kills the turn.
+   (e.g. `timeout 15 volcano functions logs <name> --type runtime --follow`); a bare
+   synchronous `--follow` call hangs until the harness's own timeout kills the turn.
 4. **Search the bundled docs** instead of repeatedly guessing flags via `--help`:
    `volcano docs search "<topic or error text>"` (works offline from a local cache with
    `--offline`; `volcano docs list` / `volcano docs get <doc>` for full text).
@@ -209,7 +208,7 @@ CLI, API, or SDK problem.** The website has no visibility into your local Docker
 services, deployed code, or terminal output, and you cannot usefully drive a browser
 session to debug from here. This rule is about diagnosis specifically — it does not
 cover the handful of one-time dashboard configuration steps documented elsewhere with
-no CLI equivalent yet (for example `volcano_realtime`'s CORS allowed-origins setup),
+no CLI equivalent yet (for example `volcano-realtime`'s CORS allowed-origins setup),
 which remain legitimate. For diagnosing a problem, the human's device-code approval
 during `volcano login`/`volcano signup` is the only browser step in this workflow —
 never a diagnostic detour.
