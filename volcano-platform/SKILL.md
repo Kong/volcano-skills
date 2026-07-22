@@ -302,7 +302,14 @@ Never hardcode secrets in handler code.
 - **Location:** `volcano/migrations/` (no subdirectories).
 - **Filename:** `NNN_description.sql` — numeric prefix for alphabetical ordering (e.g., `001_init.sql`, `002_add_posts.sql`). Ordering is alphabetical; the numeric prefix is a convention, not enforced.
 - **Idempotency:** use `CREATE TABLE IF NOT EXISTS`, `DROP POLICY IF EXISTS` before `CREATE POLICY`, and `CREATE OR REPLACE FUNCTION`.
-- **Atomicity:** wrap multi-statement migrations in `BEGIN; ... COMMIT;`.
+- **One statement per file:** `volcano migrations deploy` executes each file as a single SQL
+  statement — it does not split on `;` or batch multiple statements, and
+  rejects a multi-statement body outright (`ERROR: Multiple statements are
+  not supported`). Do NOT wrap a file in `BEGIN; ... COMMIT;`, and do NOT put
+  more than one statement in one file. A schema change that needs several
+  statements (create table, add indexes, enable RLS, add policies) is
+  several sequentially-numbered files, not one — see "Canonical migration
+  with RLS" below.
 
 **Deploy:**
 ```sh
@@ -331,8 +338,11 @@ A policy that checks `auth.role() = 'anon'` to gate out guests is a common mista
 
 ### Canonical migration with RLS
 
+One statement per file, numbered sequentially — each `-- <filename>` comment
+below marks a separate file, not a section of one file:
+
 ```sql
--- 001_init.sql
+-- 001_create_posts_table.sql
 CREATE TABLE IF NOT EXISTS posts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL DEFAULT auth.uid(),
@@ -343,30 +353,46 @@ CREATE TABLE IF NOT EXISTS posts (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- 002_posts_user_id_index.sql
 CREATE INDEX IF NOT EXISTS posts_user_id_idx ON posts(user_id);
+
+-- 003_posts_created_at_index.sql
 CREATE INDEX IF NOT EXISTS posts_created_at_idx ON posts(created_at DESC);
 
+-- 004_posts_enable_rls.sql
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 
+-- 005_posts_policy_select_own_drop.sql
 DROP POLICY IF EXISTS posts_select_own ON posts;
+
+-- 006_posts_policy_select_own_create.sql
 CREATE POLICY posts_select_own ON posts
     FOR SELECT USING (user_id = auth.uid());
 
+-- 007_posts_policy_insert_own_drop.sql
 DROP POLICY IF EXISTS posts_insert_own ON posts;
+
+-- 008_posts_policy_insert_own_create.sql
 CREATE POLICY posts_insert_own ON posts
     FOR INSERT WITH CHECK (user_id = auth.uid());
 
+-- 009_posts_policy_update_own_drop.sql
 DROP POLICY IF EXISTS posts_update_own ON posts;
+
+-- 010_posts_policy_update_own_create.sql
 CREATE POLICY posts_update_own ON posts
     FOR UPDATE USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 
+-- 011_posts_policy_delete_own_drop.sql
 DROP POLICY IF EXISTS posts_delete_own ON posts;
+
+-- 012_posts_policy_delete_own_create.sql
 CREATE POLICY posts_delete_own ON posts
     FOR DELETE USING (user_id = auth.uid());
 ```
 
-For public-read patterns, add a policy with `USING (status = 'published')` alongside the owner policies.
+For public-read patterns, add a policy (its own file) with `USING (status = 'published')` alongside the owner policies.
 
 ## volcano-config.yaml
 
@@ -556,11 +582,12 @@ volcano cloud migrations deploy --all -d app
 - Do NOT use `jsonwebtoken` or `bcryptjs` directly — Volcano Auth handles tokens and password hashing.
 - Do NOT assume `__volcano_auth` is always present — it is injected only when the payload is an object and the request carries a valid token.
 - Do NOT expect `volcano functions deploy` to run your build — built `.js` files must exist under `volcano/functions/` on disk before deploy.
+- Do NOT put more than one SQL statement in a migration file, and do NOT wrap one in `BEGIN; ... COMMIT;` — `volcano migrations deploy` executes each file as a single statement and rejects multi-statement bodies (`ERROR: Multiple statements are not supported`). Split a multi-step schema change into several sequentially-numbered single-statement files instead.
 
 ## Verification Checklist
 - Function handlers exist under `volcano/functions/` and each exports `handler`.
 - Shared code uses `_`-prefix directories (`_shared/`, `_lib/`).
-- `volcano/migrations/` contains `.sql` files with numeric-prefix alphabetical naming.
+- `volcano/migrations/` contains `.sql` files with numeric-prefix alphabetical naming, each with exactly one SQL statement (no `BEGIN`/`COMMIT`, no multiple `;`-terminated statements in one file).
 - RLS policies use `auth.uid()` (with schema prefix), not bare `uid()`.
 - `volcano-config.yaml` (if present) has `version: 1`. There is no minimum
   section requirement — a manifest can declare only `variables`, only
