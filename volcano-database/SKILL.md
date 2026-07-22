@@ -217,7 +217,7 @@ function poolForUser(userId) {
   // LRU cache if recency (not insertion order) matters for your traffic.
   if (poolsByUser.size >= MAX_POOLS) {
     const oldestUserId = poolsByUser.keys().next().value;
-    poolsByUser.get(oldestUserId).end().catch(() => {}); // close before evicting; don't let a disconnect error crash the instance
+    poolsByUser.get(oldestUserId).end().catch((err) => console.error('pool.end() failed:', err)); // close before evicting; log instead of crashing on a disconnect error
     poolsByUser.delete(oldestUserId);
   }
 
