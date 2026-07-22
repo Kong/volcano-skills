@@ -213,11 +213,11 @@ function poolForUser(userId) {
   let pool = poolsByUser.get(userId);
   if (pool) return pool;
 
-  // ponytail: FIFO eviction (oldest-inserted), not true LRU — swap in an
+  // NOTE: FIFO eviction (oldest-inserted), not true LRU — swap in an
   // LRU cache if recency (not insertion order) matters for your traffic.
   if (poolsByUser.size >= MAX_POOLS) {
     const oldestUserId = poolsByUser.keys().next().value;
-    poolsByUser.get(oldestUserId).end(); // close before evicting
+    poolsByUser.get(oldestUserId).end().catch(() => {}); // close before evicting; don't let a disconnect error crash the instance
     poolsByUser.delete(oldestUserId);
   }
 
