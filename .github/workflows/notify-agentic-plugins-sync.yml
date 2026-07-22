@@ -2,13 +2,16 @@ name: Notify volcano-agentic-plugins sync
 
 # Triggers the volcano-agentic-plugins submodule sync immediately on every
 # main-branch update, instead of waiting for its daily cron
-# (.github/workflows/sync-skills.yml there). That workflow's own
-# workflow_dispatch trigger is reused as-is.
+# (.github/workflows/sync-skills.yml there). Fires a repository_dispatch
+# event, which that workflow's on: block listens for.
 #
-# Uses TEMP_PAT_TOKEN (a fine-grained PAT) as a stopgap until the
-# "Kong Volcano - app" GitHub App's private key is available; swap both this
-# and the matching reference in volcano-agentic-plugins's sync-skills.yml
-# over to an App-minted token once that's ready, and delete the PAT.
+# Uses repository_dispatch (not workflow_dispatch) deliberately: it only
+# needs Contents: write on the target repo, vs. Actions: write for
+# workflow_dispatch — matching the Contents+Pull-requests-only permission
+# set already used for Release Please on volcano-cli.
+#
+# Authenticates as the "Kong Volcano - app" GitHub App (VOLCANO_APP_ID +
+# VOLCANO_APP_KEY), scoped to only the target repo.
 
 on:
   push:
@@ -16,7 +19,7 @@ on:
       - main
 
 # No ambient GITHUB_TOKEN use in this job (auth is entirely via the
-# TEMP_PAT_TOKEN-derived GH_TOKEN below), so drop its default scopes.
+# App-minted token below), so drop its default scopes.
 permissions: {}
 
 # Collapse a burst of pushes into a single effective dispatch; cancelling a
@@ -29,13 +32,23 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
+      - name: Generate token for volcano-agentic-plugins
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.VOLCANO_APP_ID }}
+          private-key: ${{ secrets.VOLCANO_APP_KEY }}
+          owner: Kong
+          repositories: volcano-agentic-plugins
+          # Without an explicit permission-* input, the minted token inherits
+          # every permission the App installation holds on the target repo,
+          # not just what this workflow needs. Scope it down explicitly.
+          permission-contents: write
+
       - name: Dispatch sync-skills.yml in volcano-agentic-plugins
         env:
-          GH_TOKEN: ${{ secrets.TEMP_PAT_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          set -euo pipefail
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "TEMP_PAT_TOKEN secret is not set; failing dispatch." >&2
-            exit 1
-          fi
-          gh workflow run sync-skills.yml --repo Kong/volcano-agentic-plugins --ref main
+          gh api repos/Kong/volcano-agentic-plugins/dispatches \
+            --method POST \
+            -f event_type=volcano-skills-updated
