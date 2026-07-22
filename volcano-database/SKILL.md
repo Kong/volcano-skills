@@ -204,18 +204,27 @@ When the work genuinely requires one of these, treat **direct Postgres access** 
 const { Pool } = require('pg');
 
 // One pool per auth user — the RLS identity is fixed at connection
-// startup, so a shared pool can't switch users per request. Bound this
-// cache in production (e.g. LRU with idle eviction).
+// startup, so a shared pool can't switch users per request. Capped so a
+// warm instance can't accumulate unbounded connections.
+const MAX_POOLS = 50;
 const poolsByUser = new Map();
 
 function poolForUser(userId) {
   let pool = poolsByUser.get(userId);
-  if (!pool) {
-    const url = new URL(process.env.DATABASE_URL);
-    url.searchParams.set('application_name', `volcano_user_access:${userId}`); // REPLACE, don't append
-    pool = new Pool({ connectionString: url.toString(), max: 5 });
-    poolsByUser.set(userId, pool);
+  if (pool) return pool;
+
+  // NOTE: FIFO eviction (oldest-inserted), not true LRU — swap in an
+  // LRU cache if recency (not insertion order) matters for your traffic.
+  if (poolsByUser.size >= MAX_POOLS) {
+    const oldestUserId = poolsByUser.keys().next().value;
+    poolsByUser.get(oldestUserId).end().catch((err) => console.error('pool.end() failed:', err)); // close before evicting; log instead of crashing on a disconnect error
+    poolsByUser.delete(oldestUserId);
   }
+
+  const url = new URL(process.env.DATABASE_URL);
+  url.searchParams.set('application_name', `volcano_user_access:${userId}`); // REPLACE, don't append
+  pool = new Pool({ connectionString: url.toString(), max: 5 });
+  poolsByUser.set(userId, pool);
   return pool;
 }
 
@@ -242,7 +251,7 @@ exports.handler = async (event) => {
 - **Rewrite `application_name`, never append** — a duplicate parameter leaves the startup mode up to the driver's dupe handling. Use `url.searchParams.set(...)`, not string concatenation.
 - **Never trust a client-supplied user id** — only use `event.__volcano_auth.user_id` (server-verified), never a value from the request body.
 - **The identity is fixed at connection startup** — `SET application_name` after `connect()` has no effect on RLS scoping. Pool per user (as above); don't share one pool across users.
-- **Bound the per-user pool cache.** Each entry holds a live `Pool` (`max: 5` in the example) that is never closed, so total open connections scale as (distinct users served by this warm instance) × `max` — with no eviction this grows unbounded and can exhaust the database's connection limit. Cap the cache size (e.g. LRU with idle eviction, calling `pool.end()` on evicted entries) before this pattern reaches production.
+- **The per-user pool cache is capped** (`MAX_POOLS`, oldest-evicted with `pool.end()` before removal) — an unbounded cache lets total open connections grow as (distinct users served by this warm instance) × `max` and can exhaust the database's connection limit. Tune `MAX_POOLS × max` against the database's connection limit rather than removing the cap.
 - **Admin/bypass access** (background jobs, migrations, cross-user aggregation) uses the connection string as-is (`volcano_full_access`) or a dedicated service-role connection string — never expose this path to user-triggered requests.
 - **Default to the query builder.** Re-check this section's "discouraged" framing before writing new raw-SQL code — direct access should stay the exception, not grow into a parallel data layer.
 

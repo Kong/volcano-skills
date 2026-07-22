@@ -434,6 +434,7 @@ When the prompt doesn't specify signup/login page design, apply the `volcano_aut
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
 export default function SignupPage() {
@@ -467,6 +468,7 @@ export default function SignupPage() {
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
         <button type="submit">Sign Up</button>
       </form>
+      <Link href="/login">Already have an account? Log in</Link>
     </div>
   );
 }
@@ -477,6 +479,7 @@ export default function SignupPage() {
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
@@ -505,6 +508,8 @@ export default function LoginPage() {
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
         <button type="submit">Sign In</button>
       </form>
+      <Link href="/signup">Need an account? Sign up</Link>
+      <Link href="/forgot-password">Forgot password?</Link>
     </div>
   );
 }
