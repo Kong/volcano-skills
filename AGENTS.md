@@ -27,15 +27,14 @@ make sure the `volcano` CLI is available.
 2. **Ensure the CLI**: run `which volcano`.
    - **Found:** run `volcano upgrade` — it does its own version check and is a
      no-op when already current, so you never determine the version yourself.
-   - **Missing:** install it. The `volcano-sdk` and `volcano-platform` skills
-     carry the canonical check-and-install flow, and the `install-volcano`
-     skill exposes it as an explicit command: fetch
-     `https://raw.githubusercontent.com/Kong/volcano-cli/main/docs/installation.md`
-     and run whichever documented method matches a package manager already on
-     `PATH` (`npm`/`pnpm`/`bun`/`brew`), falling back to the documented manual
-     `curl` install only if none are present. In a bare no-plugin environment,
-     the bootstrap fallback in step 3 installs the CLI too. Re-run
-     `which volcano` to confirm.
+   - **Missing:** install it via the CLI-ensure flow the `volcano-sdk` and
+     `volcano-platform` skills carry (also exposed explicitly as the
+     `install-volcano` skill): it reads the CLI's own `installation.md` and
+     uses whichever package manager is already on `PATH`. The exact URL and
+     package-manager probe order live in those skills, not restated here, so
+     there is one fewer copy to drift. In a bare no-plugin environment, the
+     bootstrap fallback in step 3 installs the CLI too. Re-run `which volcano`
+     to confirm.
 
 3. **Bootstrap fallback** (only for the no-plugin case in step 1, or when the
    CLI still isn't available): `bootstrap.sh` is hosted
