@@ -4,6 +4,27 @@ description: "Canonical Volcano project shape and deploy contract: the volcano/f
 ---
 # Volcano Platform Contract Skill
 
+## Before anything else: ensure the Volcano CLI is present
+
+Every Volcano build and deploy goes through the `volcano` CLI, so confirm it is
+installed and current before writing or deploying anything:
+
+- Run `which volcano`.
+  - **Found:** run `volcano upgrade`. It runs its own version check and is a
+    no-op when already current — you never determine the version yourself.
+  - **Missing:** fetch
+    `https://raw.githubusercontent.com/Kong/volcano-cli/main/docs/installation.md`
+    (plain Markdown, readable without the CLI) and run whichever install method
+    it documents that matches a package manager already on `PATH` — check
+    `which npm`, `which pnpm`, `which bun`, `which brew` in that order, and only
+    use the documented manual `curl` install if none are present. Re-run
+    `which volcano` to confirm.
+
+These are well-known commands to run as-is, not a script to reconstruct. Don't
+assume a package manager that isn't installed, and don't invent steps beyond
+what that doc lists. The `install-volcano` skill exposes this same flow as an
+explicit command.
+
 ## Role & Pairing
 Defines the canonical project shape and deploy contract for any Volcano-Hosting-deployable codebase. Covers the `volcano/functions/` deployment model, migrations, `volcano-config.yaml`, environment variables, shared-code conventions, and the build/deploy workflow.
 

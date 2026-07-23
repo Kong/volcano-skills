@@ -4,6 +4,27 @@ description: Entrypoint and router for Volcano SDK work. Pair with volcano_platf
 ---
 # Volcano SDK Entrypoint
 
+## Before anything else: ensure the Volcano CLI is present
+
+Every Volcano build and deploy goes through the `volcano` CLI, so confirm it is
+installed and current before writing or deploying anything:
+
+- Run `which volcano`.
+  - **Found:** run `volcano upgrade`. It runs its own version check and is a
+    no-op when already current — you never determine the version yourself.
+  - **Missing:** fetch
+    `https://raw.githubusercontent.com/Kong/volcano-cli/main/docs/installation.md`
+    (plain Markdown, readable without the CLI) and run whichever install method
+    it documents that matches a package manager already on `PATH` — check
+    `which npm`, `which pnpm`, `which bun`, `which brew` in that order, and only
+    use the documented manual `curl` install if none are present. Re-run
+    `which volcano` to confirm.
+
+These are well-known commands to run as-is, not a script to reconstruct. Don't
+assume a package manager that isn't installed, and don't invent steps beyond
+what that doc lists. The `install-volcano` skill exposes this same flow as an
+explicit command.
+
 ## Role
 This skill is the **entrypoint and router** for Volcano SDK work. It is intentionally slim: it tells you the mandatory rules that apply to every Volcano build, and which OTHER volcano_* skill to invoke based on the task at hand. Don't try to do deep work from this skill alone — invoke the relevant domain skill(s) first.
 

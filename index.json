@@ -3,7 +3,7 @@
   "skills": [
     {
       "name": "install-volcano",
-      "description": "Install or upgrade the Volcano CLI from a plugin-shipped skills environment.",
+      "description": "Install or upgrade the Volcano CLI.",
       "path": "/skills/install-volcano/SKILL.md"
     },
     {
