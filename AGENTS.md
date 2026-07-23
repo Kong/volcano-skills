@@ -30,16 +30,23 @@ make sure the `volcano` CLI is available.
    - **Missing:** install it via the CLI-ensure flow the `volcano-sdk` and
      `volcano-platform` skills carry (also exposed explicitly as the
      `install-volcano` skill): it reads the CLI's own `installation.md` and
-     uses whichever package manager is already on `PATH`. The exact URL and
-     package-manager probe order live in those skills, not restated here, so
-     there is one fewer copy to drift. In a bare no-plugin environment, the
-     bootstrap fallback in step 3 installs the CLI too. Re-run `which volcano`
-     to confirm.
+     uses whichever package manager is already on `PATH`, or that doc's
+     manual install if none is present. The exact URL and package-manager
+     probe order live in those skills, not restated here, so there is one
+     fewer copy to drift. This fully covers the plugin case, including when
+     no package manager is found — it never needs step 3. In a bare no-plugin
+     environment, the bootstrap fallback in step 3 installs the CLI too.
+     Re-run `which volcano` to confirm.
 
-3. **Bootstrap fallback** (only for the no-plugin case in step 1, or when the
-   CLI still isn't available): `bootstrap.sh` is hosted
+3. **Bootstrap fallback** (only for the no-plugin case in step 1 — a bare
+   terminal or a harness without plugin support): `bootstrap.sh` is hosted
    in `Kong/volcano-agentic-plugins`, not the Volcano web app — its URL is
-   stable regardless of environment. It fetches `AGENTS.md`/skills from
+   stable regardless of environment. **Do not use it in a plugin context** —
+   there, a missing CLI (even with no package manager present) is handled
+   entirely by step 2's `installation.md` methods. `bootstrap.sh` also copies
+   `AGENTS.md` into `~/.volcano/` and wires agent config — the fallback
+   subsystem plugin flows intentionally avoid — so it is strictly the
+   no-plugin path. It fetches `AGENTS.md`/skills from
    `VOLCANO_WEB_URL` if set (an IDE/environment may already export it for the
    target environment), defaulting to production (`https://volcano.dev`) only
    when unset. Never hardcode a different literal origin in its place. The
