@@ -652,6 +652,35 @@ Easy wrong guesses to avoid (all verified against the SDK):
 - `functions.invoke(name, payload)` returns `{ data, status, headers, version,
   error }` — check `error` and `status` before trusting `data`.
 
+## End-to-end checklist: build → local deploy → verify (am I done?)
+
+The single "am I done?" gate for a full build-to-local-deploy task. Each phase
+links the detail above or the domain skill that owns it; walk it top to bottom
+and don't report success until every applicable box holds (skip a box only when
+the project genuinely doesn't use that resource).
+
+**Build**
+- [ ] Non-deploying validation passed — typecheck / lint / unit tests, whatever the project has.
+- [ ] Model B only: `npm run build:functions` produced `.js` files under `volcano/functions/` (native JS skips this).
+
+**Local deploy** — run the "Local deploy sequence" above, in that order:
+- [ ] `volcano start` — local stack up and `volcano status` healthy.
+- [ ] `volcano variables deploy` — env vars synced (before functions).
+- [ ] `volcano functions deploy --all` — every function in `volcano/functions/` deployed.
+- [ ] `volcano config deploy` — declared config sections reconciled (after functions).
+- [ ] `volcano migrations deploy --all -d app` — migrations applied (schema ready).
+
+**Verify** — deploying is not the finish line (see "Verify a local deploy"):
+- [ ] Each function smoke-tested with `volcano functions invoke <name>` — asserted on status/body, not read off the deploy output.
+- [ ] Multi-user / RLS isolation confirmed with the SDK recipe if the app has per-user data.
+- [ ] Static-correctness items from "Verification Checklist" below hold (layout, one-statement migrations, `auth.uid()`, `VOLCANO_DATABASE`, no `src/api/`).
+
+The per-domain skills carry their own "Verification Checklist" for domain-specific
+asserts — consult the ones the build touched: `volcano_functions`, `volcano_auth`,
+`volcano_database`, `volcano_storage`, `volcano_realtime`.
+
+Cloud is out of scope here — never auto-deploy to cloud (see `AGENTS.md` safety model).
+
 ## Forbidden Patterns
 - Do NOT create an `src/api/index.ts` route dispatcher or `openapi.yaml` — Volcano Functions deploy individually from `volcano/functions/`, not through a single entry point.
 - Do NOT expect `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, or `VOLCANO_DATABASE` to be auto-injected — define them as project variables via `volcano variables deploy` (local) or `volcano cloud variables deploy` (cloud).
