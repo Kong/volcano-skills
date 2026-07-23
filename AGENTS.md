@@ -202,17 +202,26 @@ through this order before rewriting code or asking the user to check something m
    (e.g. "is the volcano-server container running?").
 2. **Check state**: `volcano status` (local) or `volcano projects get <id>` (cloud) —
    confirms services, project, and credentials before anything else.
-3. **Check logs for the specific resource**: `volcano functions logs <name> --type
+3. **Local mode only — reset local state if authed local calls fail or the DB looks
+   wrong.** If local commands fail with auth/database errors after the stack has been
+   running a while (e.g. `401: authorization header required` on every authenticated
+   call, or a database that should exist doesn't), run `volcano reset` — it drops the
+   local databases, clears local platform data, and re-provisions default local
+   metadata while keeping containers running. It is the purpose-built local-state
+   recovery: try it (it's destructive to local data, so confirm with the user first)
+   *before* manually restarting, wiping Docker volumes, or deleting `~/.volcano` state
+   files. Re-deploy migrations afterward (`volcano migrations deploy --all -d app`).
+4. **Check logs for the specific resource**: `volcano functions logs <name> --type
    build|runtime`. `--follow` streams indefinitely like `tail -f` — only use it bounded
    (e.g. `timeout 15 volcano functions logs <name> --type runtime --follow`); a bare
    synchronous `--follow` call hangs until the harness's own timeout kills the turn.
-4. **Search the bundled docs** instead of repeatedly guessing flags via `--help`:
+5. **Search the bundled docs** instead of repeatedly guessing flags via `--help`:
    `volcano docs search "<topic or error text>"` (works offline from a local cache with
    `--offline`; `volcano docs list` / `volcano docs get <doc>` for full text).
-5. **Check the relevant skill's "Common Errors" or "Forbidden Patterns" section** for
+6. **Check the relevant skill's "Common Errors" or "Forbidden Patterns" section** for
    the domain involved (auth/database/functions/storage/realtime) — most known failure
    modes are already catalogued there.
-6. Only after 1–5 come up empty, treat it as a real blocker: report exactly what was
+7. Only after 1–6 come up empty, treat it as a real blocker: report exactly what was
    checked and ask the user, rather than continuing to guess with new code.
 
 **Never open volcano.dev (or any Volcano web page) in a browser to diagnose a local
@@ -238,6 +247,7 @@ never a diagnostic detour.
 **Confirm-first:**
 - Cloud deploys: `volcano cloud functions deploy`, `volcano cloud frontends deploy`, `volcano cloud config deploy`, `volcano cloud variables deploy`
 - Deletions: any `... delete` (local or cloud)
+- Local data reset: `volcano reset` (drops all local databases + local platform data; local-only but destructive and not recoverable — confirm first, then re-deploy migrations)
 - Secret / variable changes: `volcano cloud variables deploy`
 - Permission / visibility changes: `volcano cloud functions update --public|--private`, storage policies, custom domains
 - Billing / account changes: plan changes, account promotion
@@ -262,6 +272,7 @@ volcano init [javascript|nextjs|python|ruby]
 
 # Local development (targets local dev server)
 volcano start|stop|restart|status
+volcano reset [--yes]                      # DESTRUCTIVE: drop local DBs + re-provision local state (local-recovery; confirm first)
 volcano functions deploy --all | deploy -f <name> | list | get | logs
 volcano variables deploy | list | get
 volcano config deploy
