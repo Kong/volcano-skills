@@ -25,8 +25,10 @@ make sure the `volcano` CLI is available.
      which writes them under `~/.volcano/`.
 
 2. **Ensure the CLI**: run `which volcano`.
-   - **Found:** run `volcano upgrade` — it does its own version check and is a
-     no-op when already current, so you never determine the version yourself.
+   - **Found:** run `volcano upgrade` to keep it on the latest version — a
+     harmless, best-effort refresh that no-ops when already current. Treat any
+     failure (e.g. a transient GitHub/network hiccup) as a no-op and continue;
+     the installed CLI still works and a failed upgrade is never a blocker.
    - **Missing:** install it via the CLI-ensure flow the `volcano-sdk` and
      `volcano-platform` skills carry (also exposed explicitly as the
      `install-volcano` skill): it reads the CLI's own `installation.md` and
