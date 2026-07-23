@@ -597,6 +597,61 @@ volcano cloud migrations deploy --all -d app
 
 **Order matters:** variables before functions (so handlers have env vars on first deploy), config after functions (so visibility targets exist), migrations last (schema is ready for runtime queries). Note that step 4 (`config deploy`) runs *after* step 2 (`variables deploy`): if the manifest declares a `variables` section, step 4 wins and will overwrite or delete variables set by step 2 — keep `variables` out of the manifest unless it is the single source of truth (see "volcano-config.yaml" above).
 
+## Verify a local deploy (smoke test)
+
+Deploying is not the finish line — exercise each function and assert on the
+result (this is `AGENTS.md`'s "exercise what was built" step). Don't report
+success from the deploy output alone.
+
+**One-line smoke test — `volcano functions invoke`.** In local mode this runs the
+function *as the pre-provisioned local user*, so `event.__volcano_auth` is
+populated (id `11111111-…`, `clearwater@volcano.dev`) exactly as it would be for
+a signed-in caller. It's the fastest way to confirm a function deployed, runs,
+and receives an auth context:
+
+```sh
+volcano functions invoke <name> --payload '{"title":"Buy milk"}' --json
+```
+
+Check the printed status/body. A missing dependency, a broken handler, or a
+bad payload shape surfaces here immediately.
+
+**Multi-user / RLS checks — mint real users with the SDK.** The CLI invoke is
+always that single local user, so it can't verify per-user isolation (that user
+A cannot see user B's rows). For that, sign up throwaway users with the SDK and
+invoke as each. Read `apiUrl`/`anonKey` from `volcano status`:
+
+```js
+// verify.mjs — run: node verify.mjs   (npm i @volcano.dev/sdk)
+import { VolcanoAuth } from '@volcano.dev/sdk';
+
+const apiUrl = 'http://localhost:8000';                 // from `volcano status`
+const anonKey = 'ak-0000000000000000000000000000000000000000'; // from `volcano status`
+
+async function tokenFor(email) {
+  const auth = new VolcanoAuth({ apiUrl, anonKey });
+  // Local dev has no email confirmation, so signInWhenAllowed returns a live
+  // session directly; fall back to signIn if it doesn't.
+  let { session } = await auth.signUp({ email, password: 'Smoke-Test-1!', signInWhenAllowed: true });
+  if (!session) ({ session } = await auth.signIn({ email, password: 'Smoke-Test-1!' }));
+  if (!session?.access_token) throw new Error(`no session for ${email}`);
+  return session.access_token;
+}
+
+const token = await tokenFor(`smoke-${Date.now()}@example.com`);
+const volcano = new VolcanoAuth({ apiUrl, anonKey, accessToken: token });
+const { data, status, error } = await volcano.functions.invoke('<name>', { /* payload */ });
+console.log({ status, data, error });
+if (error || status < 200 || status >= 300) process.exit(1);
+```
+
+Easy wrong guesses to avoid (all verified against the SDK):
+- The methods are `auth.signUp` / `auth.signIn` — there is no `signInWithPassword`.
+- Auth responses are `{ user, session, error }` at the **top level**; the token
+  is `session.access_token`, not `data.session.access_token`.
+- `functions.invoke(name, payload)` returns `{ data, status, headers, version,
+  error }` — check `error` and `status` before trusting `data`.
+
 ## Forbidden Patterns
 - Do NOT create an `src/api/index.ts` route dispatcher or `openapi.yaml` — Volcano Functions deploy individually from `volcano/functions/`, not through a single entry point.
 - Do NOT expect `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, or `VOLCANO_DATABASE` to be auto-injected — define them as project variables via `volcano variables deploy` (local) or `volcano cloud variables deploy` (cloud).
@@ -609,6 +664,7 @@ volcano cloud migrations deploy --all -d app
 - Do NOT put more than one SQL statement in a migration file, and do NOT wrap one in `BEGIN; ... COMMIT;` — `volcano migrations deploy` executes each file as a single statement and rejects multi-statement bodies (`ERROR: Multiple statements are not supported`). Split a multi-step schema change into several sequentially-numbered single-statement files instead.
 
 ## Verification Checklist
+- Each deployed function was smoke-tested, not just deployed — `volcano functions invoke <name>` (runs as the local user) for a basic check, and the SDK recipe for multi-user/RLS isolation (see "Verify a local deploy").
 - Function handlers exist under `volcano/functions/` and each exports `handler`.
 - Shared code uses `_`-prefix directories (`_shared/`, `_lib/`).
 - `volcano/migrations/` contains `.sql` files with numeric-prefix alphabetical naming, each with exactly one SQL statement (no `BEGIN`/`COMMIT`, no multiple `;`-terminated statements in one file).
