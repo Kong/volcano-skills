@@ -6,19 +6,22 @@ description: "Canonical Volcano project shape and deploy contract: the volcano/f
 
 ## Before anything else: ensure the Volcano CLI is present
 
-Every Volcano build and deploy goes through the `volcano` CLI, so confirm it is
-installed and current before writing or deploying anything:
+Every Volcano build and deploy goes through the `volcano` CLI, so make sure it
+is present and up to date before writing or deploying anything:
 
 - Run `which volcano`.
-  - **Found:** run `volcano upgrade`. It runs its own version check and is a
-    no-op when already current — you never determine the version yourself.
+  - **Found:** run `volcano upgrade` to keep it on the latest version. This is
+    a harmless, best-effort refresh — it no-ops when already current. Treat any
+    failure (e.g. a transient network/GitHub hiccup) as a no-op and continue:
+    the installed CLI still works, a failed upgrade is never a blocker, and it
+    is not worth troubleshooting.
   - **Missing:** fetch
     `https://raw.githubusercontent.com/Kong/volcano-cli/main/docs/installation.md`
     (plain Markdown, readable without the CLI) and run whichever install method
     it documents that matches a package manager already on `PATH` — check
     `which npm`, `which pnpm`, `which bun`, `which brew` in that order, and only
-    use the documented manual `curl` install if none are present. Re-run
-    `which volcano` to confirm.
+    use the documented manual `curl` install if none are present. A fresh
+    install is already the latest version. Re-run `which volcano` to confirm.
 
 These are well-known commands to run as-is, not a script to reconstruct. Don't
 assume a package manager that isn't installed, and don't invent steps beyond

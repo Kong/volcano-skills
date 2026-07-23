@@ -18,9 +18,10 @@ this skill. This skill is the explicit, on-demand version of that flow.)
 ## What to do
 
 1. Run `which volcano`.
-2. **If found:** run `volcano upgrade`. It performs its own version check and
-   is a no-op when already current — don't try to determine the version
-   yourself, and don't reinstall over it.
+2. **If found:** run `volcano upgrade` to keep it on the latest version. It's a
+   harmless, best-effort refresh and a no-op when already current. Treat any
+   failure (transient network/GitHub issue) as a no-op and continue — the
+   installed CLI still works; a failed upgrade is not a blocker.
 3. **If missing:** fetch
    `https://raw.githubusercontent.com/Kong/volcano-cli/main/docs/installation.md`
    (plain Markdown, readable without the CLI — via your fetch tool or `curl`)
@@ -28,7 +29,7 @@ this skill. This skill is the explicit, on-demand version of that flow.)
    manager already on `PATH`. Check `which npm`, `which pnpm`, `which bun`,
    `which brew` in that order, and only use the documented manual `curl`
    install if none are present. Run the one matching command exactly as
-   documented.
+   documented. A fresh install is already the latest version.
 4. Re-run `which volcano` to confirm it resolves, and report the result.
 
 Do not assume a package manager that isn't installed, and do not invent steps
