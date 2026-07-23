@@ -8,7 +8,7 @@ databases, storage, and realtime — driven primarily through the **`volcano` CL
 ## Prerequisites
 
 Before any Volcano work, establish where your instructions/skills come from, then
-verify the CLI. **Do this check before running any download command below.**
+make sure the `volcano` CLI is available.
 
 1. **Locate your instruction/skills source — check this first, always:**
    - **Plugin-shipped (the common case):** if this `AGENTS.md` sits in a directory
@@ -16,25 +16,29 @@ verify the CLI. **Do this check before running any download command below.**
      (Cursor, Claude Code, Claude Desktop, and Codex plugin installs ship this
      layout), **you are already reading the primary canonical content.** Use this
      file and those sibling skills directly. Do **not** run any `curl`/download
-     command to fetch plugin skills — they are already carried by the plugin and
-     would only redownload identical content. The plugin installer also copies
-     this carried `AGENTS.md` to `~/.volcano/AGENTS.md` so a stable fallback exists.
-   - **Bootstrap/runtime install:** if there is no such sibling `skills/` layout,
-     canonical content is expected at `~/.volcano/AGENTS.md` and
-     `~/.volcano/skills/`. Read those if they exist and are non-empty/valid
-     Markdown.
-   - **Neither exists:** only then use the bootstrap fallback in step 3.
+     command to fetch plugin skills — they are already carried by the plugin.
+     There is no separate fallback copy to maintain: the plugin content on disk
+     is the source of truth.
+   - **Bootstrap/manual install:** only if there is no such sibling `skills/`
+     layout (a bare terminal, or a harness without plugin support) do you need
+     to fetch instructions/skills yourself — use the bootstrap fallback in step 3,
+     which writes them under `~/.volcano/`.
 
-2. **Check CLI**: run `which volcano`. If not found and you are running from a
-   Volcano IDE/plugin installation, run the plugin command/skill named
-   `install-volcano` (for example `/install-volcano` or `/volcano:install-volcano`).
-   It installs the CLI without re-downloading plugin-shipped skills. If no plugin
-   installer is available, run the bootstrap fallback below. Re-run `which volcano`
-   to confirm. If already installed, run `volcano upgrade` to ensure the latest
-   version — it only downloads if a newer release exists.
+2. **Ensure the CLI**: run `which volcano`.
+   - **Found:** run `volcano upgrade` — it does its own version check and is a
+     no-op when already current, so you never determine the version yourself.
+   - **Missing:** install it. The `volcano-sdk` and `volcano-platform` skills
+     carry the canonical check-and-install flow, and the `install-volcano`
+     skill exposes it as an explicit command: fetch
+     `https://raw.githubusercontent.com/Kong/volcano-cli/main/docs/installation.md`
+     and run whichever documented method matches a package manager already on
+     `PATH` (`npm`/`pnpm`/`bun`/`brew`), falling back to the documented manual
+     `curl` install only if none are present. In a bare no-plugin environment,
+     the bootstrap fallback in step 3 installs the CLI too. Re-run
+     `which volcano` to confirm.
 
-3. **Bootstrap fallback** (only when step 1 found no plugin-shipped or
-   `~/.volcano` content, or the CLI install needs it): `bootstrap.sh` is hosted
+3. **Bootstrap fallback** (only for the no-plugin case in step 1, or when the
+   CLI still isn't available): `bootstrap.sh` is hosted
    in `Kong/volcano-agentic-plugins`, not the Volcano web app — its URL is
    stable regardless of environment. It fetches `AGENTS.md`/skills from
    `VOLCANO_WEB_URL` if set (an IDE/environment may already export it for the
