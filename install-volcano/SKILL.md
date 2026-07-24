@@ -1,15 +1,15 @@
 ---
 name: install-volcano
-description: Install or upgrade the Volcano CLI.
-disable-model-invocation: true
+description: Install, upgrade, or set up the Volcano CLI. Use this whenever a task needs the volcano CLI and `which volcano` hasn't been confirmed yet, even if the user never says "install" (e.g. "build me a todo API using volcano").
 allowed-tools: Bash, WebFetch, Read
 ---
 
 # Install or upgrade the Volcano CLI
 
-Use this skill when the user explicitly asks to install, refresh, update, or
-set up the Volcano CLI. It runs well-known commands directly — there is no
-bespoke installer script to read or reconstruct.
+Use this skill proactively, without waiting to be asked, whenever Volcano work is
+starting and the CLI's presence/version hasn't been checked yet — not just when
+the user explicitly says "install". It runs well-known commands directly — there
+is no bespoke installer script to read or reconstruct.
 
 (The `volcano-sdk` and `volcano-platform` skills carry this same check as their
 first step, so a normal build flow already ensures the CLI without invoking
