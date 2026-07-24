@@ -57,6 +57,8 @@ Functions automatically receive the caller's identity in `event.__volcano_auth`:
 
 If `__volcano_auth` is absent, the request is unauthenticated.
 
+**When inserting owner-scoped rows, set the owner column explicitly from `auth.user_id`** — e.g. `volcano.insert('todos', { user_id: auth.user_id, title })` — rather than relying on the table's `DEFAULT auth.uid()`. Some invoke contexts (a service key, or `volcano functions invoke` used for smoke-testing) don't populate `auth.uid()`, so a create that leans on the default fails there with `null value in column "user_id"`. See `volcano_database`'s INSERT section.
+
 ## Handler Templates
 
 Volcano Functions return a standard response shape: handlers return `{ statusCode, body, headers? }` where `body` is a string. Use `JSON.stringify(...)` to encode JSON responses. **Use `statusCode: 200` for all successful responses (not `201`/`202`) — `volcano functions invoke` treats any non-200 status as a failed invocation, so a `201 Created` reads as a failure to the CLI and to callers checking status; put the created resource in the `body` with `200`.**

@@ -123,7 +123,13 @@ const { data, error } = await volcano.insert('posts', {
 });
 // data is an array; data[0] is the inserted row including any defaults.
 ```
-If the table has a `user_id` column with default `auth.uid()`, the authenticated user's id is automatically associated.
+If the table has a `user_id` column with default `auth.uid()`, a browser/SDK call carrying the user's token gets their id associated automatically.
+
+**Inside a Function handler, set `user_id` explicitly from `event.__volcano_auth.user_id` instead of relying on that default:**
+```ts
+await volcano.insert('todos', { user_id: auth.user_id, title });
+```
+`auth.uid()` resolves from the request's JWT context, which some function-invocation contexts do not populate (a service key, or `volcano functions invoke`) — relying on the default there fails with `null value in column "user_id"`. The injected `__volcano_auth.user_id` is always the authenticated caller's id, so an explicit value is robust across every invoke path (and RLS still enforces ownership).
 
 ## UPDATE
 ```ts
