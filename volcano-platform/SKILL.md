@@ -139,6 +139,15 @@ type FunctionResponse = {
 };
 ```
 
+**Use `statusCode: 200` for every successful response — not `201`, `202`, or
+any other 2xx.** `volcano functions invoke` reports any non-200 status as a
+failed invocation (e.g. `Error: failed to invoke function "x": HTTP 201`),
+so returning `201 Created` for a create makes the CLI — and an agent reading
+its output — treat a working function as broken and thrash trying to "fix"
+it. Return `200` with the created/updated resource in the `body`; reserve
+non-2xx for real failures (`400` bad input, `401` unauthenticated, `500`
+internal).
+
 ### Handler signature
 ```js
 exports.handler = async (event) => {
