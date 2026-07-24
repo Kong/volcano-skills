@@ -33,11 +33,20 @@ make sure the `volcano` CLI is available.
      to fetch instructions/skills yourself — use the bootstrap fallback in step 3,
      which writes them under `~/.volcano/`.
 
-2. **Ensure the CLI**: run `which volcano`.
-   - **Found:** run `volcano upgrade` to keep it on the latest version — a
-     harmless, best-effort refresh that no-ops when already current. Treat any
-     failure (e.g. a transient GitHub/network hiccup) as a no-op and continue;
-     the installed CLI still works and a failed upgrade is never a blocker.
+2. **Ensure the CLI**: run `which volcano` **first, before anything else** —
+   don't invoke the `install-volcano` skill preemptively.
+   - **Found (prints a path):** run `volcano upgrade` once to keep the CLI
+     current — a harmless, best-effort refresh that no-ops when already
+     current. Treat any failure (e.g. a transient GitHub/network hiccup) as a
+     no-op and continue; the installed CLI still works and a failed upgrade is
+     never a blocker. Where the harness supports it, also refresh the plugin
+     itself as in step 1 (Claude Code: `claude plugin marketplace update
+     volcano-agentic-plugins`) — a plugin update only takes effect next
+     session, so don't wait on it. Then go straight to the build. Do **not**
+     *also* invoke the `install-volcano` skill: that's the heavier install flow
+     for when the CLI is *missing*, and running it when volcano already exists
+     just repeats the same upgrade with tens of seconds of extra latency — a
+     single `volcano upgrade` is all the present-CLI case needs.
    - **Missing:** install it via the CLI-ensure flow the `volcano-sdk` and
      `volcano-platform` skills carry (also exposed explicitly as the
      `install-volcano` skill): it reads the CLI's own `installation.md` and
