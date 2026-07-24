@@ -627,9 +627,8 @@ success from the deploy output alone.
 
 **One-line smoke test — `volcano functions invoke`.** In local mode this runs the
 function *as the pre-provisioned local user*, so `event.__volcano_auth` is
-populated (id `11111111-…`, `clearwater@volcano.dev`) exactly as it would be for
-a signed-in caller. It's the fastest way to confirm a function deployed, runs,
-and receives an auth context:
+populated (id `11111111-…`, `clearwater@volcano.dev`). It's the fastest way to
+confirm a function deployed, runs, and receives an auth context:
 
 ```sh
 volcano functions invoke <name> --payload '{"title":"Buy milk"}' --json
@@ -637,6 +636,19 @@ volcano functions invoke <name> --payload '{"title":"Buy milk"}' --json
 
 Check the printed status/body. A missing dependency, a broken handler, or a
 bad payload shape surfaces here immediately.
+
+**Caveat — `auth.uid()` is NULL under this harness, so don't judge RLS/owner
+logic by it.** `volcano functions invoke` is a credential-free local harness
+(see its `--help`): it populates `event.__volcano_auth`, but it does **not**
+establish a database auth session, so SQL `auth.uid()` returns null here. A
+function that inserts an owner-scoped row through a `user_id` column defaulting
+to `auth.uid()`, or whose table has RLS policies using `auth.uid()`, will fail
+with `null value in column "user_id"` or return zero rows when invoked this way
+— that is the **harness context, not a bug in the function**, and it is not a
+reason to rewrite a correct handler (e.g. do NOT start hand-setting `user_id`
+just to satisfy the CLI). Verify per-user / RLS behavior with the SDK recipe
+below (a real signed-in user), where `auth.uid()` resolves — exactly as it does
+for real callers in the browser/app and in the cloud.
 
 **Multi-user / RLS checks — mint real users with the SDK.** The CLI invoke is
 always that single local user, so it can't verify per-user isolation (that user
