@@ -18,7 +18,16 @@ make sure the `volcano` CLI is available.
      file and those sibling skills directly. Do **not** run any `curl`/download
      command to fetch plugin skills — they are already carried by the plugin.
      There is no separate fallback copy to maintain: the plugin content on disk
-     is the source of truth.
+     is the source of truth. Check whether it's up to date and update it if
+     your harness supports that — for example:
+     - Claude Code: `claude plugin list` (see installed version), `claude
+       plugin marketplace update volcano-agentic-plugins` (update).
+     - Cursor: no non-interactive command exists yet — only the interactive
+       `/plugin` marketplace picker or installing at user scope in the IDE;
+       skip this check here.
+     - Codex: no documented plugin-update command either; skip.
+     If you do trigger an update, tell the user to reload the plugin or
+     restart the session — it won't take effect in this one.
    - **Bootstrap/manual install:** only if there is no such sibling `skills/`
      layout (a bare terminal, or a harness without plugin support) do you need
      to fetch instructions/skills yourself — use the bootstrap fallback in step 3,
