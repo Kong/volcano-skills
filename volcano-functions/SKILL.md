@@ -121,8 +121,7 @@ export const handler = async (event: {
   const volcano = createClient(auth);
   const { data, error } = await volcano
     .update('posts', { status: 'published' })
-    .eq('id', event.postId)
-    .select();
+    .eq('id', event.postId);
 
   if (error) return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
   return { statusCode: 200, body: JSON.stringify({ post: data?.[0] ?? null }) };
