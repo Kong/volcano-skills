@@ -718,7 +718,7 @@ Cloud is out of scope here — never auto-deploy to cloud (see `AGENTS.md` safet
 - Environment variables are deployed via `volcano variables deploy` (local) or `volcano cloud variables deploy` (cloud) — not assumed auto-injected.
 - `VOLCANO_DATABASE` is used (not `VOLCANO_DB_NAME`).
 - If using the build model: `npm run build:functions` produces `.js` files under `volcano/functions/` before deploy.
-- Any npm package a native-JS function imports (e.g. `@volcano.dev/sdk`) is declared in a `package.json` (functions dir or project root) — an undeclared import fails at runtime with `Cannot find package`.
+- Any npm package a native-JS function imports (e.g. `@volcano.dev/sdk`) is declared in a `volcano/functions/package.json` — an undeclared import fails at runtime with `Cannot find package`.
 - No `src/api/`, `openapi.yaml`, `dist/index.js`, or `dev-server.mjs` in the project.
 
 ## Companion Skills
