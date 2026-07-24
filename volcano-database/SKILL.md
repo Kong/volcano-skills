@@ -171,11 +171,10 @@ const { data: post, error } = await volcano
   .single();
 // data is the row, not data[0]
 
-// After insert: get the inserted row directly
-const { data: task, error } = await volcano
-  .insert('tasks', { title, user_id })
-  .select()
-  .single();
+// Inserts (and updates/deletes) do NOT support .select()/.single() chaining —
+// they return { data, error } with data as an array. Take data[0]:
+const { data, error } = await volcano.insert('tasks', { title, user_id });
+const task = data?.[0];
 ```
 
 ## Limitations
@@ -183,6 +182,7 @@ The query builder does NOT currently expose:
 - **Joins / nested embedded selects** (e.g., `select('*, comments(*)')`).
 - **Upserts** (insert-on-conflict-update).
 - **Multi-statement transactions.**
+- **`.select()` / `.single()` chained onto a mutation.** `insert()`, `update()`, and `delete()` return a `MutationBuilder` that supports only filters (`.eq()`, `.neq()`, `.in()`, … — the update/delete WHERE clause) and resolves to `{ data, error }` with `data` as an **array**. There is no `.select()` or `.single()` on a mutation: `await volcano.insert(...)` (or `.update(...).eq(...)`) and read `data[0]` for the written row. Chaining `.select()` fails at runtime with `volcano.insert(...).select is not a function`.
 
 When the work genuinely requires one of these, treat **direct Postgres access** (see below) as a last resort, not the default next step — first check whether the feature can be reshaped to fit the query builder (e.g., denormalize, add a lookup column, split into two queries client-side) before reaching for a raw connection. Consult the fallback reference if the SDK has gained these capabilities since this skill was last updated.
 
