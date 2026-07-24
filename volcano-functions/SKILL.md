@@ -59,7 +59,7 @@ If `__volcano_auth` is absent, the request is unauthenticated.
 
 ## Handler Templates
 
-Volcano Functions return a standard response shape: handlers return `{ statusCode, body, headers? }` where `body` is a string. Use `JSON.stringify(...)` to encode JSON responses.
+Volcano Functions return a standard response shape: handlers return `{ statusCode, body, headers? }` where `body` is a string. Use `JSON.stringify(...)` to encode JSON responses. **Use `statusCode: 200` for all successful responses (not `201`/`202`) — `volcano functions invoke` treats any non-200 status as a failed invocation, so a `201 Created` reads as a failure to the CLI and to callers checking status; put the created resource in the `body` with `200`.**
 
 ### Basic handler
 ```js
