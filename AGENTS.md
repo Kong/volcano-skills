@@ -18,19 +18,16 @@ make sure the `volcano` CLI is available.
      file and those sibling skills directly. Do **not** run any `curl`/download
      command to fetch plugin skills — they are already carried by the plugin.
      There is no separate fallback copy to maintain: the plugin content on disk
-     is the source of truth for this session — but it can still be stale
-     relative to what's actually published, since plugin hosts don't refresh
-     this automatically at every session start. As a safety-net check (most
-     hosts are expected to auto-update plugins on their own; this is a
-     backstop, not the primary mechanism): if your host exposes any way to
-     check an installed plugin's version against the latest available one,
-     use it once per session, and if a newer version exists, surface that to
-     the user as a suggestion to update — through whichever command or UI
-     your specific host provides, since this differs per host and isn't
-     restated here. Treat a failed or unavailable check as a no-op and
-     continue; never block on it. A pulled update typically needs a session
-     restart to take effect, so say that rather than assuming the current
-     session already reflects it.
+     is the source of truth. Check whether it's up to date and update it if
+     your harness supports that — for example:
+     - Claude Code: `claude plugin list` (see installed version), `claude
+       plugin marketplace update volcano-agentic-plugins` (update).
+     - Cursor: no non-interactive command exists yet — only the interactive
+       `/plugin` marketplace picker or installing at user scope in the IDE;
+       skip this check here.
+     - Codex: no documented plugin-update command either; skip.
+     If you do trigger an update, tell the user to reload the plugin or
+     restart the session — it won't take effect in this one.
    - **Bootstrap/manual install:** only if there is no such sibling `skills/`
      layout (a bare terminal, or a harness without plugin support) do you need
      to fetch instructions/skills yourself — use the bootstrap fallback in step 3,
