@@ -217,6 +217,19 @@ exports.handler = async (event) => {
 };
 ```
 
+**A Model A function that imports an npm package (including `@volcano.dev/sdk`, as `notes-summary.js` does) MUST declare it in a `package.json`, or the import fails at runtime with `Cannot find package '@volcano.dev/sdk'`.** `volcano functions deploy` uploads dependency *manifests* (`package.json`) and lets the runtime install from them; it deliberately never uploads your local `node_modules` (it's excluded from the archive). Declaring the import is not enough on its own — there must be a manifest listing it:
+
+```json
+// volcano/functions/package.json  — declares deps for the native-JS functions
+{
+  "name": "functions",
+  "private": true,
+  "dependencies": { "@volcano.dev/sdk": "latest" }
+}
+```
+
+The scanner skips `package.json`/`node_modules` as function candidates (they are not handlers), so this file sits alongside your `.js` handlers without becoming its own function. `hello.js` above needs no manifest because it imports nothing.
+
 ### Model B — Build-into-functions (TypeScript)
 
 Author TypeScript in `src/functions/<name>.ts`, bundle each to `volcano/functions/<name>.js` with esbuild, then deploy. This lets you use TypeScript, `src/lib/` shared code, and npm dependencies that esbuild bundles.
@@ -691,6 +704,7 @@ Cloud is out of scope here — never auto-deploy to cloud (see `AGENTS.md` safet
 - Do NOT assume `__volcano_auth` is always present — it is injected only when the payload is an object and the request carries a valid token.
 - Do NOT expect `volcano functions deploy` to run your build — built `.js` files must exist under `volcano/functions/` on disk before deploy.
 - Do NOT put more than one SQL statement in a migration file, and do NOT wrap one in `BEGIN; ... COMMIT;` — `volcano migrations deploy` executes each file as a single statement and rejects multi-statement bodies (`ERROR: Multiple statements are not supported`). Split a multi-step schema change into several sequentially-numbered single-statement files instead.
+- Do NOT `require`/`import` an npm package (including `@volcano.dev/sdk`) from a native-JS (Model A) function without declaring it in a `package.json` — the packager never uploads `node_modules`, so an undeclared dependency fails at runtime with `Cannot find package`. Declare every imported package in a manifest so the runtime installs it.
 
 ## Verification Checklist
 - Each deployed function was smoke-tested, not just deployed — `volcano functions invoke <name>` (runs as the local user) for a basic check, and the SDK recipe for multi-user/RLS isolation (see "Verify a local deploy").
@@ -704,6 +718,7 @@ Cloud is out of scope here — never auto-deploy to cloud (see `AGENTS.md` safet
 - Environment variables are deployed via `volcano variables deploy` (local) or `volcano cloud variables deploy` (cloud) — not assumed auto-injected.
 - `VOLCANO_DATABASE` is used (not `VOLCANO_DB_NAME`).
 - If using the build model: `npm run build:functions` produces `.js` files under `volcano/functions/` before deploy.
+- Any npm package a native-JS function imports (e.g. `@volcano.dev/sdk`) is declared in a `volcano/functions/package.json` — an undeclared import fails at runtime with `Cannot find package`.
 - No `src/api/`, `openapi.yaml`, `dist/index.js`, or `dev-server.mjs` in the project.
 
 ## Companion Skills
