@@ -20,16 +20,17 @@ make sure the `volcano` CLI is available.
      There is no separate fallback copy to maintain: the plugin content on disk
      is the source of truth for this session — but it can still be stale
      relative to what's actually published, since plugin hosts don't refresh
-     this automatically. If the `claude` CLI is available (Claude Code), run
-     `claude plugin marketplace update volcano-agentic-plugins` once per
-     session before relying on this content: one safe, idempotent command,
-     a no-op when already current (same best-effort semantics as step 2's
-     `volcano upgrade` — a transient failure is not a blocker). If it does
-     pull a newer version, tell the user a restart is needed to load it
-     rather than continuing on this session's already-loaded content — Claude
-     Code plugin updates require a restart to take effect. Skip this on other
-     hosts (Cursor, Claude Desktop, Codex): none currently expose an
-     agent-invokable equivalent, so there's nothing to run there.
+     this automatically at every session start. As a safety-net check (most
+     hosts are expected to auto-update plugins on their own; this is a
+     backstop, not the primary mechanism): if your host exposes any way to
+     check an installed plugin's version against the latest available one,
+     use it once per session, and if a newer version exists, surface that to
+     the user as a suggestion to update — through whichever command or UI
+     your specific host provides, since this differs per host and isn't
+     restated here. Treat a failed or unavailable check as a no-op and
+     continue; never block on it. A pulled update typically needs a session
+     restart to take effect, so say that rather than assuming the current
+     session already reflects it.
    - **Bootstrap/manual install:** only if there is no such sibling `skills/`
      layout (a bare terminal, or a harness without plugin support) do you need
      to fetch instructions/skills yourself — use the bootstrap fallback in step 3,
