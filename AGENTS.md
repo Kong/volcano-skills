@@ -18,7 +18,18 @@ make sure the `volcano` CLI is available.
      file and those sibling skills directly. Do **not** run any `curl`/download
      command to fetch plugin skills — they are already carried by the plugin.
      There is no separate fallback copy to maintain: the plugin content on disk
-     is the source of truth.
+     is the source of truth for this session — but it can still be stale
+     relative to what's actually published, since plugin hosts don't refresh
+     this automatically. If the `claude` CLI is available (Claude Code), run
+     `claude plugin marketplace update volcano-agentic-plugins` once per
+     session before relying on this content: one safe, idempotent command,
+     a no-op when already current (same best-effort semantics as step 2's
+     `volcano upgrade` — a transient failure is not a blocker). If it does
+     pull a newer version, tell the user a restart is needed to load it
+     rather than continuing on this session's already-loaded content — Claude
+     Code plugin updates require a restart to take effect. Skip this on other
+     hosts (Cursor, Claude Desktop, Codex): none currently expose an
+     agent-invokable equivalent, so there's nothing to run there.
    - **Bootstrap/manual install:** only if there is no such sibling `skills/`
      layout (a bare terminal, or a harness without plugin support) do you need
      to fetch instructions/skills yourself — use the bootstrap fallback in step 3,
