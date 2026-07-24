@@ -26,18 +26,30 @@ make sure the `volcano` CLI is available.
        `/plugin` marketplace picker or installing at user scope in the IDE;
        skip this check here.
      - Codex: no documented plugin-update command either; skip.
-     If you do trigger an update, tell the user to reload the plugin or
-     restart the session — it won't take effect in this one.
+     If an update is available, apply it. Since it only takes effect next
+     session, don't silently continue on the outdated content — use
+     `AskUserQuestion` (or your harness's equivalent prompt) to ask the user
+     whether to reload the plugin / restart the session now to pick it up, or
+     continue on the current version. If it's already current, just continue.
    - **Bootstrap/manual install:** only if there is no such sibling `skills/`
      layout (a bare terminal, or a harness without plugin support) do you need
      to fetch instructions/skills yourself — use the bootstrap fallback in step 3,
      which writes them under `~/.volcano/`.
 
-2. **Ensure the CLI**: run `which volcano`.
-   - **Found:** run `volcano upgrade` to keep it on the latest version — a
-     harmless, best-effort refresh that no-ops when already current. Treat any
-     failure (e.g. a transient GitHub/network hiccup) as a no-op and continue;
-     the installed CLI still works and a failed upgrade is never a blocker.
+2. **Ensure the CLI**: run `which volcano` **first, before anything else** —
+   don't invoke the `install-volcano` skill preemptively.
+   - **Found (prints a path):** run `volcano upgrade` once to keep the CLI
+     current — a harmless, best-effort refresh that no-ops when already
+     current. Treat any failure (e.g. a transient GitHub/network hiccup) as a
+     no-op and continue; the installed CLI still works and a failed upgrade is
+     never a blocker. Where the harness supports it, also refresh the plugin
+     itself as in step 1 (Claude Code: `claude plugin marketplace update
+     volcano-agentic-plugins`), which prompts the user to reload when an update
+     actually lands. Then go straight to the build. Do **not**
+     *also* invoke the `install-volcano` skill: that's the heavier install flow
+     for when the CLI is *missing*, and running it when volcano already exists
+     just repeats the same upgrade with tens of seconds of extra latency — a
+     single `volcano upgrade` is all the present-CLI case needs.
    - **Missing:** install it via the CLI-ensure flow the `volcano-sdk` and
      `volcano-platform` skills carry (also exposed explicitly as the
      `install-volcano` skill): it reads the CLI's own `installation.md` and
