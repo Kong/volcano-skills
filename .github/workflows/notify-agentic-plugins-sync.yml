@@ -49,6 +49,22 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          gh api repos/Kong/volcano-agentic-plugins/dispatches \
-            --method POST \
-            -f event_type=volcano-skills-updated
+          set -euo pipefail
+          # Retry transient GitHub API failures (e.g. a bare HTTP 500 on the
+          # dispatches endpoint) with exponential backoff. Without this, a blip
+          # here silently drops the trigger and the sync only happens at the
+          # consumer's daily cron — and the consumer's own PR-create retry
+          # never even runs. Firing the dispatch more than once is safe: the
+          # sync workflow is idempotent and no-ops when already in sync. On
+          # persistent failure we exit non-zero so the run goes red.
+          n=1; max=5; delay=10
+          until gh api repos/Kong/volcano-agentic-plugins/dispatches \
+                  --method POST \
+                  -f event_type=volcano-skills-updated; do
+            if [ "$n" -ge "$max" ]; then
+              echo "::error::dispatch still failing after $max attempts" >&2
+              exit 1
+            fi
+            echo "dispatch attempt $n/$max failed; retrying in ${delay}s" >&2
+            sleep "$delay"; n=$((n + 1)); delay=$((delay * 2))
+          done
