@@ -315,6 +315,7 @@ never a diagnostic detour.
 
 **Confirm-first:**
 - Cloud deploys: `volcano cloud functions deploy`, `volcano cloud frontends deploy`, `volcano cloud config deploy`, `volcano cloud variables deploy`
+- Cloud project creation: `volcano projects create` (a cloud resource; ask first, including when it's the project-context step of a cloud deploy)
 - Deletions: any `... delete` (local or cloud)
 - Local data reset: `volcano reset` (drops all local databases + local platform data; local-only but destructive and not recoverable — confirm first, then re-deploy migrations)
 - Secret / variable changes: `volcano cloud variables deploy`
@@ -334,7 +335,7 @@ explicit user approval. Check exit codes; non-zero means failure.
 
 ```bash
 # Auth & project
-volcano login | signup | logout | projects list | projects get <id> | use <id-or-name>
+volcano login | signup | logout | projects list | projects create <name> | projects get <id> | use <id-or-name>
 
 # Scaffold
 volcano init [javascript|nextjs|python|ruby]
