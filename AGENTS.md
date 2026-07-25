@@ -111,11 +111,22 @@ If `volcano init` is skipped, deploy commands will fail to find the expected sca
 ### Authenticating
 
 `volcano login` is the **only** way to authenticate. It uses an OAuth 2.0 Device
-Authorization Grant — the CLI polls in a loop and will appear to "hang" for tens of
-seconds to minutes. **This is expected.** Do not kill it.
+Authorization Grant: the CLI prints a `Code:` and a browser URL almost immediately,
+then **blocks, polling in a loop for tens of seconds to minutes** until a human
+approves in the browser. **This is expected. Do not kill it.**
 
-When you see the `Code:` and browser URL in the output, immediately surface them to
-the user using this format (its own message, URL on its own line):
+**Run it in the background so you can surface the code while it polls — never as a
+blocking foreground call.** A foreground `volcano login` traps its output inside the
+still-running command: you never see the `Code:`/URL, can't relay it, and your turn
+just hangs until it times out. Instead:
+
+1. Start `volcano login` as a **background** command that does not block your turn
+   (Claude Code: the Bash tool's `run_in_background: true`; other harnesses: their
+   async/background exec).
+2. Poll its streaming output (Claude Code: `BashOutput`) until the `Code:` and
+   browser URL appear — read the **full** output, since many harnesses truncate.
+3. **Immediately** surface them to the user in this format (its own message, URL on
+   its own line):
 
 ```
 ------------------------------------------------------------
@@ -128,12 +139,19 @@ ACTION REQUIRED — Volcano CLI authentication
 ------------------------------------------------------------
 ```
 
-Read the **full stdout** before acting — many harnesses truncate output. Do not
-paraphrase or bury the URL. Wait for `volcano login` to return (exit = success).
+4. Then keep reading the background command until it exits; a zero exit means the
+   user approved and you're now authenticated. Don't paraphrase or bury the URL.
+
+**Offer login *or* signup.** A brand-new user can run `volcano signup` instead — it
+runs the same device flow, and either browser page lets the user switch (the login
+page links to sign-up and the signup page to log-in) and still finish the *same*
+authorization. So when someone isn't authenticated, offer both; whichever they pick
+completes the login the CLI is polling for.
 
 **Do not** search for tokens on the filesystem, probe API endpoints, `strings` the
-binary, run under `timeout`, or attempt to approve a device code programmatically.
-There is no shortcut — only a human with a browser session can approve.
+binary, run `volcano login` under `timeout` or as a foreground call you then kill, or
+attempt to approve a device code programmatically. There is no shortcut — only a
+human with a browser session can approve.
 
 If you cannot reach the user, surface this and stop.
 
@@ -175,7 +193,10 @@ explicitly requests a cloud deployment, regardless of how automatically the
 local steps ran.
 
 **Cloud deploy** (only when the user explicitly requests cloud deployment): verify
-(1) CLI is authenticated (`volcano status`), (2) a project exists and is selected
+(1) CLI is authenticated — run `volcano projects list` (an authenticated cloud
+command); `volcano status` shows only the *local* stack, not cloud auth, so it never
+tells you whether you're logged in. If not authenticated, authenticate first (see
+"Authenticating" — offer login or signup). (2) a project exists and is selected
 (`volcano projects list`, then `volcano use <id-or-name>`). **Cloud deploys
 require explicit user confirmation**, with no exceptions.
 
@@ -198,11 +219,13 @@ actually built (skip resources that weren't touched, such as database
 commands when no database was used), and use exact CLI commands:
 
 - After the default **build → local run/test/deploy** flow: suggest cloud
-  deploy, but check state first with `volcano status` (auth **and** selected
-  project) and branch on exactly what's missing:
-  - Not logged in: "Next: sign in with `volcano login`, then select a project
-    with `volcano projects list` and `volcano use <id-or-name>`, then deploy
-    to the cloud with `volcano cloud functions deploy --all`."
+  deploy, but check state first with `volcano projects list` (it both confirms
+  cloud auth — `volcano status` shows only the local stack — and lists the
+  projects) and branch on exactly what's missing:
+  - Not logged in: "Next: sign in with `volcano login` (or `volcano signup` to
+    create an account), then select a project with `volcano projects list` and
+    `volcano use <id-or-name>`, then deploy to the cloud with `volcano cloud
+    functions deploy --all`."
   - Logged in but no project selected: "Next: select a project with `volcano
     projects list` and `volcano use <id-or-name>`, then deploy to the cloud
     with `volcano cloud functions deploy --all`."
@@ -293,7 +316,7 @@ explicit user approval. Check exit codes; non-zero means failure.
 
 ```bash
 # Auth & project
-volcano login | logout | projects list | projects get <id> | use <id-or-name>
+volcano login | signup | logout | projects list | projects get <id> | use <id-or-name>
 
 # Scaffold
 volcano init [javascript|nextjs|python|ruby]
