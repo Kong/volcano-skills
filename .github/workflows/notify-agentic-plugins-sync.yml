@@ -1,9 +1,11 @@
-name: Notify volcano-agentic-plugins sync
+name: Validate skills and notify sync
 
-# Triggers the volcano-agentic-plugins submodule sync immediately on every
-# main-branch update, instead of waiting for its daily cron
-# (.github/workflows/sync-skills.yml there). Fires a repository_dispatch
-# event, which that workflow's on: block listens for.
+# Validates the skill catalog, then (only on main, only if validation passes)
+# triggers the volcano-agentic-plugins submodule sync immediately instead of
+# waiting for its daily cron (.github/workflows/sync-skills.yml there). The
+# notify job fires a repository_dispatch event, which that workflow's on: block
+# listens for. Gating notify on validate is the whole point: a broken catalog
+# must never be propagated downstream before the check that would catch it runs.
 #
 # Uses repository_dispatch (not workflow_dispatch) deliberately: it only
 # needs Contents: write on the target repo, vs. Actions: write for
@@ -14,6 +16,7 @@ name: Notify volcano-agentic-plugins sync
 # VOLCANO_APP_KEY), scoped to only the target repo.
 
 on:
+  pull_request:
   push:
     branches:
       - main
@@ -22,14 +25,32 @@ on:
 # App-minted token below), so drop its default scopes.
 permissions: {}
 
-# Collapse a burst of pushes into a single effective dispatch; cancelling a
-# superseded run is safe here since the newer push's job will dispatch anyway.
+# Collapse a burst of runs on the same ref into one; cancelling a superseded
+# run is safe here since the newer run's notify job will dispatch anyway.
+# Scoped by ref so a PR run never cancels an in-flight main run's dispatch.
 concurrency:
-  group: notify-agentic-plugins-sync
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    # Only contents:read, for checkout; no ambient write scope.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - name: Validate skill catalog
+        run: node scripts/check-skills.mjs
+
   notify:
+    # Gate: dispatch only after validate clears, and only on main. On PRs the
+    # catalog is validated but nothing is propagated (notify is skipped).
+    needs: [validate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Generate token for volcano-agentic-plugins
