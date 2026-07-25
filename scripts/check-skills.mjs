@@ -92,10 +92,15 @@ if (index && !Array.isArray(index.skills)) {
 
 // Orphan check: every <dir>/SKILL.md on disk must be registered in index.json,
 // so a skill added without a catalog entry fails instead of shipping invisibly.
-for (const entry of readdirSync(root, { withFileTypes: true })) {
-  if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
-  if (existsSync(path.join(root, entry.name, "SKILL.md")) && !registered.has(entry.name)) {
-    err(`${entry.name}/SKILL.md exists but is not registered in index.json`);
+// Skipped when the catalog didn't parse into a skills array: registered would
+// be empty and every skill dir would be misreported as an orphan on top of the
+// real "index.json is not valid" error.
+if (index && Array.isArray(index.skills)) {
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    if (existsSync(path.join(root, entry.name, "SKILL.md")) && !registered.has(entry.name)) {
+      err(`${entry.name}/SKILL.md exists but is not registered in index.json`);
+    }
   }
 }
 
