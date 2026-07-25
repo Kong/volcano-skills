@@ -316,7 +316,7 @@ explicit user approval. Check exit codes; non-zero means failure.
 
 ```bash
 # Auth & project
-volcano login | logout | projects list | projects get <id> | use <id-or-name>
+volcano login | signup | logout | projects list | projects get <id> | use <id-or-name>
 
 # Scaffold
 volcano init [javascript|nextjs|python|ruby]
