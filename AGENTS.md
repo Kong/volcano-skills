@@ -187,18 +187,35 @@ Local mode means Volcano CLI commands **without** the `cloud` prefix, such as
 deploy --all`. Cloud mode is only the corresponding `volcano cloud ...` command
 surface.
 
-**Never auto-deploy to the cloud.** The local default above does not extend to
-cloud in any case: `volcano cloud ...` commands are only run when the user
-explicitly requests a cloud deployment, regardless of how automatically the
-local steps ran.
+**Never auto-deploy to the cloud; always ask first.** The local default above does
+not extend to cloud: run any `volcano cloud ...` deploy only after asking the user
+and getting their go-ahead, regardless of how automatically the local steps ran. The
+sole exception is a standing instruction from the user to deploy without asking (e.g.
+"deploy to cloud automatically", "push to prod without confirming") — honor that when
+given, but never infer it.
 
-**Cloud deploy** (only when the user explicitly requests cloud deployment): verify
-(1) CLI is authenticated — run `volcano projects list` (an authenticated cloud
-command); `volcano status` shows only the *local* stack, not cloud auth, so it never
-tells you whether you're logged in. If not authenticated, authenticate first (see
-"Authenticating" — offer login or signup). (2) a project exists and is selected
-(`volcano projects list`, then `volcano use <id-or-name>`). **Cloud deploys
-require explicit user confirmation**, with no exceptions.
+**Cloud deploy** (only when the user explicitly requests cloud deployment). Cloud is
+never the *first* deploy: the autonomous default deploys and tests **locally** first
+(see "Build vs. run/test/deploy"); cloud comes only after the local run clears and
+the user explicitly asks for it. Then run these in order:
+
+1. **Auth** — run `volcano projects list` (an authenticated cloud command; `volcano
+   status` shows only the *local* stack, not cloud auth, so it never tells you
+   whether you're logged in). If not authenticated, authenticate first (see
+   "Authenticating" — offer login or signup).
+2. **Project context** — a cloud project must be selected. `volcano projects list`
+   shows what exists and which is current. If none is selected — or none exists at
+   all (a fresh account lists zero projects) — **create one** with `volcano projects
+   create <name>` (a sensible name derived from the app/directory), then `volcano
+   use <id-or-name>` to select it. Don't skip this: `volcano cloud functions deploy`
+   fails without a real, selected cloud project.
+3. **Deploy** — `volcano cloud functions deploy --all` (plus `volcano cloud variables
+   deploy` / `volcano cloud config deploy` for what was built) against that project.
+
+**Ask before deploying** — get the user's explicit go-ahead before running step 3
+(and the `volcano projects create` in step 2, since it's part of carrying out that
+one confirmed cloud deploy), unless they've given a standing instruction to skip the
+confirmation.
 
 ### Suggest the next step
 
@@ -223,12 +240,13 @@ commands when no database was used), and use exact CLI commands:
   cloud auth — `volcano status` shows only the local stack — and lists the
   projects) and branch on exactly what's missing:
   - Not logged in: "Next: sign in with `volcano login` (or `volcano signup` to
-    create an account), then select a project with `volcano projects list` and
-    `volcano use <id-or-name>`, then deploy to the cloud with `volcano cloud
-    functions deploy --all`."
+    create an account), then select or create a project with `volcano projects
+    list` / `volcano projects create <name>` and `volcano use <id-or-name>`, then
+    deploy to the cloud with `volcano cloud functions deploy --all`."
   - Logged in but no project selected: "Next: select a project with `volcano
-    projects list` and `volcano use <id-or-name>`, then deploy to the cloud
-    with `volcano cloud functions deploy --all`."
+    projects list` and `volcano use <id-or-name>` (or `volcano projects create
+    <name>` if you have none yet), then deploy to the cloud with `volcano cloud
+    functions deploy --all`."
   - Logged in with a project already selected: "Next: deploy this to the
     cloud with `volcano cloud functions deploy --all`."
 - After a **build-only** change (scope explicitly limited by the user, or by a
@@ -297,6 +315,7 @@ never a diagnostic detour.
 
 **Confirm-first:**
 - Cloud deploys: `volcano cloud functions deploy`, `volcano cloud frontends deploy`, `volcano cloud config deploy`, `volcano cloud variables deploy`
+- Cloud project creation: `volcano projects create` (a cloud resource; ask first, including when it's the project-context step of a cloud deploy)
 - Deletions: any `... delete` (local or cloud)
 - Local data reset: `volcano reset` (drops all local databases + local platform data; local-only but destructive and not recoverable — confirm first, then re-deploy migrations)
 - Secret / variable changes: `volcano cloud variables deploy`
@@ -316,7 +335,7 @@ explicit user approval. Check exit codes; non-zero means failure.
 
 ```bash
 # Auth & project
-volcano login | signup | logout | projects list | projects get <id> | use <id-or-name>
+volcano login | signup | logout | projects list | projects create <name> | projects get <id> | use <id-or-name>
 
 # Scaffold
 volcano init [javascript|nextjs|python|ruby]
