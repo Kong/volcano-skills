@@ -137,9 +137,10 @@ try {
   err(`tests/skill-trigger-cases.json is not valid JSON: ${e.message}`);
 }
 
-if (triggerCases && !Array.isArray(triggerCases.cases)) {
+if (triggerCases !== undefined &&
+    (triggerCases === null || typeof triggerCases !== "object" || !Array.isArray(triggerCases.cases))) {
   err('tests/skill-trigger-cases.json must have a "cases" array');
-} else if (triggerCases) {
+} else if (triggerCases !== undefined) {
   const caseIds = new Set();
   triggerCases.cases.forEach((testCase, i) => {
     const where = `tests/skill-trigger-cases.json cases[${i}]`;
@@ -183,6 +184,10 @@ if (triggerCases && !Array.isArray(triggerCases.cases)) {
       if (!Array.isArray(item.signals) || item.signals.length === 0 ||
           item.signals.some((signal) => typeof signal !== "string" || signal.trim() === "")) {
         err(`${expectedWhere}: "signals" must be a non-empty array of strings`);
+        return;
+      }
+      if (item.signals.some((signal) => normalizeSignal(signal) === "")) {
+        err(`${expectedWhere}: every signal must contain at least one alphanumeric character`);
         return;
       }
       const normalizedDescription = normalizeSignal(registeredDescriptions.get(item.skill) ?? "");
