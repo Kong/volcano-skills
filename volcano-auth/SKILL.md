@@ -255,7 +255,7 @@ await volcano.auth.deleteAllOtherSessions();
 ## Security Best Practices
 - Never put a service key (`sk-...`) in `anonKey`. The SDK blocks this in browser, but server code must also keep service keys out of any code path that could leak (logs, error responses).
 - Always use HTTPS API URLs in production.
-- Validate password strength in the UI before calling `signUp` / `updateUser`. The SDK rejects weak passwords, but pre-validating gives better UX. The default policy requires **at least 15 characters** (character-class rules like uppercase/number/special are off by default and opt-in per project), so use ≥15-char passwords in signup forms, tests, and seed data.
+- Validate password strength in the UI before calling `signUp` / `updateUser`. The SDK rejects weak passwords, but pre-validating gives better UX. The platform enforces a hard floor of **15 characters** — a project can *raise* the minimum via `min_password_length` but cannot lower it below 15 (the validator uses `max(15, configured)`). Character-class rules (uppercase/number/special) are off by default and opt-in per project — the floor favors length over complexity. Use ≥15-char passwords in signup forms, tests, and seed data.
 - Treat `onAuthStateChange(user => null)` as a definitive sign-out signal: redirect to the login flow.
 
 ## Common Errors
