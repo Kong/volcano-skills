@@ -53,13 +53,18 @@ await volcano.storage
 ```
 
 ### From Blob / ArrayBuffer
+`upload()` accepts a **`File`, `Blob`, or `ArrayBuffer`** only. A Node `Buffer`
+(or any `Uint8Array`) is **rejected** with `Invalid file body type. Expected
+File, Blob, or ArrayBuffer` — the common trap in server Functions, where an
+image/PDF/QR generator hands you a Node `Buffer`. Wrap it in a `Blob`.
 ```ts
 const blob = new Blob(['hello'], { type: 'text/plain' });
 await volcano.storage.from('uploads').upload('notes/hello.txt', blob);
 
-const buffer = await fetchSomeData();
-await volcano.storage.from('uploads').upload('data/export.bin', buffer, {
-  contentType: 'application/octet-stream',
+// In a Function: generators return a Node Buffer — wrap it, do NOT pass it directly.
+const png = await QRCode.toBuffer('https://example.com'); // Node Buffer
+await volcano.storage.from('uploads').upload('codes/qr.png', new Blob([png]), {
+  contentType: 'image/png',
 });
 ```
 
