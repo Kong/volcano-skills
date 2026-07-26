@@ -1,0 +1,125 @@
+{
+  "cases": [
+    {
+      "id": "personal-notes",
+      "prompt": "Build a personal notes app with email sign-in and per-user data using Volcano",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-auth", "signals": ["email", "sign-in", "per-user"] },
+        { "skill": "volcano-database", "signals": ["data", "per-user"] },
+        { "skill": "volcano-nextjs", "signals": ["app"] }
+      ]
+    },
+    {
+      "id": "collaborative-todo-board",
+      "prompt": "Build a collaborative todo board with realtime updates using Volcano",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-database", "signals": ["todo"] },
+        { "skill": "volcano-realtime", "signals": ["realtime", "collaborative", "board"] },
+        { "skill": "volcano-nextjs", "signals": ["board"] }
+      ]
+    },
+    {
+      "id": "realtime-chat",
+      "prompt": "Build a realtime chat app with online presence using Volcano",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-database", "signals": ["chat"] },
+        { "skill": "volcano-realtime", "signals": ["realtime", "chat", "online", "presence"] },
+        { "skill": "volcano-nextjs", "signals": ["app"] }
+      ]
+    },
+    {
+      "id": "live-poll",
+      "prompt": "Build a live poll with realtime results using Volcano",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-database", "signals": ["poll"] },
+        { "skill": "volcano-realtime", "signals": ["live", "poll", "realtime", "results"] }
+      ]
+    },
+    {
+      "id": "photo-gallery",
+      "prompt": "Build a photo gallery with uploads and public sharing using Volcano Storage",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-storage", "signals": ["photo", "gallery", "uploads", "public"] },
+        { "skill": "volcano-nextjs", "signals": ["gallery"] }
+      ]
+    },
+    {
+      "id": "resumable-file-sharing",
+      "prompt": "Build a resumable file-sharing app using Volcano Storage",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-storage", "signals": ["resumable", "file-sharing"] },
+        { "skill": "volcano-nextjs", "signals": ["app"] }
+      ]
+    },
+    {
+      "id": "url-shortener",
+      "prompt": "Build a URL shortener with click analytics using Volcano",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-database", "signals": ["analytics"] }
+      ]
+    },
+    {
+      "id": "headless-blog-cms",
+      "prompt": "Build a headless blog CMS with drafts and published posts using Volcano",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-database", "signals": ["CMS"] }
+      ]
+    },
+    {
+      "id": "link-in-bio",
+      "prompt": "Build a link-in-bio page with click tracking using Volcano",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-database", "signals": ["click tracking"] },
+        { "skill": "volcano-nextjs", "signals": ["page"] }
+      ]
+    },
+    {
+      "id": "feature-flags",
+      "prompt": "Build a feature-flag dashboard with per-user targeting using Volcano",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-auth", "signals": ["per-user"] },
+        { "skill": "volcano-database", "signals": ["feature-flag"] },
+        { "skill": "volcano-nextjs", "signals": ["dashboard"] }
+      ]
+    },
+    {
+      "id": "qr-code-generator",
+      "prompt": "Build a QR code generator using Volcano Functions",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-functions", "signals": ["QR", "generator", "Functions"] }
+      ]
+    },
+    {
+      "id": "live-leaderboard",
+      "prompt": "Build a live leaderboard using Volcano Realtime",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-database", "signals": ["leaderboard"] },
+        { "skill": "volcano-realtime", "signals": ["live", "leaderboard", "Realtime"] }
+      ]
+    }
+  ]
+}
