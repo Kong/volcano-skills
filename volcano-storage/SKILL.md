@@ -22,6 +22,8 @@ const documents = volcano.storage.from('documents');
 ```
 Create buckets with the CLI before referencing them — `volcano storage bucket create <name> [--allowed-mime-type <type>] [--file-size-limit <bytes>]` (local) / `volcano cloud storage bucket create ...` (cloud); `volcano storage bucket list|get` to check what already exists. `volcano-config.yaml`'s `buckets` section (see `volcano-platform`) only manages policies on buckets that already exist — it never creates or deletes them.
 
+**A new bucket already has working owner-scoped RLS policies — do NOT hand-write them for the common case.** `bucket create` installs defaults (`default-auth-insert`, `default-auth-select-own`, `default-auth-update-own`, `default-auth-delete-own`): any authenticated user can upload, and each user can read/update/delete only their own objects. So a private, per-user upload/list app needs **zero** policy setup — just create the bucket and upload under owner-scoped paths (below). Reach for `volcano storage policy create` only for *non-default* access (public read, cross-user sharing) — see "Custom policies". Creating owner-scoped policies by hand is the most common storage mistake: they already exist, and a wrong definition denies the very uploads it was meant to allow.
+
 ### Path conventions (recommended)
 ```
 avatars/<userId>/profile.jpg
@@ -262,6 +264,20 @@ await volcano.storage.from('uploads').upload(`other-user-id/avatar.jpg`, file);
 ### Public read, authenticated write
 - Download policy allows anyone (when `is_public`).
 - Upload policy requires an authenticated session.
+
+### Custom policies (only for non-default access)
+The auto-applied defaults already cover private per-user storage — don't recreate
+them. For anything else, attach policies with the CLI (or `volcano-config.yaml`'s
+`buckets.<name>.policies`, which fully syncs declared policies). A `--definition`
+is an RLS expression over the object row (columns include `owner_id`, `name`,
+`bucket_id`, `is_public`):
+```sh
+volcano storage policy create avatars --operation SELECT --name public-read  --definition "is_public = true"
+volcano storage policy create avatars --operation INSERT --name authed-write  --definition "auth.uid() IS NOT NULL"
+volcano storage policy create docs    --operation SELECT --name owner-read    --definition "auth.uid() = owner_id"
+```
+`volcano storage policy list|get|delete <bucket>` to inspect/manage. `--operation`
+is one of `SELECT|INSERT|UPDATE|DELETE`.
 
 ### Role-based
 Policies inspect the user's role from the JWT (admin/user/etc.) — same client API, different rows visible.
