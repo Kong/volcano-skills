@@ -147,6 +147,22 @@ const { session, error } = await volcano.auth.refreshSession();
 ### Providers
 `google`, `github`, `microsoft`, `apple`.
 
+### Configure the provider (required before sign-in works)
+OAuth providers live in `volcano-config.yaml` under `auth.providers.oauth` (a list) and are applied with `config deploy`:
+```yaml
+auth:
+  providers:
+    oauth:
+      - provider: google
+        enabled: true
+        client_id: "<client-id>"
+        client_secret: "<client-secret>"
+        redirect_url: "http://localhost:8000/auth/oauth/google/callback"  # REQUIRED
+        # scopes: [openid, email, profile]   # optional
+```
+- **`redirect_url` is required** — omitting it fails `config deploy` with `redirect_url is required`. It is the **Volcano** callback (`<apiUrl>/auth/oauth/<provider>/callback`), not your app page: Volcano handles the provider round-trip, then returns your app to the URL from `signInWithOAuth('<provider>', { redirectTo: '<app-url>' })` (the `redirectTo` option; defaults to the current page when omitted). Cloud form: `https://api.<project>.volcano.dev/auth/oauth/<provider>/callback`.
+- **Combining email/password with OAuth:** if both email/password signup and any OAuth/SSO provider are enabled, you must also set `auth.email_verification.require_confirmation: true` and configure SMTP (Mailpit locally, real SMTP in cloud), or `config deploy` fails with `email/password signups and SSO cannot both be enabled unless require_email_confirmation is true and SMTP is configured`.
+
 ### Begin OAuth (browser only — throws on server)
 ```ts
 volcano.auth.signInWithGoogle();
@@ -155,6 +171,8 @@ volcano.auth.signInWithMicrosoft();
 volcano.auth.signInWithApple();
 // Generic form:
 volcano.auth.signInWithOAuth('google');
+// Return the browser to a specific app page afterward (defaults to the current page):
+volcano.auth.signInWithOAuth('google', { redirectTo: `${window.location.origin}/dashboard` });
 ```
 These redirect to the provider; on return, call `volcano.initialize()` on the callback page to consume the tokens from the URL.
 
