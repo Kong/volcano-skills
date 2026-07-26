@@ -541,6 +541,6 @@ channel.onPostgresChanges('INSERT', 'public', 'posts', (change) => {
 - OAuth provider names are typed as `OAuthProviderName`, not `string`.
 
 ## Companion Skills
-- `volcano_sdk` — top-level orientation and mandatory usage.
-- `volcano_platform` — project shape, Volcano Functions runtime contract, build pipeline.
-- Domain skills (`volcano_auth`, `volcano_database`, `volcano_functions`, `volcano_storage`, `volcano_realtime`, `volcano_nextjs`) — pair with this skill when implementing.
+- `volcano-sdk` — top-level orientation and mandatory usage.
+- `volcano-platform` — project shape, Volcano Functions runtime contract, build pipeline.
+- Domain skills (`volcano-auth`, `volcano-database`, `volcano-functions`, `volcano-storage`, `volcano-realtime`, `volcano-nextjs`) — pair with this skill when implementing.

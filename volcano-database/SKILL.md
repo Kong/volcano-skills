@@ -1,6 +1,6 @@
 ---
 name: volcano-database
-description: Detailed guidance for browser and function data access with the Volcano query builder
+description: Use whenever a Volcano app stores or persists data, including CRUD, records, per-user data, migrations, RLS, todos, chat messages, polls, analytics, counters, click tracking, CMS content, feature flags, and leaderboards.
 ---
 # Volcano Database Skill
 

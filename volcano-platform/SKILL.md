@@ -1,6 +1,6 @@
 ---
 name: volcano-platform
-description: "Canonical Volcano project shape and deploy contract: the volcano/functions/ model, migrations, volcano-config.yaml, env vars, shared-code conventions, and the build/deploy workflow."
+description: Use for every Volcano project build, scaffold, local run, test, or deploy. Covers canonical project shape, Functions and frontends, migrations, volcano-config.yaml, environment variables, shared code, and the build and deploy workflow. Pair with volcano-sdk for application features.
 ---
 # Volcano Platform Contract Skill
 
@@ -32,8 +32,8 @@ explicit command.
 Defines the canonical project shape and deploy contract for any Volcano-Hosting-deployable codebase. Covers the `volcano/functions/` deployment model, migrations, `volcano-config.yaml`, environment variables, shared-code conventions, and the build/deploy workflow.
 
 **Pair with:**
-- `volcano_sdk` — the SDK entrypoint and skill router.
-- `volcano_functions` — function-writing internals: handler templates, invocation contract, user-context patterns, error handling.
+- `volcano-sdk` — the SDK entrypoint and skill router.
+- `volcano-functions` — function-writing internals: handler templates, invocation contract, user-context patterns, error handling.
 
 This skill focuses on **project shape and deploy mechanics**, not on how to write individual function handlers.
 
@@ -157,7 +157,7 @@ exports.handler = async (event) => {
 };
 ```
 
-For detailed handler templates, invocation patterns, and user-context guidance, see the `volcano_functions` skill.
+For detailed handler templates, invocation patterns, and user-context guidance, see the `volcano-functions` skill.
 
 ## Authoring Models
 
@@ -307,7 +307,7 @@ Both models use the same factory pattern, adapted from the `nextjs-notes` starte
 
 Both read `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, and `VOLCANO_DATABASE` from `process.env` and fall back to database name `'app'`.
 
-For browser-side client setup, see the `volcano_nextjs` skill.
+For browser-side client setup, see the `volcano-nextjs` skill.
 
 ## Environment Variables
 
@@ -340,7 +340,7 @@ VOLCANO_DATABASE=app
 
 Never hardcode secrets in handler code.
 
-**`DATABASE_URL` is auto-injected** (unlike `VOLCANO_API_URL`/`VOLCANO_ANON_KEY`/`VOLCANO_DATABASE` above) and carries full admin access (`application_name=volcano_full_access`) by default. Always use the SDK client (`volcano.from(...)`), not `DATABASE_URL`. Direct Postgres access is a discouraged last resort with untested, unbounded surface area — see the `volcano_database` skill's "Direct Postgres Access" section before ever reaching for it.
+**`DATABASE_URL` is auto-injected** (unlike `VOLCANO_API_URL`/`VOLCANO_ANON_KEY`/`VOLCANO_DATABASE` above) and carries full admin access (`application_name=volcano_full_access`) by default. Always use the SDK client (`volcano.from(...)`), not `DATABASE_URL`. Direct Postgres access is a discouraged last resort with untested, unbounded surface area — see the `volcano-database` skill's "Direct Postgres Access" section before ever reaching for it.
 
 ## Migrations & Row-Level Security
 
@@ -710,8 +710,8 @@ the project genuinely doesn't use that resource).
 - [ ] Static-correctness items from "Verification Checklist" below hold (layout, one-statement migrations, `auth.uid()`, `VOLCANO_DATABASE`, no `src/api/`).
 
 The per-domain skills carry their own "Verification Checklist" for domain-specific
-asserts — consult the ones the build touched: `volcano_functions`, `volcano_auth`,
-`volcano_database`, `volcano_storage`, `volcano_realtime`.
+asserts — consult the ones the build touched: `volcano-functions`, `volcano-auth`,
+`volcano-database`, `volcano-storage`, `volcano-realtime`.
 
 Cloud is out of scope here — never auto-deploy to cloud (see `AGENTS.md` safety model).
 
@@ -720,7 +720,7 @@ Cloud is out of scope here — never auto-deploy to cloud (see `AGENTS.md` safet
 - Do NOT expect `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, or `VOLCANO_DATABASE` to be auto-injected — define them as project variables via `volcano variables deploy` (local) or `volcano cloud variables deploy` (cloud).
 - Do NOT use `VOLCANO_DB_NAME` — the canonical variable is `VOLCANO_DATABASE`.
 - Do NOT use bare `uid()`, `email()`, `role()` — always use the `auth.` schema prefix: `auth.uid()`, `auth.email()`, `auth.role()`.
-- Do NOT use `pg`/`pg-pool`/`DATABASE_URL` as a replacement for the SDK client — use `VOLCANO_DATABASE` and the SDK for all standard CRUD. Direct Postgres access is a discouraged, narrowly-scoped last resort ONLY for query-builder gaps that are provably impossible otherwise (joins/upserts/multi-statement transactions), NOT a general-purpose data layer or a reason to introduce an ORM as project architecture, and ONLY after rewriting `application_name` to `volcano_user_access:{user_id}` (raw `DATABASE_URL` bypasses RLS) — see `volcano_database`'s "Direct Postgres Access" section.
+- Do NOT use `pg`/`pg-pool`/`DATABASE_URL` as a replacement for the SDK client — use `VOLCANO_DATABASE` and the SDK for all standard CRUD. Direct Postgres access is a discouraged, narrowly-scoped last resort ONLY for query-builder gaps that are provably impossible otherwise (joins/upserts/multi-statement transactions), NOT a general-purpose data layer or a reason to introduce an ORM as project architecture, and ONLY after rewriting `application_name` to `volcano_user_access:{user_id}` (raw `DATABASE_URL` bypasses RLS) — see `volcano-database`'s "Direct Postgres Access" section.
 - Do NOT use `jsonwebtoken` or `bcryptjs` directly — Volcano Auth handles tokens and password hashing.
 - Do NOT assume `__volcano_auth` is always present — it is injected only when the payload is an object and the request carries a valid token.
 - Do NOT expect `volcano functions deploy` to run your build — built `.js` files must exist under `volcano/functions/` on disk before deploy.
@@ -744,9 +744,9 @@ Cloud is out of scope here — never auto-deploy to cloud (see `AGENTS.md` safet
 
 ## Companion Skills
 This skill defines the platform deploy contract. For domain-specific guidance:
-- `volcano_sdk` — top-level orientation and skill router.
-- `volcano_functions` — handler templates, invocation contract, user context, error handling.
-- `volcano_auth`, `volcano_database`, `volcano_storage`, `volcano_realtime` — per-domain APIs and patterns.
-- `volcano_nextjs` — Next.js frontend patterns (AuthProvider, middleware, server actions).
-- `volcano_typescript` — canonical TypeScript type definitions.
-- `volcano_error_handling` — reusable error-handling infrastructure.
+- `volcano-sdk` — top-level orientation and skill router.
+- `volcano-functions` — handler templates, invocation contract, user context, error handling.
+- `volcano-auth`, `volcano-database`, `volcano-storage`, `volcano-realtime` — per-domain APIs and patterns.
+- `volcano-nextjs` — Next.js frontend patterns (AuthProvider, middleware, server actions).
+- `volcano-typescript` — canonical TypeScript type definitions.
+- `volcano-error-handling` — reusable error-handling infrastructure.

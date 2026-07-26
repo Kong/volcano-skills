@@ -4,9 +4,10 @@
 // Catches the realistic "bad skill" failures at the source: malformed
 // index.json, a catalog entry with no SKILL.md, a SKILL.md with missing/empty
 // frontmatter, name mismatch, description drift between index.json and the
-// SKILL.md frontmatter, and a skill dir that was never registered in the
-// catalog. CI gates the volcano-agentic-plugins notify dispatch on this, so a
-// broken catalog is never propagated downstream.
+// SKILL.md frontmatter, a skill dir that was never registered in the catalog,
+// and setup CTA examples whose expected skills have no discovery signal in
+// their frontmatter. CI gates the volcano-agentic-plugins notify dispatch on
+// this, so a broken catalog is never propagated downstream.
 //
 // Pure Node builtins (this repo has no package manager). Run:
 //   node scripts/check-skills.mjs
@@ -17,6 +18,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const errors = [];
 const err = (m) => errors.push(m);
+const triggerCasesFile = path.join(root, "tests", "skill-trigger-cases.json");
 
 // Minimal frontmatter reader: skills use simple single-line `key: value` YAML
 // between `---` fences (no nested/multiline values — asserted by this check's
@@ -51,6 +53,7 @@ try {
 }
 
 const registered = new Set();
+const registeredDescriptions = new Map();
 if (index && !Array.isArray(index.skills)) {
   err('index.json must have a "skills" array');
 } else if (index) {
@@ -63,6 +66,9 @@ if (index && !Array.isArray(index.skills)) {
     }
     if (typeof s?.name !== "string" || s.name === "") return;
     registered.add(s.name);
+    if (typeof s.description === "string") {
+      registeredDescriptions.set(s.name, s.description);
+    }
 
     const expectedPath = `/skills/${s.name}/SKILL.md`;
     if (s.path !== expectedPath) {
@@ -104,9 +110,101 @@ if (index && Array.isArray(index.skills)) {
   }
 }
 
+// Deterministic discovery coverage for user-facing setup prompts. This does
+// not claim to reproduce a model's skill-selection behavior. It protects the
+// lexical evidence that the model sees before a skill loads: every expected
+// skill must exist and its catalog description must share at least one
+// declared signal with the prompt.
+function normalizeSignal(value) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((token) => {
+      if (token.length > 4 && token.endsWith("ies")) return `${token.slice(0, -3)}y`;
+      if (token.length > 3 && token.endsWith("s")) return token.slice(0, -1);
+      return token;
+    })
+    .join(" ");
+}
+
+let triggerCases;
+try {
+  triggerCases = JSON.parse(readFileSync(triggerCasesFile, "utf8"));
+} catch (e) {
+  err(`tests/skill-trigger-cases.json is not valid JSON: ${e.message}`);
+}
+
+if (triggerCases !== undefined &&
+    (triggerCases === null || typeof triggerCases !== "object" || !Array.isArray(triggerCases.cases))) {
+  err('tests/skill-trigger-cases.json must have a "cases" array');
+} else if (triggerCases !== undefined) {
+  const caseIds = new Set();
+  triggerCases.cases.forEach((testCase, i) => {
+    const where = `tests/skill-trigger-cases.json cases[${i}]`;
+    if (typeof testCase?.id !== "string" || testCase.id.trim() === "") {
+      err(`${where}: missing/empty "id"`);
+    } else if (caseIds.has(testCase.id)) {
+      err(`${where}: duplicate id "${testCase.id}"`);
+    } else {
+      caseIds.add(testCase.id);
+    }
+    if (typeof testCase?.prompt !== "string" || testCase.prompt.trim() === "") {
+      err(`${where}: missing/empty "prompt"`);
+      return;
+    }
+    if (!Array.isArray(testCase.expected) || testCase.expected.length === 0) {
+      err(`${where}: "expected" must be a non-empty array`);
+      return;
+    }
+
+    const expectedNames = new Set(testCase.expected.map((item) => item?.skill));
+    for (const mandatory of ["volcano-sdk", "volcano-platform"]) {
+      if (!expectedNames.has(mandatory)) {
+        err(`${where}: every Volcano build prompt must expect "${mandatory}"`);
+      }
+    }
+    if (![...expectedNames].some((name) => name !== "volcano-sdk" && name !== "volcano-platform")) {
+      err(`${where}: expected skills must include at least one domain skill`);
+    }
+
+    const normalizedPrompt = normalizeSignal(testCase.prompt);
+    testCase.expected.forEach((item, expectedIndex) => {
+      const expectedWhere = `${where} expected[${expectedIndex}]`;
+      if (typeof item?.skill !== "string" || item.skill.trim() === "") {
+        err(`${expectedWhere}: missing/empty "skill"`);
+        return;
+      }
+      if (!registered.has(item.skill)) {
+        err(`${expectedWhere}: unknown skill "${item.skill}"`);
+        return;
+      }
+      if (!Array.isArray(item.signals) || item.signals.length === 0 ||
+          item.signals.some((signal) => typeof signal !== "string" || signal.trim() === "")) {
+        err(`${expectedWhere}: "signals" must be a non-empty array of strings`);
+        return;
+      }
+      if (item.signals.some((signal) => normalizeSignal(signal) === "")) {
+        err(`${expectedWhere}: every signal must contain at least one alphanumeric character`);
+        return;
+      }
+      const normalizedDescription = normalizeSignal(registeredDescriptions.get(item.skill) ?? "");
+      const matchingSignal = item.signals.find((signal) => {
+        const normalized = normalizeSignal(signal);
+        return normalizedPrompt.includes(normalized) && normalizedDescription.includes(normalized);
+      });
+      if (!matchingSignal) {
+        err(`${expectedWhere} (${item.skill}): none of [${item.signals.join(", ")}] appears in both prompt and catalog description`);
+      }
+    });
+  });
+}
+
 if (errors.length) {
   console.error(`check-skills: ${errors.length} problem(s):`);
   for (const e of errors) console.error(`  - ${e}`);
   process.exit(1);
 }
-console.log(`check-skills: OK (${registered.size} skills)`);
+console.log(`check-skills: OK (${registered.size} skills, ${triggerCases?.cases?.length ?? 0} trigger cases)`);
