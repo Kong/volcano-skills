@@ -83,7 +83,7 @@ const { user, session, error } = await volcano.auth.signUp({
 });
 if (error) {
   if (error.message.includes('already exists')) /* email taken */;
-  else if (error.message.includes('password must')) /* strengthen — real messages: "password must be at least 8 characters", "...contain at least one uppercase letter", etc. */;
+  else if (error.message.includes('password must')) /* strengthen — real messages: "password must be at least 15 characters", "...contain at least one uppercase letter", etc. */;
   else if (error.message.includes('invalid email')) /* validate */;
   return;
 }
@@ -255,14 +255,14 @@ await volcano.auth.deleteAllOtherSessions();
 ## Security Best Practices
 - Never put a service key (`sk-...`) in `anonKey`. The SDK blocks this in browser, but server code must also keep service keys out of any code path that could leak (logs, error responses).
 - Always use HTTPS API URLs in production.
-- Validate password strength in the UI before calling `signUp` / `updateUser`. The SDK rejects weak passwords, but pre-validating gives better UX.
+- Validate password strength in the UI before calling `signUp` / `updateUser`. The SDK rejects weak passwords, but pre-validating gives better UX. The platform enforces a hard floor of **15 characters** — a project can *raise* the minimum via `min_password_length` but cannot lower it below 15 (the validator uses `max(15, configured)`). Character-class rules (uppercase/number/special) are off by default and opt-in per project — the floor favors length over complexity. Use ≥15-char passwords in signup forms, tests, and seed data.
 - Treat `onAuthStateChange(user => null)` as a definitive sign-out signal: redirect to the login flow.
 
 ## Common Errors
 | Message contains | Real example message | Meaning | Action |
 |---|---|---|---|
 | `already exists` | `user with this email already exists` | Email taken on sign up | Prompt sign in |
-| `password must` | `password must be at least 8 characters` / `password must contain at least one uppercase letter` / `...one number` / `...one special character (!@#$%^&*)` | Password too weak | Show strength rules |
+| `password must` | `password must be at least 15 characters` / `password must contain at least one uppercase letter` / `...one number` / `...one special character (!@#$%^&*)` | Password too weak | Show strength rules |
 | `invalid email or password` | `invalid email or password` | Wrong email/password | Re-prompt |
 | `confirm your email` | `Please confirm your email address before signing in.` (sign-in gate) or `email confirmation required - please check your email for confirmation link` (signup) | Verification pending | Show resend UI |
 | `rate limit` | `rate limit exceeded, try again later` | Rate-limited | Back off and inform user |
