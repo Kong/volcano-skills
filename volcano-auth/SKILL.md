@@ -1,6 +1,6 @@
 ---
 name: volcano-auth
-description: Detailed guidance for authentication flows built with the Volcano SDK
+description: Use for Volcano authentication and identity work including user accounts, email or password sign-up and sign-in, OAuth, sessions, anonymous users, password recovery, and private or per-user data.
 ---
 # Volcano Auth Skill
 

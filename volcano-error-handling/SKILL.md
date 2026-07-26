@@ -5,7 +5,7 @@ description: "Reusable error handling patterns for Volcano SDK apps: centralized
 # Volcano Error Handling Skill
 
 ## Role
-Provide the reusable error-handling infrastructure for Volcano SDK apps. The other domain skills (`volcano_auth`, `volcano_database`, etc.) cover error MESSAGES per domain; this skill covers error-handling PRIMITIVES that the rest of the codebase composes on:
+Provide the reusable error-handling infrastructure for Volcano SDK apps. The other domain skills (`volcano-auth`, `volcano-database`, etc.) cover error MESSAGES per domain; this skill covers error-handling PRIMITIVES that the rest of the codebase composes on:
 
 - A centralized error dispatcher that returns an `action` enum.
 - A `useApiCall<T>` React hook for `loading`/`error`/`data` lifecycle.
@@ -289,11 +289,11 @@ Each domain skill includes domain-specific error messages. This skill is the cro
 
 | Domain | Skill | Common error messages |
 |---|---|---|
-| Auth | `volcano_auth` | `invalid email or password`, `confirm your email`, `already exists`, `password must`, `rate limit` |
-| Database | `volcano_database` | `column does not exist`, `permission denied`, `No active session`, `Database name not set`, `violates unique constraint` |
-| Functions | `volcano_functions` | `Function not found`, `timeout`, `rate limit`, `Internal server error` (or business-logic `data.error`) |
-| Storage | `volcano_storage` | `No active session`, `Bucket not found`, `File not found`, `File too large`, `permission denied`, `invalid file type` |
-| Realtime | `volcano_realtime` | `authentication` (token expired), `network`, opaque WebSocket errors (often CORS — see realtime skill's Browser Origins section) |
+| Auth | `volcano-auth` | `invalid email or password`, `confirm your email`, `already exists`, `password must`, `rate limit` |
+| Database | `volcano-database` | `column does not exist`, `permission denied`, `No active session`, `Database name not set`, `violates unique constraint` |
+| Functions | `volcano-functions` | `Function not found`, `timeout`, `rate limit`, `Internal server error` (or business-logic `data.error`) |
+| Storage | `volcano-storage` | `No active session`, `Bucket not found`, `File not found`, `File too large`, `permission denied`, `invalid file type` |
+| Realtime | `volcano-realtime` | `authentication` (token expired), `network`, opaque WebSocket errors (often CORS — see realtime skill's Browser Origins section) |
 
 When a new error message starts appearing in production logs, add it to the relevant domain skill's catalog and — if it warrants a distinct action — to `handleApiError` here.
 
@@ -361,6 +361,6 @@ setData(data);
 - No raw `error.message` leaks to the user UI; all messages are dispatched through `handleApiError`.
 
 ## Companion Skills
-- `volcano_typescript` — for type-safe error handling (`Error`, `ApiResult<T>`, generic shape).
+- `volcano-typescript` — for type-safe error handling (`Error`, `ApiResult<T>`, generic shape).
 - Domain skills — for the specific error-message strings per-domain.
-- `volcano_realtime` — for the WebSocket-specific connection error semantics (Browser Origins/CORS gotcha).
+- `volcano-realtime` — for the WebSocket-specific connection error semantics (Browser Origins/CORS gotcha).

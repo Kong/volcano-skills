@@ -8,12 +8,12 @@
     },
     {
       "name": "volcano-auth",
-      "description": "Detailed guidance for authentication flows built with the Volcano SDK",
+      "description": "Use for Volcano authentication and identity work including user accounts, email or password sign-up and sign-in, OAuth, sessions, anonymous users, password recovery, and private or per-user data.",
       "path": "/skills/volcano-auth/SKILL.md"
     },
     {
       "name": "volcano-database",
-      "description": "Detailed guidance for browser and function data access with the Volcano query builder",
+      "description": "Use whenever a Volcano app stores or persists data, including CRUD, records, per-user data, migrations, RLS, todos, chat messages, polls, analytics, counters, click tracking, CMS content, feature flags, and leaderboards.",
       "path": "/skills/volcano-database/SKILL.md"
     },
     {
@@ -23,32 +23,32 @@
     },
     {
       "name": "volcano-functions",
-      "description": "Detailed guidance for server-side function invocation and orchestration with Volcano",
+      "description": "Use for Volcano server-side Functions and privileged or secret-bearing logic, including function invocation, generators such as QR codes or PDFs, outbound third-party APIs, orchestration, scheduled processing, and file or image processing.",
       "path": "/skills/volcano-functions/SKILL.md"
     },
     {
       "name": "volcano-nextjs",
-      "description": "Detailed guidance for using the Volcano SDK correctly in Next.js environments",
+      "description": "Use for Next.js on Volcano and for web apps, pages, dashboards, boards, galleries, full-stack UIs, public HTTP routes, redirects, webhook ingress, middleware, API routes, server actions, and client or server SDK separation.",
       "path": "/skills/volcano-nextjs/SKILL.md"
     },
     {
       "name": "volcano-platform",
-      "description": "Canonical Volcano project shape and deploy contract: the volcano/functions/ model, migrations, volcano-config.yaml, env vars, shared-code conventions, and the build/deploy workflow.",
+      "description": "Use for every Volcano project build, scaffold, local run, test, or deploy. Covers canonical project shape, Functions and frontends, migrations, volcano-config.yaml, environment variables, shared code, and the build and deploy workflow. Pair with volcano-sdk for application features.",
       "path": "/skills/volcano-platform/SKILL.md"
     },
     {
       "name": "volcano-realtime",
-      "description": "Detailed guidance for live subscriptions, broadcast, and presence with Volcano Realtime",
+      "description": "Use for realtime or live updates in Volcano apps, including collaborative boards, chat, presence and online users, live polls and results, leaderboards, Postgres changes, broadcast, WebSockets, and connection lifecycle.",
       "path": "/skills/volcano-realtime/SKILL.md"
     },
     {
       "name": "volcano-sdk",
-      "description": "Entrypoint and router for Volcano SDK work. Pair with volcano_platform (mandatory). Indicates which volcano_* domain skill (auth/database/functions/storage/realtime/nextjs/typescript/error_handling) to invoke for each task.",
+      "description": "Use for any request to build, create, extend, debug, or deploy an app, website, backend, API, or function using Volcano, even when the user does not mention the SDK. Entrypoint and router; always pair with volcano-platform and the applicable domain skills.",
       "path": "/skills/volcano-sdk/SKILL.md"
     },
     {
       "name": "volcano-storage",
-      "description": "Detailed guidance for storage buckets, file paths, and upload or download flows with Volcano",
+      "description": "Use for file and object storage in Volcano apps, including uploads, downloads, photo galleries, file sharing, buckets, ownership-aware paths, public or private files, visibility, and resumable uploads.",
       "path": "/skills/volcano-storage/SKILL.md"
     },
     {

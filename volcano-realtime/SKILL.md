@@ -1,6 +1,6 @@
 ---
 name: volcano-realtime
-description: Detailed guidance for live subscriptions, broadcast, and presence with Volcano Realtime
+description: Use for realtime or live updates in Volcano apps, including collaborative boards, chat, presence and online users, live polls and results, leaderboards, Postgres changes, broadcast, WebSockets, and connection lifecycle.
 ---
 # Volcano Realtime Skill
 

@@ -1,6 +1,6 @@
 ---
 name: volcano-nextjs
-description: Detailed guidance for using the Volcano SDK correctly in Next.js environments
+description: Use for Next.js on Volcano and for web apps, pages, dashboards, boards, galleries, full-stack UIs, public HTTP routes, redirects, webhook ingress, middleware, API routes, server actions, and client or server SDK separation.
 ---
 # Volcano Next.js Skill
 
@@ -427,7 +427,7 @@ export function LivePosts() {
 ```
 
 ## Default Signup & Login Pages
-When the prompt doesn't specify signup/login page design, apply the `volcano_auth` "Default Signup & Login Page UX" — including the default signup-success alert — on top of the `AuthContext` from this skill.
+When the prompt doesn't specify signup/login page design, apply the `volcano-auth` "Default Signup & Login Page UX" — including the default signup-success alert — on top of the `AuthContext` from this skill.
 
 ```tsx
 // app/signup/page.tsx — default signup page with a success alert
