@@ -62,6 +62,7 @@ const blob = new Blob(['hello'], { type: 'text/plain' });
 await volcano.storage.from('uploads').upload('notes/hello.txt', blob);
 
 // In a Function: generators return a Node Buffer — wrap it, do NOT pass it directly.
+// (QRCode here is the third-party `qrcode` npm package — add it to package.json so it bundles into the function.)
 const png = await QRCode.toBuffer('https://example.com'); // Node Buffer
 await volcano.storage.from('uploads').upload('codes/qr.png', new Blob([png]), {
   contentType: 'image/png',
