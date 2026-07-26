@@ -8,15 +8,36 @@ description: Use for realtime or live updates in Volcano apps, including collabo
 Implement live updates with deterministic realtime lifecycle handling. This skill is self-contained: connection lifecycle, all three channel types (postgres / broadcast / presence), token refresh, and cleanup are embedded.
 
 ## Workflow
-1. Initialize `VolcanoRealtime` with `apiUrl`, `anonKey`, and `accessToken` (or `getToken`).
-2. `connect()`, then create channels with the right `type`.
-3. Register handlers BEFORE calling `subscribe()`.
-4. Always pair `subscribe()` with `unsubscribe()` on teardown; pair `connect()` with `disconnect()`.
-5. Subscriptions respect RLS — channel scope is minimal (specific table/event).
+1. Enable realtime for the project — `realtime: { enabled: true }` in `volcano-config.yaml`, then `config deploy` (off by default; see "Enable realtime").
+2. Initialize `VolcanoRealtime` with `apiUrl`, `anonKey`, and `accessToken` (or `getToken`).
+3. `connect()`, then create channels with the right `type`.
+4. Register handlers BEFORE calling `subscribe()`.
+5. Always pair `subscribe()` with `unsubscribe()` on teardown; pair `connect()` with `disconnect()`.
+6. Subscriptions respect RLS — channel scope is minimal (specific table/event).
 
 ## Dependencies
 - `centrifuge` is required.
 - `ws` only for Node.js server-side realtime usage. The SDK uses the browser's native `WebSocket` automatically and `ws` automatically in Node.js — provide a custom implementation only for advanced cases (see "Custom WebSocket Implementation" below).
+
+## Enable realtime (required)
+Realtime is **disabled by default for every project — local and cloud alike**
+(`enabled: false`). Until you enable it, every connection is rejected with
+`realtime disabled for project`. Declare it in `volcano-config.yaml` and deploy:
+```yaml
+realtime:
+  enabled: true                     # required — off by default
+  # broadcast_enabled: true         # optional, default true
+  # presence_enabled: true          # optional, default true
+  # postgres_changes_enabled: true  # optional, default true
+```
+Apply with `volcano config deploy` (local) / `volcano cloud config deploy`
+(cloud). This is the **only** realtime setup that isn't app code — the same
+config governs both environments, so a realtime app verified locally deploys to
+the cloud unchanged. Everything else (`apiUrl`/`anonKey`/`accessToken`, channels,
+handlers) is identical across environments. In local mode, `apiUrl` is
+`http://localhost:8000` with the local anon key from `volcano status`, and you
+can sign in as the shipped default user (`clearwater@volcano.dev`) to get an
+`accessToken` without building a signup flow first.
 
 ## Initialization
 ```ts
@@ -332,7 +353,18 @@ try {
 }
 ```
 
+**Connection rejected (connect times out or never accepts):**
+- `realtime disabled for project` — realtime is off for this project; add
+  `realtime: { enabled: true }` to `volcano-config.yaml` and `config deploy`
+  (see "Enable realtime"). Off by default in local **and** cloud.
+- `invalid apikey` / `anon key not found` — wrong `anonKey` for the target
+  project (or the wrong `apiUrl`).
+- Missing/invalid token — realtime requires an authenticated session; pass a
+  real `accessToken` (`signIn` first). There is no anonymous/token-less
+  realtime connection, in local or cloud.
+
 ## Verification Checklist
+- Realtime is enabled for the project (`realtime: { enabled: true }` in `volcano-config.yaml`, `config deploy`d) — off by default.
 - `connect()` is paired with `disconnect()`; `subscribe()` is paired with `unsubscribe()`.
 - Handlers are registered before `subscribe()`.
 - Realtime behavior matches RLS expectations (per-user delivery).
