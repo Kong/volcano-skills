@@ -286,6 +286,30 @@ ON posts FOR SELECT
 USING (status = 'published');
 ```
 
+### Owner column & inserts
+
+The `WITH CHECK (user_id = auth.uid())` insert policy above only passes if
+`user_id` equals the caller — so give the owner column a **`DEFAULT auth.uid()`**
+and let the server fill it from the token. Otherwise every client insert has to
+set `user_id` itself, and one that omits it fails with `new row violates
+row-level security policy` (`42501`):
+
+```sql
+CREATE TABLE IF NOT EXISTS posts (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid NOT NULL DEFAULT auth.uid(),   -- owner, auto-filled from the token
+  title      text NOT NULL,
+  status     text NOT NULL DEFAULT 'draft',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+```
+
+Now `insert('posts', { title })` works for the signed-in user without passing
+`user_id`, and RLS still enforces ownership. For a child table (e.g.
+`comments`), the FK (`post_id`) comes from the client while the owner
+(`user_id`) still defaults to `auth.uid()` — pair every owner-scoped `WITH
+CHECK` policy with a `DEFAULT auth.uid()` on the column it checks.
+
 The same client query returns different rows depending on the signed-in user. Do NOT emulate authorization in client code; rely on RLS.
 
 ## TypeScript
