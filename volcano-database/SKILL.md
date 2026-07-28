@@ -286,6 +286,12 @@ ON posts FOR SELECT
 USING (status = 'published');
 ```
 
+### Owner column & inserts
+
+Pair every owner-scoped `WITH CHECK (user_id = auth.uid())` insert policy with a `DEFAULT auth.uid()` on the column it checks (`user_id uuid NOT NULL DEFAULT auth.uid()`) so the server fills the owner from the token. Otherwise every client insert must set `user_id` itself, and one that omits it is rejected with `new row violates row-level security policy` (`42501`) — Postgres evaluates the RLS `WITH CHECK` before the column's `NOT NULL` constraint, so the missing owner surfaces as a policy violation, not a not-null error. With the default, `insert('posts', { title })` works for the signed-in user without passing `user_id`, and the policy still enforces ownership.
+
+RLS only takes effect once the table has `ALTER TABLE <table> ENABLE ROW LEVEL SECURITY`. For the full `CREATE TABLE` + enable + policy sequence, follow the canonical `posts` migration in the `volcano-platform` skill ("Canonical migration with RLS") rather than re-declaring the table here. For a child table (e.g. `comments`), the FK (`post_id`) comes from the client while the owner (`user_id`) still defaults to `auth.uid()`.
+
 The same client query returns different rows depending on the signed-in user. Do NOT emulate authorization in client code; rely on RLS.
 
 ## TypeScript
