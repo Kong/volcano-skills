@@ -13,6 +13,20 @@ Implement Volcano SDK in Next.js with strict client/server separation and middle
 3. Keep browser-only auth actions (OAuth initiation, localStorage session) out of server-only code.
 4. Validate redirect/protection behavior and hydration edge cases.
 
+## Default UI/UX Guidance
+When the prompt does not define a design, build a simple, complete interface instead of leaving raw or unstyled controls:
+- Reuse the project's existing components, tokens, layout, and interaction patterns before adding new ones.
+- Use semantic HTML, visible labels, keyboard access, visible focus states, descriptive link/button text, sufficient color contrast, and `aria-*` only when native semantics are not enough.
+- Start with a narrow-screen layout, add breakpoints only where content needs them, keep primary actions visible, and prevent accidental horizontal scrolling.
+- Give each data view explicit loading, empty, error, and success states. Use skeletons only when they match the final layout; otherwise use plain status text.
+- Give each user action clear progress and result feedback. Prevent duplicate submits, keep entered data after recoverable errors, and place validation messages next to the relevant field.
+- Keep navigation and page hierarchy clear: one page title, logical heading order, a clear primary action, and a visible way back or onward.
+- Prefer native controls and browser behavior. Do not add a component library, animation system, or custom control unless the project already uses it or the prompt requires it.
+- Respect reduced-motion preferences. Never rely on color, motion, hover, or placeholder text alone to convey meaning.
+- Test the main flow with keyboard-only input and at narrow and wide viewport sizes.
+
+Domain skills can add stricter UX rules. For example, apply `volcano-auth` to authentication pages and `volcano-error-handling` to non-trivial data-fetching interfaces.
+
 ## Environment Contract
 `.env.local`:
 ```env
