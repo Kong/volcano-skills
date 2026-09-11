@@ -32,6 +32,11 @@
       "path": "/skills/volcano-nextjs/SKILL.md"
     },
     {
+      "name": "volcano-uiux",
+      "description": "Use for any user-facing Volcano frontend, web app, page, dashboard, board, gallery, form, UI, or UX. Covers accessible responsive design, loading and progress feedback, forms, navigation, and complete interface states.",
+      "path": "/skills/volcano-uiux/SKILL.md"
+    },
+    {
       "name": "volcano-platform",
       "description": "Use for every Volcano project build, scaffold, local run, test, or deploy. Covers canonical project shape, Functions and frontends, migrations, volcano-config.yaml, environment variables, shared code, and the build and deploy workflow. Pair with volcano-sdk for application features.",
       "path": "/skills/volcano-platform/SKILL.md"

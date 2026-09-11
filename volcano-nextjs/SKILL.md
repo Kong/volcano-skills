@@ -13,27 +13,8 @@ Implement Volcano SDK in Next.js with strict client/server separation and middle
 3. Keep browser-only auth actions (OAuth initiation, localStorage session) out of server-only code.
 4. Validate redirect/protection behavior and hydration edge cases.
 
-## Default UI/UX Guidance
-When the prompt does not define a design, build a simple, complete interface instead of leaving raw or unstyled controls:
-- Reuse the project's existing components, tokens, layout, and interaction patterns before adding new ones.
-- Use semantic HTML, visible labels, keyboard access, visible focus states, descriptive link/button text, sufficient color contrast, and `aria-*` only when native semantics are not enough.
-- Start with a narrow-screen layout, add breakpoints only where content needs them, keep primary actions visible, and prevent accidental horizontal scrolling.
-- Give each data view explicit loading, empty, error, and success states.
-- Give each user action clear progress and result feedback. Prevent duplicate submits, keep entered data after recoverable errors, and place validation messages next to the relevant field.
-- Keep navigation and page hierarchy clear: one page title, logical heading order, a clear primary action, and a visible way back or onward.
-- Prefer native controls and browser behavior. Do not add a component library, animation system, or custom control unless the project already uses it or the prompt requires it.
-- Respect reduced-motion preferences. Never rely on color, motion, hover, or placeholder text alone to convey meaning.
-- Test the main flow with keyboard-only input and at narrow and wide viewport sizes.
-
-### Progress Feedback
-- Show a progress indicator when an action or initial load does not finish immediately. Do not flash one for work that completes at once.
-- Put feedback where the delay occurs. For a button action, keep the button width stable, disable it to prevent duplicate submits, and replace its label with clear text such as "Saving..."; a small spinner can support the text.
-- Use an indeterminate spinner when progress cannot be measured. Use a progress bar or count when progress can be measured. Use a skeleton only when it matches the final content layout.
-- Keep existing content visible during background refreshes and show a small inline status instead of replacing the whole view.
-- Pair visual indicators with text. Announce status changes with `role="status"` or `aria-live="polite"`, and ensure reduced-motion users still receive clear feedback.
-- Replace the progress state with a clear success or error state when the work ends, then restore the affected controls.
-
-Domain skills can add stricter UX rules. For example, apply `volcano-auth` to authentication pages and `volcano-error-handling` to non-trivial data-fetching interfaces.
+## UI/UX Pairing
+Read `volcano-uiux` for every user-facing Next.js interface. It owns accessibility, responsive layout, loading and progress feedback, forms, navigation, and interface-state guidance. This skill owns the Next.js implementation and client/server boundary.
 
 ## Environment Contract
 `.env.local`:
@@ -449,7 +430,7 @@ export function LivePosts() {
 ```
 
 ## Default Signup & Login Pages
-When the prompt doesn't specify signup/login page design, apply the `volcano-auth` "Default Signup & Login Page UX" — including the default signup-success alert — on top of the `AuthContext` from this skill.
+When the prompt doesn't specify signup/login page design, apply the `volcano-auth` "Default Signup & Login Page UX" and the shared `volcano-uiux` rules — including the default signup-success alert — on top of the `AuthContext` from this skill. The examples below show Next.js auth wiring; add the labels, progress feedback, responsive layout, and complete states required by `volcano-uiux`.
 
 ```tsx
 // app/signup/page.tsx — default signup page with a success alert
@@ -585,6 +566,7 @@ export default function AuthCallbackPage() {
 - **Use `NEXT_PUBLIC_` only for non-secrets**; service keys never get this prefix.
 
 ## Verification Checklist
+- User-facing interfaces pass the `volcano-uiux` verification checklist.
 - Client/server responsibilities are clear and correct.
 - Middleware uses `withAuth` (or equivalent) before allowing protected routes.
 - Server components fetch via API routes / server actions / middleware data — never call browser SDK methods directly.
