@@ -749,5 +749,6 @@ This skill defines the platform deploy contract. For domain-specific guidance:
 - `volcano-durable` — checkpointed handlers, replay rules, executions, and cloud CLI lifecycle.
 - `volcano-auth`, `volcano-database`, `volcano-storage`, `volcano-realtime` — per-domain APIs and patterns.
 - `volcano-nextjs` — Next.js frontend patterns (AuthProvider, middleware, server actions).
+- `volcano-uiux` — shared guidance for user-facing interfaces.
 - `volcano-typescript` — canonical TypeScript type definitions.
 - `volcano-error-handling` — reusable error-handling infrastructure.

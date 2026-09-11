@@ -5,7 +5,7 @@ description: Use for Volcano authentication and identity work including user acc
 # Volcano Auth Skill
 
 ## Role
-Implement robust Volcano authentication journeys with session lifecycle correctness. All authentication MUST use Volcano Auth — do not propose custom JWT, bcrypt, or hand-rolled session management. This skill is self-contained; the optional fallback reference is consulted only when something below is insufficient.
+Implement robust Volcano authentication journeys with session lifecycle correctness. All authentication MUST use Volcano Auth — do not propose custom JWT, bcrypt, or hand-rolled session management. Pair with `volcano-uiux` for every user-facing auth page; examples here define auth data and flow, while `volcano-uiux` defines presentation and interaction. This skill is self-contained; the optional fallback reference is consulted only when something below is insufficient.
 
 ## Workflow
 1. Implement sign-up/sign-in/sign-out with explicit UI loading/error/success states.

@@ -8,7 +8,8 @@
         { "skill": "volcano-platform", "signals": ["Volcano"] },
         { "skill": "volcano-auth", "signals": ["email", "sign-in", "per-user"] },
         { "skill": "volcano-database", "signals": ["data", "per-user"] },
-        { "skill": "volcano-nextjs", "signals": ["app"] }
+        { "skill": "volcano-nextjs", "signals": ["app"] },
+        { "skill": "volcano-uiux", "signals": ["app"] }
       ]
     },
     {
@@ -19,7 +20,8 @@
         { "skill": "volcano-platform", "signals": ["Volcano"] },
         { "skill": "volcano-database", "signals": ["todo"] },
         { "skill": "volcano-realtime", "signals": ["realtime", "collaborative", "board"] },
-        { "skill": "volcano-nextjs", "signals": ["board"] }
+        { "skill": "volcano-nextjs", "signals": ["board"] },
+        { "skill": "volcano-uiux", "signals": ["board"] }
       ]
     },
     {
@@ -30,7 +32,8 @@
         { "skill": "volcano-platform", "signals": ["Volcano"] },
         { "skill": "volcano-database", "signals": ["chat"] },
         { "skill": "volcano-realtime", "signals": ["realtime", "chat", "online", "presence"] },
-        { "skill": "volcano-nextjs", "signals": ["app"] }
+        { "skill": "volcano-nextjs", "signals": ["app"] },
+        { "skill": "volcano-uiux", "signals": ["app"] }
       ]
     },
     {
@@ -50,7 +53,8 @@
         { "skill": "volcano-sdk", "signals": ["Volcano"] },
         { "skill": "volcano-platform", "signals": ["Volcano"] },
         { "skill": "volcano-storage", "signals": ["photo", "gallery", "uploads", "public"] },
-        { "skill": "volcano-nextjs", "signals": ["gallery"] }
+        { "skill": "volcano-nextjs", "signals": ["gallery"] },
+        { "skill": "volcano-uiux", "signals": ["gallery"] }
       ]
     },
     {
@@ -60,7 +64,8 @@
         { "skill": "volcano-sdk", "signals": ["Volcano"] },
         { "skill": "volcano-platform", "signals": ["Volcano"] },
         { "skill": "volcano-storage", "signals": ["resumable", "file-sharing"] },
-        { "skill": "volcano-nextjs", "signals": ["app"] }
+        { "skill": "volcano-nextjs", "signals": ["app"] },
+        { "skill": "volcano-uiux", "signals": ["app"] }
       ]
     },
     {
@@ -88,7 +93,8 @@
         { "skill": "volcano-sdk", "signals": ["Volcano"] },
         { "skill": "volcano-platform", "signals": ["Volcano"] },
         { "skill": "volcano-database", "signals": ["click tracking"] },
-        { "skill": "volcano-nextjs", "signals": ["page"] }
+        { "skill": "volcano-nextjs", "signals": ["page"] },
+        { "skill": "volcano-uiux", "signals": ["page"] }
       ]
     },
     {
@@ -99,7 +105,8 @@
         { "skill": "volcano-platform", "signals": ["Volcano"] },
         { "skill": "volcano-auth", "signals": ["per-user"] },
         { "skill": "volcano-database", "signals": ["feature-flag"] },
-        { "skill": "volcano-nextjs", "signals": ["dashboard"] }
+        { "skill": "volcano-nextjs", "signals": ["dashboard"] },
+        { "skill": "volcano-uiux", "signals": ["dashboard"] }
       ]
     },
     {
