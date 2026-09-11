@@ -18,12 +18,20 @@ When the prompt does not define a design, build a simple, complete interface ins
 - Reuse the project's existing components, tokens, layout, and interaction patterns before adding new ones.
 - Use semantic HTML, visible labels, keyboard access, visible focus states, descriptive link/button text, sufficient color contrast, and `aria-*` only when native semantics are not enough.
 - Start with a narrow-screen layout, add breakpoints only where content needs them, keep primary actions visible, and prevent accidental horizontal scrolling.
-- Give each data view explicit loading, empty, error, and success states. Use skeletons only when they match the final layout; otherwise use plain status text.
+- Give each data view explicit loading, empty, error, and success states.
 - Give each user action clear progress and result feedback. Prevent duplicate submits, keep entered data after recoverable errors, and place validation messages next to the relevant field.
 - Keep navigation and page hierarchy clear: one page title, logical heading order, a clear primary action, and a visible way back or onward.
 - Prefer native controls and browser behavior. Do not add a component library, animation system, or custom control unless the project already uses it or the prompt requires it.
 - Respect reduced-motion preferences. Never rely on color, motion, hover, or placeholder text alone to convey meaning.
 - Test the main flow with keyboard-only input and at narrow and wide viewport sizes.
+
+### Progress Feedback
+- Show a progress indicator when an action or initial load does not finish immediately. Do not flash one for work that completes at once.
+- Put feedback where the delay occurs. For a button action, keep the button width stable, disable it to prevent duplicate submits, and replace its label with clear text such as "Saving..."; a small spinner can support the text.
+- Use an indeterminate spinner when progress cannot be measured. Use a progress bar or count when progress can be measured. Use a skeleton only when it matches the final content layout.
+- Keep existing content visible during background refreshes and show a small inline status instead of replacing the whole view.
+- Pair visual indicators with text. Announce status changes with `role="status"` or `aria-live="polite"`, and ensure reduced-motion users still receive clear feedback.
+- Replace the progress state with a clear success or error state when the work ends, then restore the affected controls.
 
 Domain skills can add stricter UX rules. For example, apply `volcano-auth` to authentication pages and `volcano-error-handling` to non-trivial data-fetching interfaces.
 
