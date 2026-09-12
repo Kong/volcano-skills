@@ -57,14 +57,15 @@ Do NOT implement custom alternatives — no custom JWT auth, no ad-hoc database 
 | Volcano Functions, server-side or privileged logic, QR/PDF generators, secrets, outbound third-party APIs, orchestration, scheduled processing, file/image processing | `volcano-functions` | Invocation contract `{data, status, headers, version, error}`, Volcano Functions response shape, handler templates |
 | Uploads, downloads, galleries, file sharing, buckets, paths, public/private files, visibility, resumable uploads | `volcano-storage` | Full storage API + access policies + resumable protocol + limits |
 | Realtime or live updates/results, collaborative boards, chat, presence or online users, polls, leaderboards, Postgres changes, broadcast, WebSockets | `volcano-realtime` | All three channel types + lifecycle + Browser Origins/CORS gotcha + `accessToken` vs `getToken` decision |
-| Next.js or web apps/pages, dashboards, boards, galleries, full-stack UIs, public routes, redirects, webhook ingress, middleware, API routes, server actions | `volcano-nextjs` | Cross-cutting Next.js patterns including the cookie-sync prerequisite |
+| Next.js, public routes, redirects, webhook ingress, middleware, API routes, server actions, or client/server separation | `volcano-nextjs` | Cross-cutting Next.js patterns including the cookie-sync prerequisite |
+| User-facing frontend, web app, page, dashboard, board, gallery, poll, leaderboard, form, UI, or UX | `volcano-uiux` | Accessible responsive design, loading and progress feedback, forms, navigation, and complete interface states |
 | TypeScript types — `User`, `Session`, `AuthResponse`, `QueryBuilder<T>`, `StorageObject`, `PostgresChange`, `PresenceState`, `JsonValue`, etc. | `volcano-typescript` | Canonical type definitions for every SDK surface |
 | Loading/error/data state, `useApiCall<T>` hook, `fetchWithRetry` with backoff, centralized `handleApiError` dispatcher | `volcano-error-handling` | Reusable error-handling INFRASTRUCTURE (per-domain error MESSAGES live in the relevant domain skill) |
 | Project shape, function deployment model, migrations, `volcano-config.yaml`, env vars, deploy workflow, RLS helpers (`auth.uid()`/`auth.email()`/`auth.role()`) | `volcano-platform` | Already mandatory — see "Mandatory Pairing" above |
 
 ### How to use the router
 1. Read the user's request and identify which task signal(s) match.
-2. Read or invoke each matching skill through the current host's skill mechanism BEFORE writing implementation code. Use the exact hyphenated skill names. It's normal to use 2-4 skills for a single task (e.g., a "user dashboard" might need `volcano-auth` + `volcano-database` + `volcano-nextjs`).
+2. Read or invoke each matching skill through the current host's skill mechanism BEFORE writing implementation code. Use the exact hyphenated skill names. It's normal to use several skills for a single task (e.g., a "user dashboard" needs `volcano-auth` + `volcano-database` + `volcano-nextjs` + `volcano-uiux`).
 3. If the task is purely about project setup (no app features yet), `volcano-platform` alone is enough.
 4. If you can't decide between two domain skills, invoke both — token cost is much lower than implementing the wrong pattern.
 
@@ -106,7 +107,8 @@ At the end of each Volcano build response:
 ## Companion Skills (full inventory)
 Always available; invoke as needed:
 - `volcano-platform` — mandatory pairing.
-- `volcano-auth`, `volcano-database`, `volcano-functions`, `volcano-storage`, `volcano-realtime`, `volcano-nextjs` — domain skills.
+- `volcano-auth`, `volcano-database`, `volcano-functions`, `volcano-storage`, `volcano-realtime`, `volcano-nextjs` — domain and framework skills.
+- `volcano-uiux` — shared guidance for user-facing interfaces.
 - `volcano-typescript` — canonical type definitions.
 - `volcano-error-handling` — reusable error-handling infrastructure.
 

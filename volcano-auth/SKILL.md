@@ -5,7 +5,7 @@ description: Use for Volcano authentication and identity work including user acc
 # Volcano Auth Skill
 
 ## Role
-Implement robust Volcano authentication journeys with session lifecycle correctness. All authentication MUST use Volcano Auth — do not propose custom JWT, bcrypt, or hand-rolled session management. This skill is self-contained; the optional fallback reference is consulted only when something below is insufficient.
+Implement robust Volcano authentication journeys with session lifecycle correctness. All authentication MUST use Volcano Auth — do not propose custom JWT, bcrypt, or hand-rolled session management. Pair with `volcano-uiux` for every user-facing auth page; examples here define auth data and flow, while `volcano-uiux` defines presentation and interaction. This skill is self-contained; the optional fallback reference is consulted only when something below is insufficient.
 
 ## Workflow
 1. Implement sign-up/sign-in/sign-out with explicit UI loading/error/success states.
@@ -31,11 +31,15 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     setError(null);
+    setSubmitting(true);
     const { error } = await getVolcano().auth.signUp({ email, password });
+    setSubmitting(false);
     if (error) {
       setError(error.message);
       return;
@@ -50,9 +54,14 @@ export default function SignupPage() {
       )}
       {error && <div role="alert">{error}</div>}
       <form onSubmit={handleSubmit}>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
-        <button type="submit">Sign Up</button>
+        <label htmlFor="signup-email">Email</label>
+        <input id="signup-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <label htmlFor="signup-password">Password</label>
+        <input id="signup-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <button type="submit" disabled={submitting} aria-busy={submitting}>
+          {submitting ? 'Signing up…' : 'Sign Up'}
+        </button>
+        <span role="status">{submitting ? 'Creating account…' : ''}</span>
       </form>
       <a href="/login">Already have an account? Log in</a>
     </div>

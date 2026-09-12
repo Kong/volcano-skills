@@ -5,7 +5,7 @@ description: "Reusable error handling patterns for Volcano SDK apps: centralized
 # Volcano Error Handling Skill
 
 ## Role
-Provide the reusable error-handling infrastructure for Volcano SDK apps. The other domain skills (`volcano-auth`, `volcano-database`, etc.) cover error MESSAGES per domain; this skill covers error-handling PRIMITIVES that the rest of the codebase composes on:
+Provide the reusable error-handling infrastructure for Volcano SDK apps. Pair with `volcano-uiux` when errors, retries, or progress appear in a user-facing interface. The other domain skills (`volcano-auth`, `volcano-database`, etc.) cover error MESSAGES per domain; this skill covers error-handling PRIMITIVES that the rest of the codebase composes on:
 
 - A centralized error dispatcher that returns an `action` enum.
 - A `useApiCall<T>` React hook for `loading`/`error`/`data` lifecycle.
@@ -137,6 +137,20 @@ export function useApiCall<T>() {
 
 ### Usage
 ```tsx
+import { useEffect, useState } from 'react';
+
+function LoadingPosts() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setVisible(true), 200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if (!visible) return null;
+  return <div role="status"><Spinner aria-hidden="true" /> Loading posts…</div>;
+}
+
 function PostList() {
   const { data: posts, error, loading, execute } = useApiCall<Post[]>();
 
@@ -149,9 +163,9 @@ function PostList() {
     );
   }, [execute]);
 
-  if (loading) return <Spinner />;
+  if (loading) return <LoadingPosts />;
   if (error) return <ErrorMessage error={error} />;
-  if (!posts) return <Empty />;
+  if (!posts?.length) return <Empty />;
 
   return <PostGrid posts={posts} />;
 }
@@ -361,6 +375,7 @@ setData(data);
 - No raw `error.message` leaks to the user UI; all messages are dispatched through `handleApiError`.
 
 ## Companion Skills
+- `volcano-uiux` — for user-facing progress, error, and retry feedback.
 - `volcano-typescript` — for type-safe error handling (`Error`, `ApiResult<T>`, generic shape).
 - Domain skills — for the specific error-message strings per-domain.
 - `volcano-realtime` — for the WebSocket-specific connection error semantics (Browser Origins/CORS gotcha).

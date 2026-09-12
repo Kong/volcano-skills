@@ -543,4 +543,4 @@ channel.onPostgresChanges('INSERT', 'public', 'posts', (change) => {
 ## Companion Skills
 - `volcano-sdk` — top-level orientation and mandatory usage.
 - `volcano-platform` — project shape, Volcano Functions runtime contract, build pipeline.
-- Domain skills (`volcano-auth`, `volcano-database`, `volcano-functions`, `volcano-storage`, `volcano-realtime`, `volcano-nextjs`) — pair with this skill when implementing.
+- Domain and interface skills (`volcano-auth`, `volcano-database`, `volcano-functions`, `volcano-storage`, `volcano-realtime`, `volcano-nextjs`, `volcano-uiux`) — pair with this skill when implementing.
