@@ -31,11 +31,15 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     setError(null);
+    setSubmitting(true);
     const { error } = await getVolcano().auth.signUp({ email, password });
+    setSubmitting(false);
     if (error) {
       setError(error.message);
       return;
@@ -50,9 +54,14 @@ export default function SignupPage() {
       )}
       {error && <div role="alert">{error}</div>}
       <form onSubmit={handleSubmit}>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
-        <button type="submit">Sign Up</button>
+        <label htmlFor="signup-email">Email</label>
+        <input id="signup-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <label htmlFor="signup-password">Password</label>
+        <input id="signup-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <button type="submit" disabled={submitting} aria-busy={submitting}>
+          {submitting ? 'Signing up…' : 'Sign Up'}
+        </button>
+        <span role="status">{submitting ? 'Creating account…' : ''}</span>
       </form>
       <a href="/login">Already have an account? Log in</a>
     </div>

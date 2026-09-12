@@ -447,16 +447,21 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting || success) return;
     setError(null);
+    setSubmitting(true);
     try {
       await signUp(email, password);
       setSuccess(true); // default "Signup success" alert — shown even if not requested
+      setSubmitting(false);
       setTimeout(() => router.push('/login'), 2000);
     } catch (err: any) {
       setError(err.message);
+      setSubmitting(false);
     }
   };
 
@@ -467,9 +472,14 @@ export default function SignupPage() {
       )}
       {error && <div role="alert">{error}</div>}
       <form onSubmit={handleSubmit}>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
-        <button type="submit">Sign Up</button>
+        <label htmlFor="signup-email">Email</label>
+        <input id="signup-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <label htmlFor="signup-password">Password</label>
+        <input id="signup-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <button type="submit" disabled={submitting || success} aria-busy={submitting}>
+          {success ? 'Account created' : submitting ? 'Signing up…' : 'Sign Up'}
+        </button>
+        <span role="status">{submitting ? 'Creating account…' : ''}</span>
       </form>
       <Link href="/login">Already have an account? Log in</Link>
     </div>
@@ -491,15 +501,19 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     setError(null);
+    setSubmitting(true);
     try {
       await signIn(email, password);
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message);
+      setSubmitting(false);
     }
   };
 
@@ -507,9 +521,14 @@ export default function LoginPage() {
     <div>
       {error && <div role="alert">{error}</div>}
       <form onSubmit={handleSubmit}>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
-        <button type="submit">Sign In</button>
+        <label htmlFor="login-email">Email</label>
+        <input id="login-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <label htmlFor="login-password">Password</label>
+        <input id="login-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <button type="submit" disabled={submitting} aria-busy={submitting}>
+          {submitting ? 'Signing in…' : 'Sign In'}
+        </button>
+        <span role="status">{submitting ? 'Signing in…' : ''}</span>
       </form>
       <Link href="/signup">Need an account? Sign up</Link>
       <Link href="/forgot-password">Forgot password?</Link>
