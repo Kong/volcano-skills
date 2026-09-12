@@ -1,6 +1,6 @@
 ---
 name: volcano-uiux
-description: Use for any user-facing Volcano frontend, web app, page, dashboard, board, gallery, form, UI, or UX. Covers accessible responsive design, loading and progress feedback, forms, navigation, and complete interface states.
+description: Use for any user-facing Volcano frontend, web app, page, dashboard, board, gallery, poll, leaderboard, form, UI, or UX. Covers accessible responsive design, loading and progress feedback, forms, navigation, and complete interface states.
 ---
 # Volcano UI/UX Skill
 

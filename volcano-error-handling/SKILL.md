@@ -137,6 +137,20 @@ export function useApiCall<T>() {
 
 ### Usage
 ```tsx
+import { useEffect, useState } from 'react';
+
+function LoadingPosts() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setVisible(true), 200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if (!visible) return null;
+  return <div role="status"><Spinner aria-hidden="true" /> Loading posts…</div>;
+}
+
 function PostList() {
   const { data: posts, error, loading, execute } = useApiCall<Post[]>();
 
@@ -149,9 +163,9 @@ function PostList() {
     );
   }, [execute]);
 
-  if (loading) return <Spinner />;
+  if (loading) return <LoadingPosts />;
   if (error) return <ErrorMessage error={error} />;
-  if (!posts) return <Empty />;
+  if (!posts?.length) return <Empty />;
 
   return <PostGrid posts={posts} />;
 }

@@ -43,7 +43,8 @@
         { "skill": "volcano-sdk", "signals": ["Volcano"] },
         { "skill": "volcano-platform", "signals": ["Volcano"] },
         { "skill": "volcano-database", "signals": ["poll"] },
-        { "skill": "volcano-realtime", "signals": ["live", "poll", "realtime", "results"] }
+        { "skill": "volcano-realtime", "signals": ["live", "poll", "realtime", "results"] },
+        { "skill": "volcano-uiux", "signals": ["poll"] }
       ]
     },
     {
@@ -125,7 +126,8 @@
         { "skill": "volcano-sdk", "signals": ["Volcano"] },
         { "skill": "volcano-platform", "signals": ["Volcano"] },
         { "skill": "volcano-database", "signals": ["leaderboard"] },
-        { "skill": "volcano-realtime", "signals": ["live", "leaderboard", "Realtime"] }
+        { "skill": "volcano-realtime", "signals": ["live", "leaderboard", "Realtime"] },
+        { "skill": "volcano-uiux", "signals": ["leaderboard"] }
       ]
     }
   ]
