@@ -114,41 +114,46 @@ realtime.onError((ctx) => {
 
 ### Setup
 ```ts
-const channel = realtime.channel('my-changes', { type: 'postgres' });
+const channel = realtime.channel('public:posts', {
+  type: 'postgres',
+  databaseName: 'app',
+});
 ```
 
-The signature is `channel.onPostgresChanges(eventType, schema, table, callback)`. The `schema` argument is the **Postgres schema name** — typically `'public'` for application tables.
+The channel name is `schema:table`, and it must match each `onPostgresChanges` handler. `databaseName` selects the project database. The SDK includes it in the wire channel and subscription data.
 
 ### Listen for ALL events on a table
 ```ts
 channel.onPostgresChanges('*', 'public', 'posts', (change) => {
   // change.type: 'INSERT' | 'UPDATE' | 'DELETE'
   // change.table, change.schema, change.timestamp
-  // INSERT: change.record
-  // UPDATE: change.record, change.old_record, change.columns
-  // DELETE: change.old_record
+  // INSERT/UPDATE: change.record when auto-fetch succeeds
+  // DELETE: available to service-key subscriptions only
 });
 await channel.subscribe();
 ```
 
 ### Filter by event type
 ```ts
-channel.onPostgresChanges('INSERT', 'public', 'messages', (c) => addMessage(c.record));
+channel.onPostgresChanges('INSERT', 'public', 'posts', (c) => addPost(c.record));
 channel.onPostgresChanges('UPDATE', 'public', 'posts', (c) => updatePost(c.record));
-channel.onPostgresChanges('DELETE', 'public', 'posts', (c) => removePost(c.old_record.id));
+channel.onPostgresChanges('DELETE', 'public', 'posts', (c) => removePost(c.old_record?.id ?? c.id));
 ```
 
-### Multiple tables on one channel
+### Subscribe to multiple tables
+Use one channel for each table:
+
 ```ts
-const channel = realtime.channel('app-changes', { type: 'postgres' });
-channel.onPostgresChanges('*', 'public', 'posts', handlePostChange);
-channel.onPostgresChanges('*', 'public', 'comments', handleCommentChange);
-channel.onPostgresChanges('*', 'public', 'reactions', handleReactionChange);
-await channel.subscribe();
+const posts = realtime.channel('public:posts', { type: 'postgres', databaseName: 'app' });
+const comments = realtime.channel('public:comments', { type: 'postgres', databaseName: 'app' });
+
+posts.onPostgresChanges('*', 'public', 'posts', handlePostChange);
+comments.onPostgresChanges('*', 'public', 'comments', handleCommentChange);
+await Promise.all([posts.subscribe(), comments.subscribe()]);
 ```
 
 ### RLS interaction
-Each user only receives events for rows their RLS policy allows them to see. Same channel, different deliveries per user.
+Each user receives only events for rows their RLS policy allows them to select. Authenticated user subscriptions do not receive DELETE events because the deleted row is unavailable for the RLS check. Service-key subscriptions bypass RLS and can receive DELETE events.
 
 ## Broadcast — ephemeral pub/sub
 Messages aren't persisted; only currently subscribed clients receive them.
@@ -296,6 +301,11 @@ import {
 
 ## Initial Fetch + Subscribe Pattern
 ```ts
+const channel = realtime.channel('public:posts', {
+  type: 'postgres',
+  databaseName: 'app',
+});
+
 // Load initial data
 const { data: posts } = await volcano
   .from('posts')
@@ -312,7 +322,7 @@ channel.onPostgresChanges('UPDATE', 'public', 'posts', (c) => {
   setPosts((cur) => cur.map((p) => (p.id === c.record.id ? c.record : p)));
 });
 channel.onPostgresChanges('DELETE', 'public', 'posts', (c) => {
-  setPosts((cur) => cur.filter((p) => p.id !== c.old_record.id));
+  setPosts((cur) => cur.filter((p) => p.id !== (c.old_record?.id ?? c.id)));
 });
 await channel.subscribe();
 ```
@@ -322,7 +332,10 @@ await channel.subscribe();
 useEffect(() => {
   const realtime = new VolcanoRealtime({ /* ... */ });
   realtime.connect();
-  const channel = realtime.channel('updates', { type: 'postgres' });
+  const channel = realtime.channel('public:posts', {
+    type: 'postgres',
+    databaseName: 'app',
+  });
   channel.onPostgresChanges('*', 'public', 'posts', handleChange);
   channel.subscribe();
 
