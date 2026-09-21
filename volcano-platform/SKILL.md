@@ -710,8 +710,8 @@ the project genuinely doesn't use that resource).
 - [ ] Static-correctness items from "Verification Checklist" below hold (layout, one-statement migrations, `auth.uid()`, `VOLCANO_DATABASE`, no `src/api/`).
 
 The per-domain skills carry their own "Verification Checklist" for domain-specific
-asserts — consult the ones the build touched: `volcano-functions`, `volcano-auth`,
-`volcano-database`, `volcano-storage`, `volcano-realtime`.
+asserts — consult the ones the build touched: `volcano-functions`, `volcano-durable`,
+`volcano-auth`, `volcano-database`, `volcano-storage`, `volcano-realtime`.
 
 Cloud is out of scope here — never auto-deploy to cloud (see `AGENTS.md` safety model).
 
@@ -746,6 +746,7 @@ Cloud is out of scope here — never auto-deploy to cloud (see `AGENTS.md` safet
 This skill defines the platform deploy contract. For domain-specific guidance:
 - `volcano-sdk` — top-level orientation and skill router.
 - `volcano-functions` — handler templates, invocation contract, user context, error handling.
+- `volcano-durable` — checkpointed handlers, replay rules, executions, and cloud CLI lifecycle.
 - `volcano-auth`, `volcano-database`, `volcano-storage`, `volcano-realtime` — per-domain APIs and patterns.
 - `volcano-nextjs` — Next.js frontend patterns (AuthProvider, middleware, server actions).
 - `volcano-typescript` — canonical TypeScript type definitions.

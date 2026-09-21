@@ -27,6 +27,11 @@
       "path": "/skills/volcano-functions/SKILL.md"
     },
     {
+      "name": "volcano-durable",
+      "description": "Use for Volcano durable functions, long-running or resumable workflows, checkpointed steps, waits, polling, durable executions, idempotent starts, and durable function schedulers.",
+      "path": "/skills/volcano-durable/SKILL.md"
+    },
+    {
       "name": "volcano-nextjs",
       "description": "Use for Next.js on Volcano and for web apps, pages, dashboards, boards, galleries, full-stack UIs, public HTTP routes, redirects, webhook ingress, middleware, API routes, server actions, and client or server SDK separation.",
       "path": "/skills/volcano-nextjs/SKILL.md"
