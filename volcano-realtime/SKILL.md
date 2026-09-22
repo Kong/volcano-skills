@@ -332,7 +332,6 @@ const channel = realtime.channel('public:posts', {
 let subscribed = false;
 let reconciling = false;
 let reconcileAgain = false;
-let bufferedChanges = [];
 
 function upsertPost(posts, record) {
   const index = posts.findIndex((post) => post.id === record.id);
@@ -352,7 +351,6 @@ async function reconcilePosts() {
   try {
     do {
       reconcileAgain = false;
-      bufferedChanges = [];
 
       const { data, error } = await volcano
         .from('posts')
@@ -361,16 +359,7 @@ async function reconcilePosts() {
         .limit(50);
       if (error) throw error;
 
-      let next = data ?? [];
-      for (const change of bufferedChanges) {
-        if (!change.record) {
-          // The event proves the snapshot may be stale, but has no row to merge.
-          reconcileAgain = true;
-          break;
-        }
-        next = upsertPost(next, change.record);
-      }
-      if (!reconcileAgain) setPosts(next);
+      if (!reconcileAgain) setPosts(data ?? []);
     } while (reconcileAgain);
   } finally {
     reconciling = false;
@@ -379,7 +368,8 @@ async function reconcilePosts() {
 
 function handlePostChange(change) {
   if (reconciling) {
-    bufferedChanges.push(change);
+    // Any event during the query needs a confirming snapshot; its row may be deleted.
+    reconcileAgain = true;
   } else if (change.record) {
     setPosts((current) => upsertPost(current, change.record));
   } else {
@@ -403,27 +393,28 @@ await channel.subscribe();
 subscribed = true;
 await reconcilePosts();
 
-// End users receive no DELETE event, so reconcile when a long-lived view regains focus.
+// End users receive no DELETE event; refresh focused views periodically too.
 const reconcileOnFocus = () => {
   void reconcilePosts().catch((error) => showConnectionError(error.message));
 };
 window.addEventListener('focus', reconcileOnFocus);
+const postsRefreshInterval = window.setInterval(reconcileOnFocus, 30_000);
 
 function stopPostsSubscription() {
   window.removeEventListener('focus', reconcileOnFocus);
+  window.clearInterval(postsRefreshInterval);
   stopReconnectHandler();
   channel.unsubscribe();
   realtime.disconnect();
 }
 ```
 
-Subscribing first closes the snapshot-to-subscription gap. Changes arriving
-during the query are buffered and merged by primary key; a lightweight change
-without `record` triggers another authoritative snapshot. Reconcile after
-reconnect, after relevant mutations, and on a bounded external-change trigger
-such as window focus for long-lived views. End-user subscriptions do not receive
-`DELETE` events; use a server-side service-key subscription when a `DELETE`
-callback is required.
+Subscribing first closes the snapshot-to-subscription gap. Any INSERT or UPDATE
+arriving during the query triggers a confirming authoritative snapshot, even if
+it includes `record`; that row may already have been deleted. Reconcile after
+reconnect, after relevant mutations, immediately on focus, and every 30 seconds
+while the view is active. End-user subscriptions do not receive `DELETE` events;
+use a server-side service-key subscription when a `DELETE` callback is required.
 
 ## React Cleanup Pattern
 ```tsx
@@ -459,8 +450,8 @@ useEffect(() => {
 
 ## Best Practices
 - **Throttle presence updates** (e.g., 1 Hz) to avoid flooding the channel.
-- **Reconcile after subscription acceptance and reconnect** — buffer events while fetching the authoritative snapshot, then merge by primary key.
-- **Reconcile external deletes** — end users receive no DELETE event, so refresh long-lived views on a bounded trigger such as window focus.
+- **Reconcile after subscription acceptance and reconnect** — repeat the authoritative snapshot when INSERT or UPDATE arrives during the query.
+- **Reconcile external deletes** — end users receive no DELETE event, so refresh long-lived views on focus and a bounded periodic interval.
 - **Scope channels** to specific tables/events; broad subscriptions hurt RLS clarity and bandwidth.
 - **Use one database selector** — select the same `databaseName` on the query client and realtime client/channel.
 - **Handle lightweight changes** — `record` is optional; use `id` to fetch or reconcile when it is absent.
