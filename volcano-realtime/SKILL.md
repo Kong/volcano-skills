@@ -315,106 +315,131 @@ import {
 const databaseName = 'app';
 volcano.database(databaseName);
 
-const realtime = new VolcanoRealtime({
-  apiUrl,
-  anonKey,
-  accessToken: volcano.accessToken,
-  volcanoClient: volcano,
-  databaseName,
-});
-await realtime.connect();
+function startPostsSubscription() {
+  const realtime = new VolcanoRealtime({
+    apiUrl,
+    anonKey,
+    accessToken: volcano.accessToken,
+    volcanoClient: volcano,
+    databaseName,
+  });
+  let channel;
+  let stopReconnectHandler = () => {};
+  let postsRefreshInterval;
+  let reconcileTimer;
+  let subscribed = false;
+  let reconciling = false;
+  let reconcileRequested = false;
+  let disposed = false;
 
-const channel = realtime.channel('public:posts', {
-  type: 'postgres',
-  databaseName,
-});
+  const reportError = (error) => {
+    if (!disposed) showConnectionError(error.message);
+  };
 
-let subscribed = false;
-let reconciling = false;
-let reconcileAgain = false;
-
-function upsertPost(posts, record) {
-  const index = posts.findIndex((post) => post.id === record.id);
-  if (index === -1) return [record, ...posts];
-  const next = [...posts];
-  next[index] = record;
-  return next;
-}
-
-async function reconcilePosts() {
-  if (reconciling) {
-    reconcileAgain = true;
-    return;
+  function scheduleReconcile() {
+    if (disposed) return;
+    reconcileRequested = true;
+    if (!subscribed || reconciling || reconcileTimer !== undefined) return;
+    // Coalesce sustained changes into at most one new query per 250 ms.
+    reconcileTimer = window.setTimeout(() => {
+      reconcileTimer = undefined;
+      void reconcilePosts().catch(reportError);
+    }, 250);
   }
 
-  reconciling = true;
-  try {
-    do {
-      reconcileAgain = false;
-
+  async function reconcilePosts() {
+    if (disposed) return;
+    if (reconciling) {
+      scheduleReconcile();
+      return;
+    }
+    if (reconcileTimer !== undefined) window.clearTimeout(reconcileTimer);
+    reconcileTimer = undefined;
+    reconcileRequested = false;
+    reconciling = true;
+    try {
       const { data, error } = await volcano
         .from('posts')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50);
+      if (disposed) return;
       if (error) throw error;
-
-      if (!reconcileAgain) setPosts(data ?? []);
-    } while (reconcileAgain);
-  } finally {
-    reconciling = false;
+      setPosts(data ?? []);
+    } finally {
+      reconciling = false;
+      if (!disposed && reconcileRequested) scheduleReconcile();
+    }
   }
-}
 
-function handlePostChange(change) {
-  if (reconciling) {
-    // Any event during the query needs a confirming snapshot; its row may be deleted.
-    reconcileAgain = true;
-  } else if (change.record) {
-    setPosts((current) => upsertPost(current, change.record));
-  } else {
-    void reconcilePosts().catch((error) => showConnectionError(error.message));
+  const reconcileOnFocus = () => {
+    void reconcilePosts().catch(reportError);
+  };
+
+  function stopPostsSubscription() {
+    if (disposed) return;
+    disposed = true;
+    if (reconcileTimer !== undefined) window.clearTimeout(reconcileTimer);
+    if (postsRefreshInterval !== undefined) window.clearInterval(postsRefreshInterval);
+    window.removeEventListener('focus', reconcileOnFocus);
+    stopReconnectHandler();
+    channel?.unsubscribe();
+    realtime.disconnect();
   }
+
+  void (async () => {
+    try {
+      await realtime.connect();
+      if (disposed) {
+        realtime.disconnect();
+        return;
+      }
+      channel = realtime.channel('public:posts', { type: 'postgres', databaseName });
+      // Subscribe before the first snapshot to close the snapshot-to-subscription gap.
+      channel.onPostgresChanges('INSERT', 'public', 'posts', scheduleReconcile);
+      channel.onPostgresChanges('UPDATE', 'public', 'posts', scheduleReconcile);
+      stopReconnectHandler = realtime.onConnect(() => {
+        if (!subscribed || disposed) return;
+        void channel.subscribe()
+          .then(() => {
+            if (!disposed) return reconcilePosts();
+          })
+          .catch(reportError);
+      });
+      await channel.subscribe();
+      if (disposed) return;
+      subscribed = true;
+      await reconcilePosts();
+      if (disposed) return;
+      // End users receive no DELETE event; refresh focused views periodically too.
+      window.addEventListener('focus', reconcileOnFocus);
+      postsRefreshInterval = window.setInterval(reconcileOnFocus, 30_000);
+    } catch (error) {
+      if (!disposed) {
+        stopPostsSubscription();
+        showConnectionError(error.message);
+      }
+    }
+  })();
+
+  return stopPostsSubscription;
 }
 
-// Register handlers and reach subscription acceptance before taking the snapshot.
-channel.onPostgresChanges('INSERT', 'public', 'posts', handlePostChange);
-channel.onPostgresChanges('UPDATE', 'public', 'posts', handlePostChange);
-
-const stopReconnectHandler = realtime.onConnect(() => {
-  if (!subscribed) return; // Ignore the initial connection; bootstrap below owns it.
-  void channel
-    .subscribe()
-    .then(() => reconcilePosts())
-    .catch((error) => showConnectionError(error.message));
-});
-
-await channel.subscribe();
-subscribed = true;
-await reconcilePosts();
-
-// End users receive no DELETE event; refresh focused views periodically too.
-const reconcileOnFocus = () => {
-  void reconcilePosts().catch((error) => showConnectionError(error.message));
-};
-window.addEventListener('focus', reconcileOnFocus);
-const postsRefreshInterval = window.setInterval(reconcileOnFocus, 30_000);
-
-function stopPostsSubscription() {
-  window.removeEventListener('focus', reconcileOnFocus);
-  window.clearInterval(postsRefreshInterval);
-  stopReconnectHandler();
-  channel.unsubscribe();
-  realtime.disconnect();
-}
+const stopPostsSubscription = startPostsSubscription();
+// Call stopPostsSubscription() when the view unmounts.
 ```
 
-Subscribing first closes the snapshot-to-subscription gap. Any INSERT or UPDATE
-arriving during the query triggers a confirming authoritative snapshot, even if
-it includes `record`; that row may already have been deleted. Reconcile after
-reconnect, after relevant mutations, immediately on focus, and every 30 seconds
-while the view is active. End-user subscriptions do not receive `DELETE` events;
-use a server-side service-key subscription when a `DELETE` callback is required.
+Subscribing first closes the snapshot-to-subscription gap. The ordered, limited
+query alone owns view membership and order: INSERT and UPDATE events request a
+coalesced follow-up snapshot, even when they include `record`, because that row
+may be outside the newest 50 or already deleted. Each completed query publishes
+its authoritative result; sustained events schedule later queries at a bounded
+rate. Reconcile after reconnect, after relevant mutations, immediately on focus,
+and every 30 seconds while the view is active. Stop on unmount; teardown and
+initial setup failures clear the subscription, connection, listeners, and timers,
+and a late query cannot publish state. End-user subscriptions do not receive
+`DELETE` events; use a server-side service-key subscription when a `DELETE`
+callback is required.
 
 ## React Cleanup Pattern
 ```tsx
@@ -450,7 +475,7 @@ useEffect(() => {
 
 ## Best Practices
 - **Throttle presence updates** (e.g., 1 Hz) to avoid flooding the channel.
-- **Reconcile after subscription acceptance and reconnect** — repeat the authoritative snapshot when INSERT or UPDATE arrives during the query.
+- **Reconcile after subscription acceptance and reconnect** — publish each authoritative snapshot, then coalesce INSERT or UPDATE events into bounded follow-up queries rather than replaying event records into an ordered, limited view.
 - **Reconcile external deletes** — end users receive no DELETE event, so refresh long-lived views on focus and a bounded periodic interval.
 - **Scope channels** to specific tables/events; broad subscriptions hurt RLS clarity and bandwidth.
 - **Use one database selector** — select the same `databaseName` on the query client and realtime client/channel.
