@@ -23,14 +23,14 @@ functions. The handler contracts differ.
 - Durable functions use `volcano/functions/` and are marked with `kind: durable`
   in `volcano-config.yaml`.
 - A function kind is fixed when the function is created.
-- Deploy with `volcano cloud durable deploy`. Standard function deploy skips
-  manifest entries marked durable.
+- Deploy locally with `volcano durable deploy` and to cloud with
+  `volcano cloud durable deploy`. Standard function deploy skips manifest
+  entries marked durable.
 - Start an execution. Do not invoke a durable function.
 - A start returns an execution handle. Poll the execution for its result.
 - JavaScript, TypeScript, and Python can author durable handlers. Ruby clients
   can start and read executions but cannot author handlers.
-- The current CLI release runs durable executions in the cloud. A bare
-  `volcano durable ...` command is refused.
+- Local and cloud use the same handler, manifest, and execution commands.
 
 ## Authoring rule: replay must be deterministic
 
@@ -99,7 +99,7 @@ from volcano_sdk.durable_authoring import durable
 
 @durable
 def handler(event, ctx):
-    if not event.get("order_id"):
+    if not event or not event.get("order_id"):
         raise ValueError("order_id is required")
 
     charge = ctx.step("charge", lambda scope: charge_card(event["order_id"]))
@@ -122,8 +122,9 @@ Python durable operations are synchronous. A step function receives its scope.
 | `ctx.log` | Log with execution identifiers attached. |
 
 Each step attempt, wait, poll check, child, map item, and parallel branch uses a
-durable operation. Read plan limits from `volcano cloud durable get <name>` and
-keep poll intervals and operation counts within those limits.
+durable operation. `durable get` shows the function's execution timeout and
+result retention. Read the plan limits documentation for operation allowance,
+operations per execution, and concurrency limits.
 
 ## Manifest
 
@@ -147,7 +148,31 @@ Rules:
 - A declared `schedulers` list is fully synced by config deploy. Omitted entries
   are deleted.
 
-## CLI workflow
+## Local workflow
+
+Run and verify Durable functions locally before cloud deployment:
+
+```sh
+volcano start
+volcano durable deploy --all
+volcano durable get order-pipeline
+
+volcano durable start order-pipeline \
+  --input '{"order_id":4417}' \
+  --name order-4417
+
+volcano durable executions list order-pipeline --status running
+volcano durable executions get order-pipeline <execution-id>
+volcano durable logs order-pipeline --type runtime
+```
+
+Local execution uses one region. Waits resolve immediately so long workflows
+finish quickly while still suspending and replaying checkpoints. Set
+`LOCAL_DURABLE_REAL_TIME=true` before `volcano start` when wait timing must be
+real. Local executions persist across `volcano stop` and `volcano start`.
+Callbacks fail locally because no callback delivery service runs there.
+
+## Cloud workflow
 
 Cloud deploy requires explicit user approval. Follow `volcano-platform` for
 login, project selection, variables, and config deployment.
@@ -162,19 +187,18 @@ volcano cloud durable deploy -f order-pipeline --private
 # Deployment is asynchronous. Wait for active before starting work.
 volcano cloud durable get order-pipeline
 
-# Use a stable name when a caller can retry.
 volcano cloud durable start order-pipeline \
   --input '{"order_id":4417}' \
   --name order-4417
 
-volcano cloud durable executions list order-pipeline --status running
 volcano cloud durable executions get order-pipeline <execution-id>
-volcano cloud durable logs order-pipeline --type runtime
 ```
 
-`--input` accepts an inline JSON object or a file containing one. Omitting it
-means no input. `--name` is the idempotency key. Repeating the same name returns
-the same execution instead of starting duplicate work.
+For local commands, use `volcano durable ...`. For cloud commands, insert
+`cloud` after `volcano`. `--input` accepts an inline JSON object or a file
+containing one. Omitting it means no input. `--name` is the idempotency key.
+Repeating the same name returns the same execution instead of starting duplicate
+work.
 
 Execution statuses are `pending`, `running`, `succeeded`, `failed`,
 `timed_out`, `stopped`, and `unknown`. Fetch one execution to refresh its state.
@@ -216,9 +240,12 @@ start.
 
 ## Troubleshooting
 
-1. Run `volcano cloud durable get <name>` and inspect status.
-2. For deploy failure, run `volcano cloud durable logs <name> --type build`.
-3. For execution failure, run `volcano cloud durable logs <name> --type runtime`.
+Use `volcano durable ...` for local state and `volcano cloud durable ...` for
+cloud state.
+
+1. Run `durable get <name>` with the correct prefix and inspect status.
+2. For deploy failure, run `durable logs <name> --type build`.
+3. For execution failure, run `durable logs <name> --type runtime`.
 4. A `404` can mean the name belongs to the standard function collection.
 5. A start during provisioning returns `409`; wait for `active`.
 6. A `429` means a concurrency or durable allowance limit blocked the start.
@@ -228,13 +255,17 @@ start.
 
 - Validate source syntax or run the project's typecheck and unit tests.
 - Confirm the manifest names every durable function with `kind: durable`.
-- After approved cloud deployment, wait for function status `active`.
-- Start one execution with a unique idempotency name.
+- Run `volcano start` and `volcano durable deploy --all`.
+- Wait for local function status `active`.
+- Start one local execution with a unique idempotency name.
 - Poll it to a terminal status and check its result.
 - Read runtime logs if the result is not `succeeded`.
+- After approved cloud deployment, repeat the execution check with
+  `volcano cloud durable`.
 
 ## References
 
 - Hosting contract: `volcano-hosting/docs/public/functions/durable-functions.md`
+- Local guide: `volcano-hosting/docs/public/guides/durable-functions-locally.md`
 - CLI contract: `volcano-cli/docs/durable-functions.md`
 - Command source: `volcano-cli/internal/cmd/durable/`
