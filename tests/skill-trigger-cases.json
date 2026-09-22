@@ -120,6 +120,15 @@
         { "skill": "volcano-database", "signals": ["leaderboard"] },
         { "skill": "volcano-realtime", "signals": ["live", "leaderboard", "Realtime"] }
       ]
+    },
+    {
+      "id": "durable-order-workflow",
+      "prompt": "Build a long-running order workflow with checkpointed steps and waits using Volcano Durable Functions",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-durable", "signals": ["long-running", "workflow", "checkpointed", "waits", "Durable Functions"] }
+      ]
     }
   ]
 }
