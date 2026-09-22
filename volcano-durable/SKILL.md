@@ -167,10 +167,17 @@ volcano durable logs order-pipeline --type runtime
 ```
 
 Local execution uses one region. Waits resolve immediately so long workflows
-finish quickly while still suspending and replaying checkpoints. Set
-`LOCAL_DURABLE_REAL_TIME=true` before `volcano start` when wait timing must be
-real. Local executions persist across `volcano stop` and `volcano start`.
-Callbacks fail locally because no callback delivery service runs there.
+finish quickly while still suspending and replaying checkpoints. Instant waits
+cause more resumes per wall-clock minute than production, which helps expose a
+step that is unsafe to replay. Set `LOCAL_DURABLE_REAL_TIME=true` before
+`volcano start` when wait timing must be real. Local executions persist across
+`volcano stop` and `volcano start`. Callbacks fail locally because no callback
+delivery service runs there.
+
+Local executions increment the same execution, operation, and compute counters
+as cloud executions. Inspect them through `GET /projects/{id}/usage`; the CLI
+has no project usage command. For `ctx.waitUntil`, `maxAttempts` directly bounds
+the poll operation count, so check local usage before cloud deployment.
 
 ## Cloud workflow
 
@@ -196,9 +203,9 @@ volcano cloud durable executions get order-pipeline <execution-id>
 
 For local commands, use `volcano durable ...`. For cloud commands, insert
 `cloud` after `volcano`. `--input` accepts an inline JSON object or a file
-containing one. Omitting it means no input. `--name` is the idempotency key.
-Repeating the same name returns the same execution instead of starting duplicate
-work.
+containing one. Omitting it means no input. `--name` is the idempotency key in
+both local and cloud. Repeating the same name returns the same execution instead
+of starting duplicate work.
 
 Execution statuses are `pending`, `running`, `succeeded`, `failed`,
 `timed_out`, `stopped`, and `unknown`. Fetch one execution to refresh its state.
