@@ -137,6 +137,7 @@ await channel.subscribe();
 ```ts
 channel.onPostgresChanges('INSERT', 'public', 'posts', (c) => addPost(c.record));
 channel.onPostgresChanges('UPDATE', 'public', 'posts', (c) => updatePost(c.record));
+// DELETE handlers receive events only on service-key subscriptions.
 channel.onPostgresChanges('DELETE', 'public', 'posts', (c) => removePost(c.old_record?.id ?? c.id));
 ```
 
@@ -321,11 +322,10 @@ channel.onPostgresChanges('INSERT', 'public', 'posts', (c) => {
 channel.onPostgresChanges('UPDATE', 'public', 'posts', (c) => {
   setPosts((cur) => cur.map((p) => (p.id === c.record.id ? c.record : p)));
 });
-channel.onPostgresChanges('DELETE', 'public', 'posts', (c) => {
-  setPosts((cur) => cur.filter((p) => p.id !== (c.old_record?.id ?? c.id)));
-});
 await channel.subscribe();
 ```
+
+End-user subscriptions do not receive `DELETE` events. Re-fetch after application actions that can delete rows. Use a server-side service-key subscription when a `DELETE` callback is required.
 
 ## React Cleanup Pattern
 ```tsx
