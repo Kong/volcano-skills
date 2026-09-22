@@ -452,6 +452,13 @@ useEffect(() => {
   });
   channel.onPostgresChanges('*', 'public', 'posts', handleChange);
 
+  const stop = () => {
+    if (disposed) return;
+    disposed = true;
+    channel.unsubscribe();
+    realtime.disconnect();
+  };
+
   void (async () => {
     try {
       await realtime.connect();
@@ -461,15 +468,14 @@ useEffect(() => {
       }
       await channel.subscribe();
     } catch (error) {
-      if (!disposed) showConnectionError(error.message);
+      if (!disposed) {
+        stop();
+        showConnectionError(error.message);
+      }
     }
   })();
 
-  return () => {
-    disposed = true;
-    channel.unsubscribe();
-    realtime.disconnect();
-  };
+  return stop;
 }, []);
 ```
 

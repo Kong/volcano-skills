@@ -5,6 +5,8 @@ import vm from 'node:vm';
 const skill = readFileSync(new URL('../volcano-realtime/SKILL.md', import.meta.url), 'utf8');
 const example = skill.match(/## Initial Fetch \+ Subscribe Pattern\n```ts\n([\s\S]*?)\n```/)?.[1];
 assert.ok(example, 'initial fetch example exists');
+const reactExample = skill.match(/## React Cleanup Pattern\n```tsx\n([\s\S]*?)\n```/)?.[1];
+assert.ok(reactExample, 'React cleanup example exists');
 
 const flush = async () => {
   for (let i = 0; i < 10; i += 1) await Promise.resolve();
@@ -181,6 +183,42 @@ for (const failAt of ['connect', 'subscribe', 'snapshot']) {
   assert.equal(h.state.intervals.size, 0);
   assert.equal(h.state.listeners.size, 0);
   assert.equal(h.client().reconnect, undefined);
+}
+
+for (const failAt of ['connect', 'subscribe', undefined]) {
+  const actions = [];
+  let cleanup;
+  class ReactRealtime {
+    async connect() {
+      if (failAt === 'connect') throw new Error('connect failed');
+    }
+    channel() {
+      return {
+        onPostgresChanges() {},
+        async subscribe() {
+          if (failAt === 'subscribe') throw new Error('subscribe failed');
+        },
+        unsubscribe() { actions.push('unsubscribe'); },
+      };
+    }
+    disconnect() { actions.push('disconnect'); }
+  }
+  vm.runInNewContext(reactExample, {
+    useEffect(setup) { cleanup = setup(); },
+    VolcanoRealtime: ReactRealtime,
+    handleChange() {},
+    showConnectionError(message) { actions.push(`error: ${message}`); },
+  });
+  await flush();
+  if (failAt) {
+    assert.deepEqual(actions, ['unsubscribe', 'disconnect', `error: ${failAt} failed`],
+      `${failAt} failure cleans up before reporting, while mounted`);
+  }
+  cleanup();
+  cleanup();
+  assert.deepEqual(actions, failAt
+    ? ['unsubscribe', 'disconnect', `error: ${failAt} failed`]
+    : ['unsubscribe', 'disconnect'], 'returned cleanup is idempotent');
 }
 
 console.log('realtime example: OK (bounded publication, ordered cap, delete, stop, setup failures)');
