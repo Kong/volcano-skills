@@ -12,12 +12,24 @@ const flush = async () => {
   for (let i = 0; i < 10; i += 1) await Promise.resolve();
 };
 
-function harness({ failAt } = {}) {
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((onResolve, onReject) => {
+    resolve = onResolve;
+    reject = onReject;
+  });
+  return { promise, resolve, reject };
+}
+
+function harness({ failAt, deferConnect = false, deferSubscribe = false } = {}) {
   const state = {
     rows: [], queries: [], publications: [], errors: [], timers: new Map(),
     intervals: new Map(), listeners: new Map(), handlers: new Map(),
-    disconnects: 0, unsubscribes: 0, nextTimer: 1,
+    disconnects: 0, unsubscribes: 0, subscribes: 0, nextTimer: 1, clientActive: false,
   };
+  const connectAttempt = deferConnect ? deferred() : undefined;
+  const subscribeAttempt = deferSubscribe ? deferred() : undefined;
   let client;
   const window = {
     setTimeout(callback, delay) {
@@ -42,6 +54,8 @@ function harness({ failAt } = {}) {
   class VolcanoRealtime {
     constructor() { client = this; }
     async connect() {
+      if (connectAttempt) return connectAttempt.promise;
+      state.clientActive = true;
       if (failAt === 'connect') throw new Error('connect failed');
     }
     channel() {
@@ -52,6 +66,8 @@ function harness({ failAt } = {}) {
           state.handlers.set(type, callback);
         },
         async subscribe() {
+          state.subscribes += 1;
+          if (subscribeAttempt) return subscribeAttempt.promise;
           if (failAt === 'subscribe') throw new Error('subscribe failed');
         },
         unsubscribe() { state.unsubscribes += 1; },
@@ -61,7 +77,10 @@ function harness({ failAt } = {}) {
       this.reconnect = callback;
       return () => { this.reconnect = undefined; };
     }
-    disconnect() { state.disconnects += 1; }
+    disconnect() {
+      state.disconnects += 1;
+      state.clientActive = false;
+    }
   }
   const volcano = {
     accessToken: 'test-token',
@@ -112,6 +131,18 @@ function harness({ failAt } = {}) {
     await flush();
   };
   return { state, client: () => client, stop: context.stop, flush, nextQuery, fireTimer,
+    settleConnect(error) {
+      assert.ok(connectAttempt, 'connect attempt is deferred');
+      // The SDK may create its internal client after an earlier disconnect.
+      state.clientActive = true;
+      if (error) connectAttempt.reject(error);
+      else connectAttempt.resolve();
+    },
+    settleSubscribe(error) {
+      assert.ok(subscribeAttempt, 'subscribe attempt is deferred');
+      if (error) subscribeAttempt.reject(error);
+      else subscribeAttempt.resolve();
+    },
     emit(type, record) { state.handlers.get(type)({ record }); } };
 }
 
@@ -185,6 +216,44 @@ for (const failAt of ['connect', 'subscribe', 'snapshot']) {
   assert.equal(h.client().reconnect, undefined);
 }
 
+for (const outcome of ['resolve', 'reject']) {
+  const h = harness({ deferConnect: true });
+  h.stop();
+  h.stop();
+  assert.equal(h.state.disconnects, 1, 'public cleanup is idempotent');
+  h.settleConnect(outcome === 'reject' ? new Error('connect failed') : undefined);
+  await h.flush();
+  assert.equal(h.state.clientActive, false, `late connect ${outcome} leaves no client`);
+  assert.equal(h.state.disconnects, 2, `late connect ${outcome} disconnects after settlement`);
+  assert.equal(h.state.unsubscribes, 0);
+  assert.equal(h.state.subscribes, 0, 'teardown prevents a late subscription');
+  assert.deepEqual(h.state.errors, [], 'teardown suppresses late errors');
+  assert.equal(h.state.queries.length, 0, 'teardown suppresses late queries');
+  assert.equal(h.state.publications.length, 0, 'teardown suppresses late publications');
+  assert.equal(h.state.listeners.size, 0);
+  assert.equal(h.state.intervals.size, 0);
+  assert.equal(h.state.timers.size, 0);
+}
+
+for (const outcome of ['resolve', 'reject']) {
+  const h = harness({ deferSubscribe: true });
+  await h.flush();
+  h.stop();
+  h.stop();
+  h.settleSubscribe(outcome === 'reject' ? new Error('subscribe failed') : undefined);
+  await h.flush();
+  assert.equal(h.state.clientActive, false, `late subscribe ${outcome} leaves no client`);
+  assert.equal(h.state.disconnects, 1);
+  assert.equal(h.state.unsubscribes, 1);
+  assert.equal(h.state.subscribes, 1);
+  assert.deepEqual(h.state.errors, []);
+  assert.equal(h.state.queries.length, 0);
+  assert.equal(h.state.publications.length, 0);
+  assert.equal(h.state.listeners.size, 0);
+  assert.equal(h.state.intervals.size, 0);
+  assert.equal(h.state.timers.size, 0);
+}
+
 for (const failAt of ['connect', 'subscribe', undefined]) {
   const actions = [];
   let cleanup;
@@ -221,4 +290,55 @@ for (const failAt of ['connect', 'subscribe', undefined]) {
     : ['unsubscribe', 'disconnect'], 'returned cleanup is idempotent');
 }
 
-console.log('realtime example: OK (bounded publication, ordered cap, delete, stop, setup failures)');
+for (const stage of ['connect', 'subscribe']) {
+  for (const outcome of ['resolve', 'reject']) {
+    const actions = [];
+    const attempt = deferred();
+    let cleanup;
+    let client;
+    class ReactRealtime {
+      constructor() { client = this; }
+      async connect() {
+        if (stage === 'connect') return attempt.promise;
+        this.active = true;
+      }
+      channel() {
+        return {
+          onPostgresChanges() {},
+          async subscribe() {
+            actions.push('subscribe');
+            if (stage === 'subscribe') return attempt.promise;
+          },
+          unsubscribe() { actions.push('unsubscribe'); },
+        };
+      }
+      disconnect() {
+        actions.push('disconnect');
+        this.active = false;
+      }
+    }
+    vm.runInNewContext(reactExample, {
+      useEffect(setup) { cleanup = setup(); },
+      VolcanoRealtime: ReactRealtime,
+      handleChange() {},
+      showConnectionError(message) { actions.push(`error: ${message}`); },
+    });
+    await flush();
+    cleanup();
+    cleanup();
+    assert.deepEqual(actions, stage === 'connect'
+      ? ['unsubscribe', 'disconnect']
+      : ['subscribe', 'unsubscribe', 'disconnect'], 'React cleanup is idempotent');
+    if (stage === 'connect') client.active = true; // Internal client appeared after cleanup.
+    if (outcome === 'reject') attempt.reject(new Error(`${stage} failed`));
+    else attempt.resolve();
+    await flush();
+    assert.equal(client.active, false, `React late ${stage} ${outcome} leaves no client`);
+    assert.deepEqual(actions, stage === 'connect'
+      ? ['unsubscribe', 'disconnect', 'disconnect']
+      : ['subscribe', 'unsubscribe', 'disconnect'],
+    `React late ${stage} ${outcome} has no error, stale subscription, or duplicate cleanup`);
+  }
+}
+
+console.log('realtime example: OK (bounded publication, ordered cap, delete, stop, setup failures, late settlements)');

@@ -388,8 +388,10 @@ function startPostsSubscription() {
   }
 
   void (async () => {
+    let connectSettled = false;
     try {
       await realtime.connect();
+      connectSettled = true;
       if (disposed) {
         realtime.disconnect();
         return;
@@ -415,10 +417,12 @@ function startPostsSubscription() {
       window.addEventListener('focus', reconcileOnFocus);
       postsRefreshInterval = window.setInterval(reconcileOnFocus, 30_000);
     } catch (error) {
-      if (!disposed) {
-        stopPostsSubscription();
-        showConnectionError(error.message);
+      if (disposed) {
+        if (!connectSettled) realtime.disconnect();
+        return;
       }
+      stopPostsSubscription();
+      showConnectionError(error.message);
     }
   })();
 
@@ -460,18 +464,22 @@ useEffect(() => {
   };
 
   void (async () => {
+    let connectSettled = false;
     try {
       await realtime.connect();
+      connectSettled = true;
       if (disposed) {
         realtime.disconnect();
         return;
       }
       await channel.subscribe();
     } catch (error) {
-      if (!disposed) {
-        stop();
-        showConnectionError(error.message);
+      if (disposed) {
+        if (!connectSettled) realtime.disconnect();
+        return;
       }
+      stop();
+      showConnectionError(error.message);
     }
   })();
 
