@@ -13,6 +13,9 @@ Implement Volcano SDK in Next.js with strict client/server separation and middle
 3. Keep browser-only auth actions (OAuth initiation, localStorage session) out of server-only code.
 4. Validate redirect/protection behavior and hydration edge cases.
 
+## UI/UX Pairing
+Read `volcano-uiux` for every user-facing Next.js interface. It owns accessibility, responsive layout, loading and progress feedback, forms, navigation, and interface-state guidance. This skill owns the Next.js implementation and client/server boundary.
+
 ## Environment Contract
 `.env.local`:
 ```env
@@ -427,7 +430,7 @@ export function LivePosts() {
 ```
 
 ## Default Signup & Login Pages
-When the prompt doesn't specify signup/login page design, apply the `volcano-auth` "Default Signup & Login Page UX" — including the default signup-success alert — on top of the `AuthContext` from this skill.
+When the prompt doesn't specify signup/login page design, apply the `volcano-auth` "Default Signup & Login Page UX" and the shared `volcano-uiux` rules — including the default signup-success alert — on top of the `AuthContext` from this skill. The examples below show Next.js auth wiring; add the labels, progress feedback, responsive layout, and complete states required by `volcano-uiux`.
 
 ```tsx
 // app/signup/page.tsx — default signup page with a success alert
@@ -444,16 +447,21 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting || success) return;
     setError(null);
+    setSubmitting(true);
     try {
       await signUp(email, password);
       setSuccess(true); // default "Signup success" alert — shown even if not requested
+      setSubmitting(false);
       setTimeout(() => router.push('/login'), 2000);
     } catch (err: any) {
       setError(err.message);
+      setSubmitting(false);
     }
   };
 
@@ -464,9 +472,14 @@ export default function SignupPage() {
       )}
       {error && <div role="alert">{error}</div>}
       <form onSubmit={handleSubmit}>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
-        <button type="submit">Sign Up</button>
+        <label htmlFor="signup-email">Email</label>
+        <input id="signup-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <label htmlFor="signup-password">Password</label>
+        <input id="signup-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <button type="submit" disabled={submitting || success} aria-busy={submitting}>
+          {success ? 'Account created' : submitting ? 'Signing up…' : 'Sign Up'}
+        </button>
+        <span role="status">{submitting ? 'Creating account…' : ''}</span>
       </form>
       <Link href="/login">Already have an account? Log in</Link>
     </div>
@@ -488,15 +501,19 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     setError(null);
+    setSubmitting(true);
     try {
       await signIn(email, password);
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message);
+      setSubmitting(false);
     }
   };
 
@@ -504,9 +521,14 @@ export default function LoginPage() {
     <div>
       {error && <div role="alert">{error}</div>}
       <form onSubmit={handleSubmit}>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
-        <button type="submit">Sign In</button>
+        <label htmlFor="login-email">Email</label>
+        <input id="login-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <label htmlFor="login-password">Password</label>
+        <input id="login-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <button type="submit" disabled={submitting} aria-busy={submitting}>
+          {submitting ? 'Signing in…' : 'Sign In'}
+        </button>
+        <span role="status">{submitting ? 'Signing in…' : ''}</span>
       </form>
       <Link href="/signup">Need an account? Sign up</Link>
       <Link href="/forgot-password">Forgot password?</Link>
@@ -563,6 +585,7 @@ export default function AuthCallbackPage() {
 - **Use `NEXT_PUBLIC_` only for non-secrets**; service keys never get this prefix.
 
 ## Verification Checklist
+- User-facing interfaces pass the `volcano-uiux` verification checklist.
 - Client/server responsibilities are clear and correct.
 - Middleware uses `withAuth` (or equivalent) before allowing protected routes.
 - Server components fetch via API routes / server actions / middleware data — never call browser SDK methods directly.
