@@ -7,11 +7,22 @@ description: Use for Volcano authentication and identity work including user acc
 ## Role
 Implement robust Volcano authentication journeys with session lifecycle correctness. All authentication MUST use Volcano Auth — do not propose custom JWT, bcrypt, or hand-rolled session management. Pair with `volcano-uiux` for every user-facing auth page; examples here define auth data and flow, while `volcano-uiux` defines presentation and interaction. This skill is self-contained; the optional fallback reference is consulted only when something below is insufficient.
 
+Use the project's language:
+
+| Project signal | Session read and adoption | Hosted auth | Failure model |
+|---|---|---|---|
+| `package.json`, `.ts`, `.js` | `getSession()` / `setSession()` | browser redirect and automatic state validation | result envelopes |
+| `pyproject.toml`, `requirements.txt`, `.py` | `get_session()` / `set_session()` | server state and explicit adoption | typed exceptions |
+| `Gemfile`, `.gemspec`, `.rb` | `current_session` getter / setter | server state and explicit adoption | typed exceptions |
+
+Examples without a language heading use JavaScript or TypeScript. Keep the same
+user-visible loading, error, and success states in Python and Ruby web frameworks.
+
 ## Workflow
 1. Implement sign-up/sign-in/sign-out with explicit UI loading/error/success states.
-2. Restore the session on app startup with `volcano.initialize()`.
-3. Add `onAuthStateChange` listener and ensure cleanup on teardown.
-4. Keep OAuth initiation in browser contexts only; validate error paths.
+2. Restore the session with the selected SDK: call `volcano.initialize()` in a JavaScript browser app; explicitly load and adopt a complete session in Python or Ruby server code.
+3. Subscribe to auth-state changes where the selected SDK supports them and clean up the subscription.
+4. Keep JavaScript OAuth initiation in the browser. Store and validate state explicitly in Python or Ruby server flows.
 5. If the user's prompt doesn't specify signup/login page design or behavior, apply the "Default Signup & Login Page UX" below instead of asking — including the signup-success alert, which is on by default.
 
 ## Default Signup & Login Page UX
@@ -131,6 +142,9 @@ const { user, error } = await volcano.auth.getUser();
 ```
 
 ### Read or adopt a session
+
+#### JavaScript and TypeScript
+
 ```ts
 const {
   data: { session },
@@ -143,8 +157,27 @@ if (session?.refresh_token && session.user) {
 ```
 
 `getSession()` reads a local snapshot without a request. `setSession()` requires
-a complete access token, refresh token, and user. It copies the session into
-memory without a request, persistence, or auth-state notification.
+a complete access token, refresh token, and user.
+
+#### Python
+
+```python
+session = source.auth.get_session()
+if session is not None:
+    fresh.auth.set_session(session)
+```
+
+#### Ruby
+
+```ruby
+session = source.auth.current_session
+fresh.auth.current_session = session if session
+```
+
+All three SDKs copy a complete session into memory without a request,
+persistence, or auth-state notification. Python raises `ValueError` and Ruby
+raises `ArgumentError` for an incomplete session; JavaScript returns an error in
+its result envelope.
 
 ### Restore session on app load (handles OAuth callback tokens too)
 ```ts
@@ -170,8 +203,10 @@ const { session, error } = await volcano.auth.refreshSession();
 ## Hosted Auth Pages
 
 Use the hosted login or signup page when the application does not need its own
-auth form. Start through the SDK so it creates and validates the one-time state
-value.
+auth form. Every language must bind the returned session to a one-time state
+value. Never build the hosted URL by hand.
+
+### JavaScript and TypeScript
 
 ```ts
 volcano.auth.signInWithHostedAuth();
@@ -182,9 +217,43 @@ const url = volcano.auth.getHostedAuthUrl();
 window.location.assign(url);
 ```
 
-Configure the project's `post_auth_redirect_url`, then call
-`volcano.initialize()` on the returned page. Do not build the hosted URL by
-hand; that omits the state binding.
+The browser SDK creates, stores, and validates the state value. Pass
+`{ projectId }` when the anon key is opaque. Configure the project's
+`post_auth_redirect_url`, then call `volcano.initialize()` on the returned page.
+
+### Python
+
+```python
+import secrets
+
+hosted_state = secrets.token_urlsafe(32)
+hosted_url = client.auth.get_hosted_auth_url(
+    project_id=project_id, action="signup", state=hosted_state
+)
+# Store hosted_state in the user's signed server-side session before redirecting.
+session = client.auth.adopt_hosted_auth_session(
+    returned_session, state=returned_state, expected_state=hosted_state
+)
+```
+
+### Ruby
+
+```ruby
+require "securerandom"
+
+hosted_state = SecureRandom.urlsafe_base64(32)
+hosted_url = client.auth.get_hosted_auth_url(
+  project_id: project_id, action: "signup", state: hosted_state
+)
+# Store hosted_state in the user's signed server-side session before redirecting.
+session = client.auth.adopt_hosted_auth_session(
+  returned_session, state: returned_state, expected_state: hosted_state
+)
+```
+
+Python and Ruby do not navigate, parse the returned fragment, or persist state.
+In the callback, atomically fetch and delete the stored state before adoption,
+even when validation fails. Reject a missing or previously consumed state.
 
 ## OAuth / SSO
 
