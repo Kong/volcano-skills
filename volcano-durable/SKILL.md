@@ -32,6 +32,14 @@ functions. The handler contracts differ.
   can start and read executions but cannot author handlers.
 - Local and cloud use the same handler, manifest, and execution commands.
 
+Use the project's language and supported capability:
+
+| Project signal | Author durable handlers | Manage executions | SDK behavior |
+|---|---|---|---|
+| `package.json`, `.ts`, `.js` | JavaScript/TypeScript | JavaScript/TypeScript | camel-case methods and result envelopes |
+| `pyproject.toml`, `requirements.txt`, `.py` | Python | Python | snake-case methods and typed exceptions |
+| `Gemfile`, `.gemspec`, `.rb` | Use JavaScript or Python | Ruby | snake-case methods and typed exceptions |
+
 ## Authoring rule: replay must be deterministic
 
 Each context operation is checkpointed. On resume, completed operations replay
@@ -126,6 +134,77 @@ durable operation. `durable get` shows the function's execution timeout and
 result retention. Read the plan limits documentation for operation allowance,
 operations per execution, and concurrency limits.
 
+## Start and manage executions from an application
+
+`start` accepts an application credential and returns an execution handle. An
+execution name makes retries idempotent. `get`, `list`, and `stop` are
+owner-scoped; call them from trusted backend code with the project owner's
+platform user token. Auth-user sessions, anon keys, service keys, and project
+access tokens are not accepted.
+
+### JavaScript and TypeScript
+
+```ts
+import { VolcanoClient } from '@volcano.dev/sdk';
+
+const { data: handle, error } = await volcano.durable.start(
+  'order-pipeline',
+  { order_id: 4417 },
+  { executionName: 'order-4417' },
+);
+if (error || !handle) throw error ?? new Error('Durable start returned no execution');
+
+const owner = new VolcanoClient({
+  anonKey: process.env.VOLCANO_ANON_KEY!,
+  apiUrl: process.env.VOLCANO_API_URL,
+  accessToken: process.env.VOLCANO_PLATFORM_TOKEN!,
+});
+const read = await owner.durable.get(projectId, 'order-pipeline', handle.id);
+if (read.error) throw read.error;
+const listed = await owner.durable.list(projectId, 'order-pipeline', { status: 'running' });
+if (listed.error) throw listed.error;
+const stopped = await owner.durable.stop(projectId, 'order-pipeline', handle.id);
+if (stopped.error) throw stopped.error;
+```
+
+### Python
+
+```python
+import os
+from volcano_sdk import VolcanoClient
+
+owner = VolcanoClient(
+    anon_key=os.environ["VOLCANO_ANON_KEY"],
+    access_token=os.environ["VOLCANO_PLATFORM_TOKEN"],
+)
+handle = client.durable.start(
+    "order-pipeline", {"order_id": 4417}, execution_name="order-4417"
+)
+execution = owner.durable.get(project_id, "order-pipeline", handle.id)
+page = owner.durable.list(project_id, "order-pipeline", status="running")
+owner.durable.stop(project_id, "order-pipeline", handle.id)
+```
+
+### Ruby
+
+```ruby
+require "volcano"
+
+owner = Volcano::Client.new(
+  anon_key: ENV.fetch("VOLCANO_ANON_KEY"),
+  access_token: ENV.fetch("VOLCANO_PLATFORM_TOKEN")
+)
+handle = client.durable.start(
+  "order-pipeline", { order_id: 4417 }, execution_name: "order-4417"
+)
+execution = owner.durable.get(project_id, "order-pipeline", handle.id)
+page = owner.durable.list(project_id, "order-pipeline", status: "running")
+owner.durable.stop(project_id, "order-pipeline", handle.id)
+```
+
+Poll `get` for live state. Listings carry the last observed state. `stop` is
+asynchronous, so poll until the execution reaches a terminal status.
+
 ## Manifest
 
 ```yaml
@@ -171,8 +250,9 @@ finish quickly while still suspending and replaying checkpoints. Instant waits
 cause more resumes per wall-clock minute than production, which helps expose a
 step that is unsafe to replay. Set `LOCAL_DURABLE_REAL_TIME=true` before
 `volcano start` when wait timing must be real. Local executions persist across
-`volcano stop` and `volcano start`. Callbacks fail locally because no callback
-delivery service runs there.
+`volcano stop` and `volcano start`. Volcano does not expose externally completed
+callbacks in local or cloud execution; use `ctx.waitUntil` to poll application
+state instead.
 
 Local executions increment the same execution, operation, and compute counters
 as cloud executions. Inspect them through `GET /projects/{id}/usage`; the CLI

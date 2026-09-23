@@ -1,6 +1,6 @@
 ---
 name: volcano-typescript
-description: "Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime types, Function invocation generics, OAuth providers, middleware types, and utility types."
+description: "Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime and Durable types, Function invocation generics, OAuth providers, middleware types, and utility types."
 ---
 # Volcano TypeScript Types Skill
 
@@ -12,6 +12,7 @@ Provide the canonical TypeScript type definitions for every Volcano SDK surface.
 - Reading or destructuring auth responses (`signIn`, `signUp`, `getUser`, `getSessions`).
 - Typing realtime event handlers (`PostgresChange`, `PresenceState`).
 - Typing function invocations with `invoke<P, R>(...)`.
+- Typing durable handlers, contexts, and execution results.
 - Writing middleware helpers that consume `getUser(token)` or `refreshToken(...)`.
 
 ## Importing
@@ -337,6 +338,46 @@ if (data) {
 ```
 The full return tuple from `invoke<P, R>(...)` is `{ data: R | null; status: number; headers: Record<string, string>; version: string; error: Error | null }`.
 
+## Durable Function Types
+
+Authoring types come from the durable entry point:
+
+```ts
+import { durable, type DurableContext, type DurableHandler } from '@volcano.dev/sdk/durable';
+
+interface OrderInput {
+  order_id: number;
+}
+
+interface OrderResult {
+  order_id: number;
+  outcome: 'shipped' | 'refunded';
+}
+
+const run: DurableHandler<OrderInput, OrderResult> = async (input, ctx) => {
+  const order = await ctx.step('load', () => loadOrder(input.order_id));
+  await ctx.wait('settle', '30s');
+  return { order_id: order.id, outcome: 'shipped' };
+};
+
+export const handler = durable(run);
+```
+
+`DurableContext`, `StepOptions`, `WaitUntilOptions`, `BatchOptions`,
+`BatchResult`, `Retry`, and `DurableDuration` describe authoring. Execution
+client types come from the main entry point:
+
+```ts
+import type { DurableExecution, DurableExecutionStatus } from '@volcano.dev/sdk';
+
+const status: DurableExecutionStatus = 'running';
+const { data } = await volcano.durable.list(projectId, 'order-pipeline', { status });
+const execution: DurableExecution | undefined = data?.data[0];
+```
+
+`DurableExecution` uses the API's snake-case fields. Its `result` is `unknown`,
+so narrow it before use.
+
 ## OAuth Types
 ```ts
 type OAuthProviderName = 'google' | 'github' | 'microsoft' | 'apple';
@@ -526,6 +567,7 @@ channel.onPostgresChanges('INSERT', 'public', 'posts', (change) => {
 | Storage | `StorageObject`, `StorageUploadResponse`, `StorageListResponse` | `storage.from(...)` operations |
 | Realtime | `PostgresChange`, `PresenceState`, `ConnectContext` | Channel callbacks |
 | Functions | `invoke<P, R>(...)` generic params | Both ends of an invocation |
+| Durable | `DurableHandler`, `DurableContext`, `DurableExecution` | Durable authoring and execution clients |
 | OAuth | `OAuthProviderName`, `OAuthProvider` | Provider name validation |
 | Sessions | `AuthSession`, `SessionsResponse` | Multi-device session UI |
 | Middleware | `ServerClient`, `GetUserResult` | Next.js middleware/route handlers |
@@ -538,9 +580,10 @@ channel.onPostgresChanges('INSERT', 'public', 'posts', (change) => {
 - `volcano.from<T>(...)`, `volcano.insert<T>(...)`, `volcano.update<T>(...)` use generic parameters where they apply.
 - Realtime callbacks cast `change.record` to a typed row type at the entry boundary.
 - Function invocations use `invoke<Params, Result>(...)` generics, not `invoke(...)`.
+- Durable handlers use `DurableHandler<Input, Result>` when their input and result are known.
 - OAuth provider names are typed as `OAuthProviderName`, not `string`.
 
 ## Companion Skills
 - `volcano-sdk` — top-level orientation and mandatory usage.
 - `volcano-platform` — project shape, Volcano Functions runtime contract, build pipeline.
-- Domain and interface skills (`volcano-auth`, `volcano-database`, `volcano-functions`, `volcano-storage`, `volcano-realtime`, `volcano-nextjs`, `volcano-uiux`) — pair with this skill when implementing.
+- Domain and interface skills (`volcano-auth`, `volcano-database`, `volcano-functions`, `volcano-durable`, `volcano-storage`, `volcano-realtime`, `volcano-nextjs`, `volcano-uiux`) — pair with this skill when implementing.
