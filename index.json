@@ -32,6 +32,16 @@
       "path": "/skills/volcano-durable/SKILL.md"
     },
     {
+      "name": "volcano-logs",
+      "description": "Use for Volcano project logs, retained log search, log pagination, activity buckets, structured log filters, and server-side log readers using project access tokens.",
+      "path": "/skills/volcano-logs/SKILL.md"
+    },
+    {
+      "name": "volcano-locks",
+      "description": "Use for Volcano project locks, distributed leases, leader election, renewable lock guards, fencing tokens, lock contention, and safe backend worker coordination.",
+      "path": "/skills/volcano-locks/SKILL.md"
+    },
+    {
       "name": "volcano-nextjs",
       "description": "Use for Next.js on Volcano and for web apps, pages, dashboards, boards, galleries, full-stack UIs, public HTTP routes, redirects, webhook ingress, middleware, API routes, server actions, and client or server SDK separation.",
       "path": "/skills/volcano-nextjs/SKILL.md"

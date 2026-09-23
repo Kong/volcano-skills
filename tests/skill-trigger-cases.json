@@ -138,6 +138,24 @@
         { "skill": "volcano-platform", "signals": ["Volcano"] },
         { "skill": "volcano-durable", "signals": ["long-running", "workflow", "checkpointed", "waits", "Durable Functions"] }
       ]
+    },
+    {
+      "id": "project-log-reader",
+      "prompt": "Build a server-side Volcano project logs reader with retained log search and pagination",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-logs", "signals": ["project logs", "retained log", "pagination"] }
+      ]
+    },
+    {
+      "id": "distributed-worker-lock",
+      "prompt": "Coordinate Volcano backend workers with a distributed lock, renewable lease, and fencing token",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-locks", "signals": ["distributed lock", "renewable lease", "fencing token", "backend workers"] }
+      ]
     }
   ]
 }

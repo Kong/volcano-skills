@@ -306,6 +306,8 @@ Each domain skill includes domain-specific error messages. This skill is the cro
 | Auth | `volcano-auth` | `invalid email or password`, `confirm your email`, `already exists`, `password must`, `rate limit` |
 | Database | `volcano-database` | `column does not exist`, `permission denied`, `No active session`, `Database name not set`, `violates unique constraint` |
 | Functions | `volcano-functions` | `Function not found`, `timeout`, `rate limit`, `Internal server error` (or business-logic `data.error`) |
+| Logs | `volcano-logs` | project-token authentication, invalid cursor, invalid resource or query filters |
+| Locks | `volcano-locks` | `lock_held`, `lock_ownership_lost`, `lock_rate_limited` |
 | Storage | `volcano-storage` | `No active session`, `Bucket not found`, `File not found`, `File too large`, `permission denied`, `invalid file type` |
 | Realtime | `volcano-realtime` | `authentication` (token expired), `network`, opaque WebSocket errors (often CORS — see realtime skill's Browser Origins section) |
 
