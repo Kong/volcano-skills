@@ -32,6 +32,14 @@ functions. The handler contracts differ.
   can start and read executions but cannot author handlers.
 - Local and cloud use the same handler, manifest, and execution commands.
 
+Use the project's language and supported capability:
+
+| Project signal | Author durable handlers | Manage executions | SDK behavior |
+|---|---|---|---|
+| `package.json`, `.ts`, `.js` | JavaScript/TypeScript | JavaScript/TypeScript | camel-case methods and result envelopes |
+| `pyproject.toml`, `requirements.txt`, `.py` | Python | Python | snake-case methods and typed exceptions |
+| `Gemfile`, `.gemspec`, `.rb` | Use JavaScript or Python | Ruby | snake-case methods and typed exceptions |
+
 ## Authoring rule: replay must be deterministic
 
 Each context operation is checkpointed. On resume, completed operations replay
