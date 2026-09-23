@@ -74,9 +74,12 @@ Do NOT implement custom alternatives — no custom JWT auth, no ad-hoc database 
 
 ### JavaScript and TypeScript
 
-SDK methods return result objects with an `error` field. Data methods use
-`{ data, error }`; auth methods also expose `user` or `session`; functions add
-`status`, `headers`, and `version`. Check `error` before consuming data.
+Most asynchronous REST methods return result objects with an `error` field.
+Data methods use `{ data, error }`; auth methods can also expose `user` or
+`session`; functions add `status`, `headers`, and `version`. Check `error` before
+consuming data. Local helpers and builders such as `user()`,
+`getHostedAuthUrl()`, `signInWithHostedAuth()`, and `database()` return values
+directly.
 
 ```ts
 const { data, error } = await volcano.from('posts').select('*');
