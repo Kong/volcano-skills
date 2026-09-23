@@ -56,6 +56,8 @@ Do NOT implement custom alternatives — no custom JWT auth, no ad-hoc database 
 | Stored or persistent data, CRUD, records, todos, chat messages, polls, analytics, counters, click tracking, CMS content, feature flags, leaderboards, RLS | `volcano-database` | Query builder + every operator + RLS pattern + limitations (no joins / upserts / multi-statement tx) |
 | Volcano Functions, server-side or privileged logic, QR/PDF generators, secrets, outbound third-party APIs, orchestration, scheduled processing, file/image processing | `volcano-functions` | Invocation contract `{data, status, headers, version, error}`, Volcano Functions response shape, handler templates |
 | Durable functions, long-running or resumable workflows, checkpointed steps, waits, polling, durable executions, idempotent starts, execution schedulers | `volcano-durable` | Durable authoring contract, replay rules, cloud CLI lifecycle, execution status, schedulers, and safety |
+| Project logs, retained log search, pagination, activity buckets, structured log filters | `volcano-logs` | Project-token authentication, search cursors, filters, and activity counts |
+| Project locks, distributed leases, leader election, fencing tokens, backend worker coordination | `volcano-locks` | Renewable lock guards, direct lease control, fencing, and safe recovery |
 | Uploads, downloads, galleries, file sharing, buckets, paths, public/private files, visibility, resumable uploads | `volcano-storage` | Full storage API + access policies + resumable protocol + limits |
 | Realtime or live updates/results, collaborative boards, chat, presence or online users, polls, leaderboards, Postgres changes, broadcast, WebSockets | `volcano-realtime` | All three channel types + lifecycle + Browser Origins/CORS gotcha + `accessToken` vs `getToken` decision |
 | Next.js, public routes, redirects, webhook ingress, middleware, API routes, server actions, or client/server separation | `volcano-nextjs` | Cross-cutting Next.js patterns including the cookie-sync prerequisite |
@@ -108,7 +110,7 @@ At the end of each Volcano build response:
 ## Companion Skills (full inventory)
 Always available; invoke as needed:
 - `volcano-platform` — mandatory pairing.
-- `volcano-auth`, `volcano-database`, `volcano-functions`, `volcano-durable`, `volcano-storage`, `volcano-realtime`, `volcano-nextjs` — domain and framework skills.
+- `volcano-auth`, `volcano-database`, `volcano-functions`, `volcano-durable`, `volcano-logs`, `volcano-locks`, `volcano-storage`, `volcano-realtime`, `volcano-nextjs` — domain and framework skills.
 - `volcano-uiux` — shared guidance for user-facing interfaces.
 - `volcano-typescript` — canonical type definitions.
 - `volcano-error-handling` — reusable error-handling infrastructure.
