@@ -130,6 +130,22 @@ const user = volcano.auth.user();
 const { user, error } = await volcano.auth.getUser();
 ```
 
+### Read or adopt a session
+```ts
+const {
+  data: { session },
+  error,
+} = await volcano.auth.getSession();
+
+if (session?.refresh_token && session.user) {
+  const { error: adoptError } = await anotherClient.auth.setSession(session);
+}
+```
+
+`getSession()` reads a local snapshot without a request. `setSession()` requires
+a complete access token, refresh token, and user. It copies the session into
+memory without a request, persistence, or auth-state notification.
+
 ### Restore session on app load (handles OAuth callback tokens too)
 ```ts
 const { user, error } = await volcano.initialize();
@@ -150,6 +166,25 @@ const unsubscribe = volcano.auth.onAuthStateChange((user) => {
 const { session, error } = await volcano.auth.refreshSession();
 // Tokens auto-refresh; call this only for explicit forced rotation.
 ```
+
+## Hosted Auth Pages
+
+Use the hosted login or signup page when the application does not need its own
+auth form. Start through the SDK so it creates and validates the one-time state
+value.
+
+```ts
+volcano.auth.signInWithHostedAuth();
+volcano.auth.signInWithHostedAuth({ action: 'signup' });
+
+// Get the URL without navigating immediately.
+const url = volcano.auth.getHostedAuthUrl();
+window.location.assign(url);
+```
+
+Configure the project's `post_auth_redirect_url`, then call
+`volcano.initialize()` on the returned page. Do not build the hosted URL by
+hand; that omits the state binding.
 
 ## OAuth / SSO
 

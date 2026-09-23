@@ -52,7 +52,7 @@ Do NOT implement custom alternatives — no custom JWT auth, no ad-hoc database 
 
 | Task signal | Invoke skill | What it covers |
 |---|---|---|
-| User accounts or identity, email or password sign-up/sign-in, OAuth, sessions, anonymous users, password recovery, private or per-user data | `volcano-auth` | Full auth API surface, lifecycle, common-error catalog |
+| User accounts or identity, email or password sign-up/sign-in, OAuth, sessions, anonymous users, password recovery, private or per-user data | `volcano-auth` | Auth application flows, session lifecycle, and common-error catalog |
 | Stored or persistent data, CRUD, records, todos, chat messages, polls, analytics, counters, click tracking, CMS content, feature flags, leaderboards, RLS | `volcano-database` | Query builder + every operator + RLS pattern + limitations (no joins / upserts / multi-statement tx) |
 | Volcano Functions, server-side or privileged logic, QR/PDF generators, secrets, outbound third-party APIs, orchestration, scheduled processing, file/image processing | `volcano-functions` | Invocation contract `{data, status, headers, version, error}`, Volcano Functions response shape, handler templates |
 | Durable functions, long-running or resumable workflows, checkpointed steps, waits, polling, durable executions, idempotent starts, execution schedulers | `volcano-durable` | Durable authoring contract, replay rules, cloud CLI lifecycle, execution status, schedulers, and safety |
@@ -70,19 +70,31 @@ Do NOT implement custom alternatives — no custom JWT auth, no ad-hoc database 
 3. If the task is purely about project setup (no app features yet), `volcano-platform` alone is enough.
 4. If you can't decide between two domain skills, invoke both — token cost is much lower than implementing the wrong pattern.
 
-## Universal Response Pattern
-Every SDK method returns `{ data, error }` (auth methods also include `user`/`session`; functions add `status`/`headers`/`version`). Always check `error` before consuming `data`. Do NOT wrap SDK calls in try/catch expecting throws — the only SDK method that throws is `await channel.subscribe()` for realtime.
+## SDK Response Patterns
+
+### JavaScript and TypeScript
+
+SDK methods return result objects with an `error` field. Data methods use
+`{ data, error }`; auth methods also expose `user` or `session`; functions add
+`status`, `headers`, and `version`. Check `error` before consuming data.
 
 ```ts
 const { data, error } = await volcano.from('posts').select('*');
-if (error) {
-  // dispatch via handleApiError (see volcano-error-handling)
-  return;
-}
-// data is safe to use
+if (error) return;
 ```
 
-For comprehensive error-handling infrastructure (centralized dispatcher, React hooks, retry with backoff), use `volcano-error-handling`.
+Most JavaScript SDK failures are returned. Realtime `subscribe()` throws, so
+wrap that call in `try/catch`.
+
+### Python and Ruby
+
+Python and Ruby return successful values directly and raise typed SDK exceptions
+on REST or transport failure. Use `try/except` in Python and `begin/rescue` in
+Ruby at the boundary where the application can recover or report the failure.
+Do not destructure JavaScript result envelopes in these languages.
+
+For comprehensive JavaScript error-handling infrastructure, use
+`volcano-error-handling`.
 
 ## Forbidden Patterns (always)
 These apply to every Volcano build, regardless of which domain skills are loaded:
