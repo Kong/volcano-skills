@@ -144,7 +144,10 @@ channel.onPostgresChanges('UPDATE', 'public', 'posts', (c) => {
   else void reconcilePosts();
 });
 // DELETE handlers receive events only on service-key subscriptions.
-channel.onPostgresChanges('DELETE', 'public', 'posts', (c) => removePost(c.old_record?.id ?? c.id));
+channel.onPostgresChanges('DELETE', 'public', 'posts', (c) => {
+  const id = c.id ?? c.old_record?.id;
+  if (typeof id === 'string' || typeof id === 'number') removePost(id);
+});
 ```
 
 `record` is optional. Standalone clients and failed auto-fetches deliver a
@@ -160,7 +163,17 @@ const comments = realtime.channel('public:comments', { type: 'postgres', databas
 
 posts.onPostgresChanges('*', 'public', 'posts', handlePostChange);
 comments.onPostgresChanges('*', 'public', 'comments', handleCommentChange);
-await Promise.all([posts.subscribe(), comments.subscribe()]);
+const stop = () => {
+  posts.unsubscribe();
+  comments.unsubscribe();
+};
+try {
+  await Promise.all([posts.subscribe(), comments.subscribe()]);
+} catch (error) {
+  stop();
+  throw error;
+}
+// Call stop() when the consumer is done.
 ```
 
 ### RLS interaction
@@ -319,7 +332,12 @@ function startPostsSubscription() {
   const realtime = new VolcanoRealtime({
     apiUrl,
     anonKey,
-    accessToken: volcano.accessToken,
+    getToken: async () => {
+      const { session, error } = await volcano.auth.refreshSession();
+      if (error) throw error;
+      if (!session) throw new Error('No refreshed session');
+      return session.access_token;
+    },
     volcanoClient: volcano,
     databaseName,
   });
@@ -330,6 +348,8 @@ function startPostsSubscription() {
   let subscribed = false;
   let reconciling = false;
   let reconcileRequested = false;
+  let mutationReconcileRequested = false;
+  let mutationVersion = 0;
   let disposed = false;
 
   const reportError = (error) => {
@@ -356,7 +376,9 @@ function startPostsSubscription() {
     if (reconcileTimer !== undefined) window.clearTimeout(reconcileTimer);
     reconcileTimer = undefined;
     reconcileRequested = false;
+    mutationReconcileRequested = false;
     reconciling = true;
+    const queryMutationVersion = mutationVersion;
     try {
       const { data, error } = await volcano
         .from('posts')
@@ -365,11 +387,22 @@ function startPostsSubscription() {
         .limit(50);
       if (disposed) return;
       if (error) throw error;
-      setPosts(data ?? []);
+      if (queryMutationVersion === mutationVersion) setPosts(data ?? []);
     } finally {
       reconciling = false;
-      if (!disposed && reconcileRequested) scheduleReconcile();
+      if (!disposed && mutationReconcileRequested) {
+        void reconcilePosts().catch(reportError);
+      } else if (!disposed && reconcileRequested) {
+        scheduleReconcile();
+      }
     }
+  }
+
+  function reconcileAfterMutation() {
+    if (disposed) return;
+    mutationVersion += 1; // An older in-flight snapshot cannot restore a deleted row.
+    mutationReconcileRequested = true;
+    if (subscribed && !reconciling) void reconcilePosts().catch(reportError);
   }
 
   const reconcileOnFocus = () => {
@@ -426,22 +459,29 @@ function startPostsSubscription() {
     }
   })();
 
-  return stopPostsSubscription;
+  return { stop: stopPostsSubscription, reconcileAfterMutation };
 }
 
-const stopPostsSubscription = startPostsSubscription();
-// Call stopPostsSubscription() when the view unmounts.
+const postsSubscription = startPostsSubscription();
+async function deletePostAndRefresh(postId) {
+  const { error } = await volcano.delete('posts').eq('id', postId);
+  if (error) throw error;
+  postsSubscription.reconcileAfterMutation();
+}
+// Call postsSubscription.stop() when the view unmounts.
 ```
 
 Subscribing first closes the snapshot-to-subscription gap. The ordered, limited
 query alone owns view membership and order: INSERT and UPDATE events request a
 coalesced follow-up snapshot, even when they include `record`, because that row
-may be outside the newest 50 or already deleted. Each completed query publishes
+may be outside the newest 50 or already deleted. Each current query publishes
 its authoritative result; sustained events schedule later queries at a bounded
-rate. Reconcile after reconnect, after relevant mutations, immediately on focus,
-and every 30 seconds while the view is active. Stop on unmount; teardown and
-initial setup failures clear the subscription, connection, listeners, and timers,
-and a late query cannot publish state. End-user subscriptions do not receive
+rate. Call `reconcileAfterMutation()` after successful local writes (including
+deletes); it invalidates any older in-flight snapshot and refreshes immediately.
+Reconcile after reconnect, immediately on focus, and every 30 seconds while the
+view is active. Stop on unmount; teardown and initial setup failures clear the
+subscription, connection, listeners, and timers, and a late query cannot publish
+state. End-user subscriptions do not receive
 `DELETE` events; use a server-side service-key subscription when a `DELETE`
 callback is required.
 

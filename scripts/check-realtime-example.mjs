@@ -7,6 +7,8 @@ const example = skill.match(/## Initial Fetch \+ Subscribe Pattern\n```ts\n([\s\
 assert.ok(example, 'initial fetch example exists');
 const reactExample = skill.match(/## React Cleanup Pattern\n```tsx\n([\s\S]*?)\n```/)?.[1];
 assert.ok(reactExample, 'React cleanup example exists');
+const multipleTablesExample = skill.match(/### Subscribe to multiple tables[\s\S]*?```ts\n([\s\S]*?)\n```/)?.[1];
+assert.ok(multipleTablesExample, 'multiple tables example exists');
 
 const flush = async () => {
   for (let i = 0; i < 10; i += 1) await Promise.resolve();
@@ -27,6 +29,9 @@ function harness({ failAt, deferConnect = false, deferSubscribe = false } = {}) 
     rows: [], queries: [], publications: [], errors: [], timers: new Map(),
     intervals: new Map(), listeners: new Map(), handlers: new Map(),
     disconnects: 0, unsubscribes: 0, subscribes: 0, nextTimer: 1, clientActive: false,
+    tokenRefreshes: 0,
+    tokenError: null,
+    deleteError: null,
   };
   const connectAttempt = deferConnect ? deferred() : undefined;
   const subscribeAttempt = deferSubscribe ? deferred() : undefined;
@@ -52,13 +57,22 @@ function harness({ failAt, deferConnect = false, deferSubscribe = false } = {}) 
     },
   };
   class VolcanoRealtime {
-    constructor() { client = this; }
+    constructor(config) {
+      assert.equal(config.databaseName, 'app');
+      assert.equal(config.volcanoClient, volcano);
+      assert.equal(config.accessToken, undefined, 'long-lived client uses getToken');
+      assert.equal(typeof config.getToken, 'function');
+      this.getToken = config.getToken;
+      client = this;
+    }
     async connect() {
       if (connectAttempt) return connectAttempt.promise;
       state.clientActive = true;
       if (failAt === 'connect') throw new Error('connect failed');
     }
-    channel() {
+    channel(name, options) {
+      assert.equal(name, 'public:posts');
+      assert.deepEqual({ ...options }, { type: 'postgres', databaseName: 'app' });
       return {
         onPostgresChanges(type, schema, table, callback) {
           assert.equal(schema, 'public');
@@ -84,7 +98,25 @@ function harness({ failAt, deferConnect = false, deferSubscribe = false } = {}) 
   }
   const volcano = {
     accessToken: 'test-token',
+    auth: {
+      async refreshSession() {
+        state.tokenRefreshes += 1;
+        if (state.tokenError) return { session: null, error: state.tokenError };
+        return { session: { access_token: `refreshed-${state.tokenRefreshes}` }, error: null };
+      },
+    },
     database(name) { assert.equal(name, 'app'); },
+    delete(table) {
+      assert.equal(table, 'posts');
+      return {
+        async eq(field, id) {
+          assert.equal(field, 'id');
+          if (state.deleteError) return { error: state.deleteError };
+          state.rows = state.rows.filter((row) => row.id !== id);
+          return { error: null };
+        },
+      };
+    },
     from(table) {
       assert.equal(table, 'posts');
       return {
@@ -97,7 +129,8 @@ function harness({ failAt, deferConnect = false, deferSubscribe = false } = {}) 
               return {
                 limit(count) {
                   assert.equal(count, 50);
-                  return new Promise((resolve) => state.queries.push({ resolve }));
+                  const rows = [...state.rows].sort((a, b) => b.created_at - a.created_at).slice(0, 50);
+                  return new Promise((resolve) => state.queries.push({ resolve, rows }));
                 },
               };
             },
@@ -114,13 +147,13 @@ function harness({ failAt, deferConnect = false, deferSubscribe = false } = {}) 
     },
     showConnectionError(message) { state.errors.push(message); },
   };
-  vm.runInNewContext(`${example}\nglobalThis.stop = stopPostsSubscription;`, context);
+  vm.runInNewContext(`${example}\nglobalThis.subscription = postsSubscription;\nglobalThis.deletePostAndRefresh = deletePostAndRefresh;`, context);
   const nextQuery = async () => {
     const query = state.queries.shift();
     assert.ok(query, 'query was scheduled');
     query.resolve(failAt === 'snapshot'
       ? { error: new Error('snapshot failed') }
-      : { data: [...state.rows].sort((a, b) => b.created_at - a.created_at).slice(0, 50), error: null });
+      : { data: query.rows, error: null });
     await flush();
   };
   const fireTimer = async () => {
@@ -130,7 +163,9 @@ function harness({ failAt, deferConnect = false, deferSubscribe = false } = {}) 
     callback();
     await flush();
   };
-  return { state, client: () => client, stop: context.stop, flush, nextQuery, fireTimer,
+  return { state, client: () => client, stop: context.subscription.stop,
+    reconcileAfterMutation: context.subscription.reconcileAfterMutation,
+    deletePostAndRefresh: context.deletePostAndRefresh, flush, nextQuery, fireTimer,
     settleConnect(error) {
       assert.ok(connectAttempt, 'connect attempt is deferred');
       // The SDK may create its internal client after an earlier disconnect.
@@ -144,6 +179,87 @@ function harness({ failAt, deferConnect = false, deferSubscribe = false } = {}) 
       else subscribeAttempt.resolve();
     },
     emit(type, record) { state.handlers.get(type)({ record }); } };
+}
+
+{
+  const h = harness();
+  assert.equal(await h.client().getToken(), 'refreshed-1');
+  assert.equal(await h.client().getToken(), 'refreshed-2', 'token callback reads a fresh session');
+  h.state.tokenError = new Error('refresh failed');
+  await assert.rejects(h.client().getToken(), /refresh failed/);
+  h.stop();
+}
+
+{
+  const h = harness();
+  h.state.rows = [{ id: 1, created_at: 1 }];
+  await h.flush();
+  await h.nextQuery();
+  await h.deletePostAndRefresh(1);
+  assert.equal(h.state.queries.length, 1, 'local delete starts an immediate snapshot');
+  assert.equal(h.state.timers.size, 0, 'local delete does not wait for the debounce');
+  await h.nextQuery();
+  assert.deepEqual(h.state.publications.at(-1), [], 'deleted row disappears immediately');
+  h.stop();
+}
+
+{
+  const h = harness();
+  h.state.rows = [{ id: 1, created_at: 1 }];
+  await h.flush();
+  await h.deletePostAndRefresh(1); // Delete succeeds while an older snapshot is in flight.
+  await h.nextQuery();
+  assert.equal(h.state.publications.length, 0, 'pre-delete snapshot cannot publish');
+  assert.equal(h.state.queries.length, 1, 'mutation queues an immediate confirming snapshot');
+  await h.nextQuery();
+  assert.deepEqual(h.state.publications, [[]]);
+  h.stop();
+}
+
+{
+  const h = harness();
+  await h.flush();
+  await h.nextQuery();
+  h.state.deleteError = new Error('delete failed');
+  await assert.rejects(h.deletePostAndRefresh(1), /delete failed/);
+  assert.equal(h.state.queries.length, 0, 'failed mutation does not trigger reconciliation');
+  h.stop();
+}
+
+{
+  const actions = [];
+  const channels = new Map();
+  const failure = deferred();
+  const realtime = {
+    channel(name, options) {
+      assert.ok(['public:posts', 'public:comments'].includes(name));
+      assert.deepEqual({ ...options }, { type: 'postgres', databaseName: 'app' });
+      const channel = {
+        onPostgresChanges(type, schema, table) {
+          assert.equal(type, '*');
+          assert.equal(`${schema}:${table}`, name);
+        },
+        async subscribe() {
+          actions.push(`subscribe:${name}`);
+          if (name === 'public:comments') return failure.promise;
+        },
+        unsubscribe() { actions.push(`unsubscribe:${name}`); },
+      };
+      channels.set(name, channel);
+      return channel;
+    },
+  };
+  const task = vm.runInNewContext(`(async () => {\n${multipleTablesExample}\n})()`, {
+    realtime, handlePostChange() {}, handleCommentChange() {},
+  });
+  await flush();
+  failure.reject(new Error('comments failed'));
+  await assert.rejects(task, /comments failed/);
+  assert.equal(channels.size, 2);
+  assert.deepEqual(actions, [
+    'subscribe:public:posts', 'subscribe:public:comments',
+    'unsubscribe:public:posts', 'unsubscribe:public:comments',
+  ], 'a sibling failure releases both channels');
 }
 
 {
@@ -341,4 +457,4 @@ for (const stage of ['connect', 'subscribe']) {
   }
 }
 
-console.log('realtime example: OK (bounded publication, ordered cap, delete, stop, setup failures, late settlements)');
+console.log('realtime example: OK (scope, token refresh, delete reconciliation, bounded publication, cleanup, late settlements)');
