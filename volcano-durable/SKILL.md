@@ -126,6 +126,54 @@ durable operation. `durable get` shows the function's execution timeout and
 result retention. Read the plan limits documentation for operation allowance,
 operations per execution, and concurrency limits.
 
+## Start and manage executions from an application
+
+`start` accepts an application credential and returns an execution handle. An
+execution name makes retries idempotent. `get`, `list`, and `stop` are
+owner-scoped; call them from trusted backend code with a project credential.
+
+### JavaScript and TypeScript
+
+```ts
+const { data: handle, error } = await volcano.durable.start(
+  'order-pipeline',
+  { order_id: 4417 },
+  { executionName: 'order-4417' },
+);
+if (error) throw error;
+
+const { data: execution } = await volcano.durable.get(projectId, 'order-pipeline', handle.id);
+const { data: page } = await volcano.durable.list(projectId, 'order-pipeline', {
+  status: 'running',
+});
+await volcano.durable.stop(projectId, 'order-pipeline', handle.id);
+```
+
+### Python
+
+```python
+handle = client.durable.start(
+    "order-pipeline", {"order_id": 4417}, execution_name="order-4417"
+)
+execution = client.durable.get(project_id, "order-pipeline", handle.id)
+page = client.durable.list(project_id, "order-pipeline", status="running")
+client.durable.stop(project_id, "order-pipeline", handle.id)
+```
+
+### Ruby
+
+```ruby
+handle = client.durable.start(
+  "order-pipeline", { order_id: 4417 }, execution_name: "order-4417"
+)
+execution = client.durable.get(project_id, "order-pipeline", handle.id)
+page = client.durable.list(project_id, "order-pipeline", status: "running")
+client.durable.stop(project_id, "order-pipeline", handle.id)
+```
+
+Poll `get` for live state. Listings carry the last observed state. `stop` is
+asynchronous, so poll until the execution reaches a terminal status.
+
 ## Manifest
 
 ```yaml

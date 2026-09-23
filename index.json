@@ -63,7 +63,7 @@
     },
     {
       "name": "volcano-typescript",
-      "description": "Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime types, Function invocation generics, OAuth providers, middleware types, and utility types.",
+      "description": "Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime and Durable types, Function invocation generics, OAuth providers, middleware types, and utility types.",
       "path": "/skills/volcano-typescript/SKILL.md"
     }
   ]
