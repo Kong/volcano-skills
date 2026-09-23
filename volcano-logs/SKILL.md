@@ -13,6 +13,14 @@ activity counts through an SDK. Pair it with `volcano-sdk` and
 CLI log commands for one deployed function belong to `volcano-functions` or
 `volcano-durable`. This skill covers the SDK project-log facade.
 
+Use the project's language:
+
+| Project signal | SDK behavior |
+|---|---|
+| `package.json`, `.ts`, `.js` | JavaScript/TypeScript result envelopes |
+| `pyproject.toml`, `requirements.txt`, `.py` | Python values and typed exceptions |
+| `Gemfile`, `.gemspec`, `.rb` | Ruby values and typed exceptions |
+
 ## Credentials
 
 Logs require a platform token or project access token. A `read_only` project
@@ -29,7 +37,13 @@ const client = new VolcanoClient({
 });
 ```
 
+Python uses `VolcanoClient(anon_key=..., access_token=...)`. Ruby uses
+`Volcano::Client.new(anon_key: ..., access_token: ...)`. Supply the same project
+access token and API URL in each language.
+
 ## Search retained logs
+
+### JavaScript and TypeScript
 
 ```ts
 const request = {
@@ -40,11 +54,38 @@ const request = {
 
 const { data: page, error } = await client.logs.search(projectId, request);
 if (error) throw error;
+if (!page) throw new Error('Log search returned no page');
 for (const event of page.data) console.log(event.timestamp, event.body);
 ```
 
-Use `resource.ids` to select resources. Use RFC3339 `start_time` and `end_time`
-for a bounded range. Log bodies can be JSON values, not only strings.
+### Python
+
+```python
+request = {
+    "resource": {"type": "function"},
+    "q": "level:(warn OR error) body:checkout_failed",
+    "limit": 100,
+}
+page = client.logs.search(project_id, request)
+for event in page.data:
+    print(event["timestamp"], event["body"])
+```
+
+### Ruby
+
+```ruby
+request = {
+  resource: { type: "function" },
+  q: "level:(warn OR error) body:checkout_failed",
+  limit: 100
+}
+page = client.logs.search(project_id, request)
+page.data.each { |event| puts [event["timestamp"], event["body"]] }
+```
+
+Python and Ruby raise typed SDK exceptions on request or response failures. Use
+`resource.ids` to select resources. Use RFC3339 `start_time` and `end_time` for
+a bounded range. Log bodies can be JSON values, not only strings.
 
 ## Pagination
 
@@ -55,6 +96,7 @@ if (page.has_more && page.next_cursor) {
     cursor: page.next_cursor,
   });
   if (error) throw error;
+  if (!next) throw new Error('Log search returned no page');
 }
 ```
 
@@ -70,6 +112,7 @@ const { data: activity, error } = await client.logs.activity(projectId, {
   bucket_count: 24,
 });
 if (error) throw error;
+if (!activity) throw new Error('Log activity returned no data');
 console.log(activity.total, activity.data);
 ```
 

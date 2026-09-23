@@ -13,10 +13,20 @@ and `volcano-platform`.
 Locks require a service key with `locks.manage` or full access. Never expose the
 key or lease token in browser code.
 
+Use the project's language:
+
+| Project signal | SDK pattern |
+|---|---|
+| `package.json`, `.ts`, `.js` | JavaScript/TypeScript callback and result envelope |
+| `pyproject.toml`, `requirements.txt`, `.py` | Python context manager and typed exceptions |
+| `Gemfile`, `.gemspec`, `.rb` | Ruby block and typed exceptions |
+
 ## Run work while holding a lock
 
-Prefer `withLock` for work that can outlive one lease period. It renews the lease
-and releases it in `finally`.
+Prefer the automatic lease helper for work that can outlive one lease period.
+It renews the lease and releases it when the callback, context, or block exits.
+
+### JavaScript and TypeScript
 
 ```ts
 const result = await volcano.locks.withLock(
@@ -32,12 +42,33 @@ if (!result.acquired) return { skipped: true };
 The callback must stop when `signal` is aborted. Contention returns
 `{ acquired: false, error: null }`.
 
+### Python
+
+```python
+with client.locks.with_lock("daily-rollup", ttl=30) as guard:
+    run_rollup(fencing_token=guard.lease.fencing_token)
+    if guard.lost:
+        raise RuntimeError("Lock ownership was lost")
+```
+
+### Ruby
+
+```ruby
+client.locks.with_lock("daily-rollup", ttl: 30) do |guard|
+  run_rollup(fencing_token: guard.lease.fencing_token)
+  raise "Lock ownership was lost" if guard.lost?
+end
+```
+
+Python and Ruby raise typed SDK exceptions for acquisition or renewal failures.
+Stop protected work when the guard reports ownership loss.
+
 ## Manage a lease directly
 
 ```ts
 const acquired = await volcano.locks.acquire('migration', { ttl: 30 });
 if (acquired.error) throw acquired.error;
-if (!acquired.acquired) return;
+if (!acquired.acquired || !acquired.lease) return;
 
 try {
   const renewed = await volcano.locks.renew('migration', acquired.lease, { ttl: 30 });
@@ -48,8 +79,14 @@ try {
 }
 ```
 
-Use direct methods only when the existing `withLock` lifecycle does not fit.
-Keep the returned lease private because its token proves ownership.
+| JavaScript/TypeScript | Python | Ruby |
+|---|---|---|
+| `acquire`, `renew`, `release`, `get`, `forceRelease` | `acquire`, `renew`, `release`, `get`, `force_release` | `acquire`, `renew`, `release`, `get`, `force_release` |
+| returns result envelopes | returns values or raises typed exceptions | returns values or raises typed exceptions |
+
+Use direct methods only when the automatic lease lifecycle does not fit. Python
+and Ruby `renew` return a new immutable lease, so retain the returned value.
+Keep the lease private because its token proves ownership.
 
 ## Fencing tokens
 
@@ -70,9 +107,10 @@ The lease alone does not block a stale write. The storage check does.
 ```ts
 const { state, error } = await volcano.locks.get('migration');
 if (error) throw error;
-if (state.held) console.log(state.expiresAt, state.fencingToken);
+if (state?.held) console.log(state.expiresAt, state.fencingToken);
 
-await volcano.locks.forceRelease('migration');
+const released = await volcano.locks.forceRelease('migration');
+if (released.error) throw released.error;
 ```
 
 Use `forceRelease` only after stopping the old holder and confirming the
