@@ -233,12 +233,14 @@ interface RealtimeConfig {
   accessToken?: string;
   getToken?: () => Promise<string>;
   volcanoClient?: VolcanoAuth;
+  databaseName?: string;
   fetchConfig?: FetchConfig;
   webSocket?: WebSocketConstructor;
 }
 
 interface ChannelOptions {
   type?: 'broadcast' | 'presence' | 'postgres';
+  databaseName?: string;
   autoFetch?: boolean;
   fetchBatchWindowMs?: number;
   fetchMaxBatchSize?: number;
@@ -268,11 +270,13 @@ interface ErrorContext {
 ### Postgres changes
 ```ts
 interface PostgresChange {
+  id?: string | number;                // primary key in a lightweight event
+  mode?: 'lightweight';                // present when row data was not fetched
   table: string;
   schema: string;
   type: 'INSERT' | 'UPDATE' | 'DELETE';
   record?: Record<string, unknown>;       // present on INSERT/UPDATE
-  old_record?: Record<string, unknown>;   // present on UPDATE/DELETE
+  old_record?: Record<string, unknown>;   // DELETE may contain only { id }
   columns?: string[];                     // changed columns, UPDATE only
   timestamp: string;
 }
