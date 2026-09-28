@@ -114,41 +114,70 @@ realtime.onError((ctx) => {
 
 ### Setup
 ```ts
-const channel = realtime.channel('my-changes', { type: 'postgres' });
+const channel = realtime.channel('public:posts', {
+  type: 'postgres',
+  databaseName: 'app',
+});
 ```
 
-The signature is `channel.onPostgresChanges(eventType, schema, table, callback)`. The `schema` argument is the **Postgres schema name** — typically `'public'` for application tables.
+The channel name is `schema:table`, and it must match each `onPostgresChanges` handler. `databaseName` selects the project database. The SDK includes it in the wire channel and subscription data.
 
 ### Listen for ALL events on a table
 ```ts
 channel.onPostgresChanges('*', 'public', 'posts', (change) => {
   // change.type: 'INSERT' | 'UPDATE' | 'DELETE'
   // change.table, change.schema, change.timestamp
-  // INSERT: change.record
-  // UPDATE: change.record, change.old_record, change.columns
-  // DELETE: change.old_record
+  // INSERT/UPDATE: change.record when auto-fetch succeeds
+  // DELETE: available to service-key subscriptions only
 });
 await channel.subscribe();
 ```
 
 ### Filter by event type
 ```ts
-channel.onPostgresChanges('INSERT', 'public', 'messages', (c) => addMessage(c.record));
-channel.onPostgresChanges('UPDATE', 'public', 'posts', (c) => updatePost(c.record));
-channel.onPostgresChanges('DELETE', 'public', 'posts', (c) => removePost(c.old_record.id));
+channel.onPostgresChanges('INSERT', 'public', 'posts', (c) => {
+  if (c.record) addPost(c.record);
+  else void reconcilePosts(); // authoritative fallback for a lightweight event
+});
+channel.onPostgresChanges('UPDATE', 'public', 'posts', (c) => {
+  if (c.record) updatePost(c.record);
+  else void reconcilePosts();
+});
+// DELETE handlers receive events only on service-key subscriptions.
+channel.onPostgresChanges('DELETE', 'public', 'posts', (c) => {
+  const id = c.id ?? c.old_record?.id;
+  if (typeof id === 'string' || typeof id === 'number') removePost(id);
+});
 ```
 
-### Multiple tables on one channel
+`record` is optional. Standalone clients and failed auto-fetches deliver a
+lightweight event with `id` instead, so reconcile or fetch that row rather than
+dereferencing `record` unconditionally.
+
+### Subscribe to multiple tables
+Use one channel for each table:
+
 ```ts
-const channel = realtime.channel('app-changes', { type: 'postgres' });
-channel.onPostgresChanges('*', 'public', 'posts', handlePostChange);
-channel.onPostgresChanges('*', 'public', 'comments', handleCommentChange);
-channel.onPostgresChanges('*', 'public', 'reactions', handleReactionChange);
-await channel.subscribe();
+const posts = realtime.channel('public:posts', { type: 'postgres', databaseName: 'app' });
+const comments = realtime.channel('public:comments', { type: 'postgres', databaseName: 'app' });
+
+posts.onPostgresChanges('*', 'public', 'posts', handlePostChange);
+comments.onPostgresChanges('*', 'public', 'comments', handleCommentChange);
+const stop = () => {
+  posts.unsubscribe();
+  comments.unsubscribe();
+};
+try {
+  await Promise.all([posts.subscribe(), comments.subscribe()]);
+} catch (error) {
+  stop();
+  throw error;
+}
+// Call stop() when the consumer is done.
 ```
 
 ### RLS interaction
-Each user only receives events for rows their RLS policy allows them to see. Same channel, different deliveries per user.
+Each user receives only events for rows their RLS policy allows them to select. Authenticated user subscriptions do not receive DELETE events because the deleted row is unavailable for the RLS check. Service-key subscriptions bypass RLS and can receive DELETE events.
 
 ## Broadcast — ephemeral pub/sub
 Messages aren't persisted; only currently subscribed clients receive them.
@@ -296,48 +325,215 @@ import {
 
 ## Initial Fetch + Subscribe Pattern
 ```ts
-// Load initial data
-const { data: posts } = await volcano
-  .from('posts')
-  .select('*')
-  .order('created_at', { ascending: false })
-  .limit(50);
-setPosts(posts ?? []);
+const databaseName = 'app';
+volcano.database(databaseName);
 
-// Subscribe for updates
-channel.onPostgresChanges('INSERT', 'public', 'posts', (c) => {
-  setPosts((cur) => [c.record, ...cur]);
-});
-channel.onPostgresChanges('UPDATE', 'public', 'posts', (c) => {
-  setPosts((cur) => cur.map((p) => (p.id === c.record.id ? c.record : p)));
-});
-channel.onPostgresChanges('DELETE', 'public', 'posts', (c) => {
-  setPosts((cur) => cur.filter((p) => p.id !== c.old_record.id));
-});
-await channel.subscribe();
+function startPostsSubscription() {
+  const realtime = new VolcanoRealtime({
+    apiUrl,
+    anonKey,
+    getToken: async () => {
+      const { session, error } = await volcano.auth.refreshSession();
+      if (error) throw error;
+      if (!session) throw new Error('No refreshed session');
+      return session.access_token;
+    },
+    volcanoClient: volcano,
+    databaseName,
+  });
+  let channel;
+  let stopReconnectHandler = () => {};
+  let postsRefreshInterval;
+  let reconcileTimer;
+  let subscribed = false;
+  let reconciling = false;
+  let reconcileRequested = false;
+  let mutationReconcileRequested = false;
+  let mutationVersion = 0;
+  let disposed = false;
+
+  const reportError = (error) => {
+    if (!disposed) showConnectionError(error.message);
+  };
+
+  function scheduleReconcile() {
+    if (disposed) return;
+    reconcileRequested = true;
+    if (!subscribed || reconciling || reconcileTimer !== undefined) return;
+    // Coalesce sustained changes into at most one new query per 250 ms.
+    reconcileTimer = window.setTimeout(() => {
+      reconcileTimer = undefined;
+      void reconcilePosts().catch(reportError);
+    }, 250);
+  }
+
+  async function reconcilePosts() {
+    if (disposed) return;
+    if (reconciling) {
+      scheduleReconcile();
+      return;
+    }
+    if (reconcileTimer !== undefined) window.clearTimeout(reconcileTimer);
+    reconcileTimer = undefined;
+    reconcileRequested = false;
+    mutationReconcileRequested = false;
+    reconciling = true;
+    const queryMutationVersion = mutationVersion;
+    try {
+      const { data, error } = await volcano
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (disposed) return;
+      if (error) throw error;
+      if (queryMutationVersion === mutationVersion) setPosts(data ?? []);
+    } finally {
+      reconciling = false;
+      if (!disposed && mutationReconcileRequested) {
+        void reconcilePosts().catch(reportError);
+      } else if (!disposed && reconcileRequested) {
+        scheduleReconcile();
+      }
+    }
+  }
+
+  function reconcileAfterMutation() {
+    if (disposed) return;
+    mutationVersion += 1; // An older in-flight snapshot cannot restore a deleted row.
+    mutationReconcileRequested = true;
+    if (subscribed && !reconciling) void reconcilePosts().catch(reportError);
+  }
+
+  const reconcileOnFocus = () => {
+    void reconcilePosts().catch(reportError);
+  };
+
+  function stopPostsSubscription() {
+    if (disposed) return;
+    disposed = true;
+    if (reconcileTimer !== undefined) window.clearTimeout(reconcileTimer);
+    if (postsRefreshInterval !== undefined) window.clearInterval(postsRefreshInterval);
+    window.removeEventListener('focus', reconcileOnFocus);
+    stopReconnectHandler();
+    channel?.unsubscribe();
+    realtime.disconnect();
+  }
+
+  void (async () => {
+    let connectSettled = false;
+    try {
+      await realtime.connect();
+      connectSettled = true;
+      if (disposed) {
+        realtime.disconnect();
+        return;
+      }
+      channel = realtime.channel('public:posts', { type: 'postgres', databaseName });
+      // Subscribe before the first snapshot to close the snapshot-to-subscription gap.
+      channel.onPostgresChanges('INSERT', 'public', 'posts', scheduleReconcile);
+      channel.onPostgresChanges('UPDATE', 'public', 'posts', scheduleReconcile);
+      stopReconnectHandler = realtime.onConnect(() => {
+        if (!subscribed || disposed) return;
+        void channel.subscribe()
+          .then(() => {
+            if (!disposed) return reconcilePosts();
+          })
+          .catch(reportError);
+      });
+      await channel.subscribe();
+      if (disposed) return;
+      subscribed = true;
+      await reconcilePosts();
+      if (disposed) return;
+      // End users receive no DELETE event; refresh focused views periodically too.
+      window.addEventListener('focus', reconcileOnFocus);
+      postsRefreshInterval = window.setInterval(reconcileOnFocus, 30_000);
+    } catch (error) {
+      if (disposed) {
+        if (!connectSettled) realtime.disconnect();
+        return;
+      }
+      stopPostsSubscription();
+      showConnectionError(error.message);
+    }
+  })();
+
+  return { stop: stopPostsSubscription, reconcileAfterMutation };
+}
+
+const postsSubscription = startPostsSubscription();
+async function deletePostAndRefresh(postId) {
+  const { error } = await volcano.delete('posts').eq('id', postId);
+  if (error) throw error;
+  postsSubscription.reconcileAfterMutation();
+}
+// Call postsSubscription.stop() when the view unmounts.
 ```
+
+Subscribing first closes the snapshot-to-subscription gap. The ordered, limited
+query alone owns view membership and order: INSERT and UPDATE events request a
+coalesced follow-up snapshot, even when they include `record`, because that row
+may be outside the newest 50 or already deleted. Each current query publishes
+its authoritative result; sustained events schedule later queries at a bounded
+rate. Call `reconcileAfterMutation()` after successful local writes (including
+deletes); it invalidates any older in-flight snapshot and refreshes immediately.
+Reconcile after reconnect, immediately on focus, and every 30 seconds while the
+view is active. Stop on unmount; teardown and initial setup failures clear the
+subscription, connection, listeners, and timers, and a late query cannot publish
+state. End-user subscriptions do not receive
+`DELETE` events; use a server-side service-key subscription when a `DELETE`
+callback is required.
 
 ## React Cleanup Pattern
 ```tsx
 useEffect(() => {
+  let disposed = false;
   const realtime = new VolcanoRealtime({ /* ... */ });
-  realtime.connect();
-  const channel = realtime.channel('updates', { type: 'postgres' });
+  const channel = realtime.channel('public:posts', {
+    type: 'postgres',
+    databaseName: 'app',
+  });
   channel.onPostgresChanges('*', 'public', 'posts', handleChange);
-  channel.subscribe();
 
-  return () => {
+  const stop = () => {
+    if (disposed) return;
+    disposed = true;
     channel.unsubscribe();
     realtime.disconnect();
   };
+
+  void (async () => {
+    let connectSettled = false;
+    try {
+      await realtime.connect();
+      connectSettled = true;
+      if (disposed) {
+        realtime.disconnect();
+        return;
+      }
+      await channel.subscribe();
+    } catch (error) {
+      if (disposed) {
+        if (!connectSettled) realtime.disconnect();
+        return;
+      }
+      stop();
+      showConnectionError(error.message);
+    }
+  })();
+
+  return stop;
 }, []);
 ```
 
 ## Best Practices
 - **Throttle presence updates** (e.g., 1 Hz) to avoid flooding the channel.
-- **Refresh data on reconnect** — call your initial-fetch routine inside `onConnect` so missed events are reconciled.
+- **Reconcile after subscription acceptance and reconnect** — publish each authoritative snapshot, then coalesce INSERT or UPDATE events into bounded follow-up queries rather than replaying event records into an ordered, limited view.
+- **Reconcile external deletes** — end users receive no DELETE event, so refresh long-lived views on focus and a bounded periodic interval.
 - **Scope channels** to specific tables/events; broad subscriptions hurt RLS clarity and bandwidth.
-- **Combine initial fetch with subscriptions** — the user sees current state immediately and live updates apply on top.
+- **Use one database selector** — select the same `databaseName` on the query client and realtime client/channel.
+- **Handle lightweight changes** — `record` is optional; use `id` to fetch or reconcile when it is absent.
 - **Use `getToken`** for long-lived sessions instead of a static `accessToken`.
 
 ## Error Handling
@@ -366,7 +562,11 @@ try {
 ## Verification Checklist
 - Realtime is enabled for the project (`realtime: { enabled: true }` in `volcano-config.yaml`, `config deploy`d) — off by default.
 - `connect()` is paired with `disconnect()`; `subscribe()` is paired with `unsubscribe()`.
+- `connect()` is awaited before `subscribe()`; asynchronous setup cannot outlive component teardown.
 - Handlers are registered before `subscribe()`.
+- Query and realtime clients use the same database selector.
+- Postgres handlers treat `record` as optional and reconcile lightweight events.
+- Initial snapshots happen after subscription acceptance and merge events received during the query; reconnects and external deletes have reconciliation triggers.
 - Realtime behavior matches RLS expectations (per-user delivery).
 - Presence updates are throttled when bound to high-frequency events.
 - Dependencies: `centrifuge` is present; `ws` only when Node-side realtime is used.

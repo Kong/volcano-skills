@@ -45,6 +45,8 @@ jobs:
           node-version: 24
       - name: Validate skill catalog
         run: node scripts/check-skills.mjs
+      - name: Validate realtime examples
+        run: node scripts/check-realtime-example.mjs
 
   notify:
     # Gate: dispatch only after validate clears, and only on main. On PRs the
