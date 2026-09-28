@@ -308,7 +308,7 @@ volcano cloud durable schedulers disable order-pipeline <scheduler-id>
 volcano cloud durable schedulers enable order-pipeline <scheduler-id>
 ```
 
-Schedulers require Pro. A tick can overlap a running execution and uses the
+Schedulers require SUPERAGENT. A tick can overlap a running execution and uses the
 same execution allowance, operation allowance, and concurrency cap as a manual
 start.
 
