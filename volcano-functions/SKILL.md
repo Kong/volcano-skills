@@ -1,6 +1,6 @@
 ---
 name: volcano-functions
-description: Use for Volcano server-side Functions and privileged or secret-bearing logic, including function invocation, generators such as QR codes or PDFs, outbound third-party APIs, orchestration, scheduled processing, and file or image processing.
+description: Use for Volcano server-side Functions and privileged or secret-bearing logic, including function invocation and visibility, functions served under a frontend path, generators such as QR codes or PDFs, outbound third-party APIs, orchestration, scheduled processing, and file or image processing.
 ---
 # Volcano Functions Skill
 
@@ -56,6 +56,89 @@ Functions automatically receive the caller's identity in `event.__volcano_auth`:
 - `auth.access_token` — server-injected bearer token; use to call other Volcano APIs on the user's behalf.
 
 If `__volcano_auth` is absent, the request is unauthenticated.
+
+## Who Can Invoke a Function
+
+Each function has a visibility level. **New functions are `private`**, so a
+browser app's `volcano.functions.invoke(...)` is refused with `403` until you
+choose a wider level.
+
+| Visibility | Who can invoke it | Use it for |
+|---|---|---|
+| `private` (default) | Service keys and schedulers | Scheduled jobs, admin tasks, functions only your server code calls |
+| `authenticated` | Also the project's signed-in users, including anonymous sign-ins | Functions your app calls on behalf of a signed-in user |
+| `public` | Also anon keys with `functions.invoke`, and frontend function routes | Code that must work before sign-in: public forms, webhooks, a session endpoint behind a frontend route |
+
+- Pick the narrowest level that works. Most app functions are `authenticated`.
+- `authenticated` still lets any signed-in user call the function. Check
+  `__volcano_auth` and enforce ownership in the handler or through RLS.
+- A `public` function is reachable without a user. Validate every input and
+  never trust identity claims from the request body.
+- Set the level in `volcano-config.yaml` (see `volcano-platform`) or with the
+  CLI. Changing a level is a permission change: ask the user before doing it
+  on a cloud project.
+
+```yaml
+# volcano-config.yaml
+version: 1
+functions:
+  - name: get-my-posts
+    visibility: authenticated
+  - name: nightly-report
+    visibility: private
+```
+
+```sh
+volcano functions update get-my-posts --visibility authenticated          # local
+volcano cloud functions update get-my-posts --visibility authenticated    # cloud
+```
+
+`--private` is no longer accepted: it used to mean what `authenticated` means
+now. Write the level you want.
+
+### Serve a function under a frontend path
+
+A frontend function route forwards every request under a path of your
+frontend, such as `/api/session`, to an HTTP-mode function. The browser stays
+on the frontend's origin, so the function can keep a session in `HttpOnly`
+cookies and the page never handles an access token.
+
+```yaml
+# volcano-config.yaml
+version: 1
+functions:
+  - name: session
+    visibility: public          # routes require public
+    invocation_mode: http
+frontends:
+  - name: web
+    function_routes:
+      - function: session
+        path_prefix: /api/session
+        strip_prefix: true      # GET /api/session/me reaches the function as /me
+```
+
+- The target must be `public` with `invocation_mode: http`. Volcano refuses
+  the route otherwise, and refuses to make a routed function non-public.
+- A routed request carries no Volcano identity: `__volcano_auth` is never set,
+  even when the visitor sends a valid token. The function authenticates its
+  callers itself, typically by exchanging credentials with Volcano auth and
+  keeping the tokens in `__Host-` cookies with
+  `Path=/; Secure; HttpOnly; SameSite=Strict` and no `Domain`.
+- Other frontends count as the same site, and routed responses follow the
+  project's CORS settings. Refuse any request whose `Sec-Fetch-Site` isn't
+  `same-origin` (or whose `Origin` isn't the site's own), GETs included, and
+  require a CSRF token on every state-changing request.
+- An HTTP-mode handler reads `event.method`, `event.path`, `event.headers`
+  (each value is an array), and `event.body` (base64 when
+  `event.is_base64_encoded` is true). Return several cookies through
+  `multiValueHeaders`:
+  `{ statusCode: 200, multiValueHeaders: { "Set-Cookie": [a, b] }, body }`.
+- Manage routes from the manifest, or with
+  `volcano cloud frontends routes create web --path /api/session --function session --strip-prefix`.
+  The CLI deploys frontends only to cloud, so test routes there.
+- `volcano docs search "function routes"` finds the full session example,
+  including sign-in, sign-out, and the CSRF check.
 
 ## Handler Templates
 

@@ -24,6 +24,8 @@ Realtime is **disabled by default for every project — local and cloud alike**
 (`enabled: false`). Until you enable it, every connection is rejected with
 `realtime disabled for project`. Declare it in `volcano-config.yaml` and deploy:
 ```yaml
+# volcano-config.yaml
+version: 1
 realtime:
   enabled: true                     # required — off by default
   # broadcast_enabled: true         # optional, default true

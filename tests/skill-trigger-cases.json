@@ -156,6 +156,34 @@
         { "skill": "volcano-platform", "signals": ["Volcano"] },
         { "skill": "volcano-locks", "signals": ["distributed lock", "renewable lease", "fencing token", "backend workers"] }
       ]
+    },
+    {
+      "id": "scheduler-only-function",
+      "prompt": "Build a nightly report function with Volcano that only schedulers can invoke, not signed-in users",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-functions", "signals": ["function"] }
+      ]
+    },
+    {
+      "id": "frontend-path-cookie-session",
+      "prompt": "Serve a Volcano function under my frontend path with cookie auth for sign-in",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano", "frontend"] },
+        { "skill": "volcano-functions", "signals": ["frontend path", "function"] },
+        { "skill": "volcano-auth", "signals": ["sign-in"] }
+      ]
+    },
+    {
+      "id": "manifest-function-routes",
+      "prompt": "Add function_routes for my Volcano frontend to volcano-config.yaml",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["volcano-config.yaml"] },
+        { "skill": "volcano-functions", "signals": ["function"] }
+      ]
     }
   ]
 }
