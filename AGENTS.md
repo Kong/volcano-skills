@@ -319,7 +319,7 @@ never a diagnostic detour.
 - Deletions: any `... delete` (local or cloud)
 - Local data reset: `volcano reset` (drops all local databases + local platform data; local-only but destructive and not recoverable — confirm first, then re-deploy migrations)
 - Secret / variable changes: `volcano cloud variables deploy`
-- Permission / visibility changes: `volcano cloud functions update --public|--private`, storage policies, custom domains
+- Permission / visibility changes: `volcano cloud functions update --visibility`, `volcano cloud frontends routes`, storage policies, custom domains
 - Billing / account changes: plan changes, account promotion
 
 When in doubt, treat the action as confirm-first.

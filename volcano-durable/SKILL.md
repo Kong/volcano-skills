@@ -208,11 +208,12 @@ asynchronous, so poll until the execution reaches a terminal status.
 ## Manifest
 
 ```yaml
+# volcano-config.yaml
 version: 1
 functions:
   - name: order-pipeline
     kind: durable
-    public: false
+    visibility: private
     variable_scope: scoped
     variables: [PAYMENTS_API_KEY]
 ```
@@ -222,8 +223,11 @@ Rules:
 - `kind` is an assertion. Config deploy rejects a mismatch.
 - Do not set `invocation_mode`, `http_auth_mode`, or `openapi_spec` on a durable
   function. Durable functions have no synchronous HTTP invocation path.
-- `public: true` lets an anon key start executions. It does not let that key
-  read results or stop executions.
+- `visibility` decides who can start executions: `private` (the default for
+  new functions) admits service keys and schedulers, `authenticated` adds the
+  project's signed-in users, and `public` adds anon keys with
+  `functions.invoke`. No level lets an end user or anon key read results or
+  stop executions.
 - A declared `schedulers` list is fully synced by config deploy. Omitted entries
   are deleted.
 
@@ -268,8 +272,9 @@ login, project selection, variables, and config deployment.
 # Deploy every manifest entry marked durable.
 volcano cloud durable deploy --all
 
-# Or deploy one source. Visibility flags work only with -f.
-volcano cloud durable deploy -f order-pipeline --private
+# Or deploy one source. --visibility works only with -f; leave it out to keep
+# the current level.
+volcano cloud durable deploy -f order-pipeline --visibility authenticated
 
 # Deployment is asynchronous. Wait for active before starting work.
 volcano cloud durable get order-pipeline
