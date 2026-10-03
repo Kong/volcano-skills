@@ -66,7 +66,7 @@ choose a wider level.
 | Visibility | Who can invoke it | Use it for |
 |---|---|---|
 | `private` (default) | Service keys and schedulers | Scheduled jobs, admin tasks, functions only your server code calls |
-| `authenticated` | Also the project's signed-in users | Functions your app calls on behalf of a signed-in user |
+| `authenticated` | Also the project's signed-in users, including anonymous sign-ins | Functions your app calls on behalf of a signed-in user |
 | `public` | Also anon keys with `functions.invoke`, and frontend function routes | Code that must work before sign-in: public forms, webhooks, a session endpoint behind a frontend route |
 
 - Pick the narrowest level that works. Most app functions are `authenticated`.
@@ -123,16 +123,20 @@ frontends:
 - A routed request carries no Volcano identity: `__volcano_auth` is never set,
   even when the visitor sends a valid token. The function authenticates its
   callers itself, typically by exchanging credentials with Volcano auth and
-  keeping the tokens in `__Host-` cookies with `Secure; HttpOnly; SameSite=Strict`.
-- Require a CSRF token on every state-changing request.
+  keeping the tokens in `__Host-` cookies with
+  `Path=/; Secure; HttpOnly; SameSite=Strict` and no `Domain`.
+- Other frontends count as the same site, and routed responses follow the
+  project's CORS settings. Refuse any request whose `Sec-Fetch-Site` isn't
+  `same-origin` (or whose `Origin` isn't the site's own), GETs included, and
+  require a CSRF token on every state-changing request.
 - An HTTP-mode handler reads `event.method`, `event.path`, `event.headers`
   (each value is an array), and `event.body` (base64 when
   `event.is_base64_encoded` is true). Return several cookies through
   `multiValueHeaders`:
   `{ statusCode: 200, multiValueHeaders: { "Set-Cookie": [a, b] }, body }`.
-- Routes work in local mode too, where the frontend answers on
-  `*.frontends.localhost`. Manage them from the manifest, or on cloud with
+- Manage routes from the manifest, or with
   `volcano cloud frontends routes create web --path /api/session --function session --strip-prefix`.
+  The CLI deploys frontends only to cloud, so test routes there.
 - `volcano docs search "function routes"` finds the full session example,
   including sign-in, sign-out, and the CSRF check.
 
