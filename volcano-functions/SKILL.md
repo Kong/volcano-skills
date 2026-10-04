@@ -60,8 +60,9 @@ If `__volcano_auth` is absent, the request is unauthenticated.
 ## Who Can Invoke a Function
 
 Each function has a visibility level. **New functions are `private`**, so a
-browser app's `volcano.functions.invoke(...)` is refused with `403` until you
-choose a wider level.
+browser app's `volcano.functions.invoke(...)` gets `404`, as if the function
+didn't exist, until you choose a wider level. An anon key on an
+`authenticated` function gets `403`.
 
 | Visibility | Who can invoke it | Use it for |
 |---|---|---|

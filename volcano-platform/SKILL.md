@@ -724,8 +724,10 @@ Easy wrong guesses to avoid (all verified against the SDK):
   is `session.access_token`, not `data.session.access_token`.
 - `functions.invoke(name, payload)` returns `{ data, status, headers, version,
   error }` — check `error` and `status` before trusting `data`.
-- A `403` with `function is private` means the function refuses user tokens.
-  If the app should call it as the signed-in user, declare
+- A `404` for a function you deployed usually means it is `private`: it looks
+  missing to everyone but service keys and schedulers, so check its
+  `visibility` before redeploying. If the app should call it as the signed-in
+  user, declare
   `visibility: authenticated` for it in `volcano-config.yaml` and run
   `volcano config deploy`. If it's meant for schedulers or server code only,
   keep it private and call it from there; never ship a service key to the
