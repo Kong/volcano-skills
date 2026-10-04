@@ -338,7 +338,8 @@ cloud state.
 1. Run `durable get <name>` with the correct prefix and inspect status.
 2. For deploy failure, run `durable logs <name> --type build`.
 3. For execution failure, run `durable logs <name> --type runtime`.
-4. A `404` can mean the name belongs to the standard function collection.
+4. A `404` can mean the name belongs to the standard function collection, or
+   the durable function is `private` and the caller isn't a service key.
 5. A start during provisioning returns `409`; wait for `active`.
 6. A `429` means a concurrency or durable allowance limit blocked the start.
 7. A scheduler `403` can mean the project plan does not include schedulers.

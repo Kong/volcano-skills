@@ -61,8 +61,10 @@ If `__volcano_auth` is absent, the request is unauthenticated.
 
 Each function has a visibility level. **New functions are `private`**, so a
 browser app's `volcano.functions.invoke(...)` gets `404`, as if the function
-didn't exist, until you choose a wider level. An anon key on an
-`authenticated` function gets `403`.
+didn't exist, until you choose a wider level. `invoke` resolves the name
+first, and that lookup answers `404` to any caller the level refuses, so an
+anon key on an `authenticated` function also gets `404` by name. Only a
+direct invoke by function id answers it `403`.
 
 | Visibility | Who can invoke it | Use it for |
 |---|---|---|
@@ -127,12 +129,16 @@ frontends:
   keeping the tokens in `__Host-` cookies with
   `Path=/; Secure; HttpOnly; SameSite=Strict` and no `Domain`.
 - Other frontends count as the same site, and routed responses follow the
-  project's CORS settings. Refuse any request whose `Sec-Fetch-Site` isn't
-  `same-origin` (or whose `Origin` isn't the site's own), GETs included, and
-  require a CSRF token on every state-changing request.
-- An HTTP-mode handler reads `event.method`, `event.path`, `event.headers`
-  (each value is an array), and `event.body` (base64 when
-  `event.is_base64_encoded` is true). Return several cookies through
+  project's CORS settings. Refuse any request whose `Sec-Fetch-Site` is
+  neither `same-origin` nor `none` (a page the visitor opened directly), GETs
+  included. Older browsers omit the header; then refuse an `Origin` that is
+  present and isn't the site's own. Require a CSRF token on every
+  state-changing request.
+- An HTTP-mode handler reads `event.method`, `event.path`, `event.headers`,
+  and `event.body` (base64 when `event.is_base64_encoded` is true). Header
+  names arrive in canonical case (`Sec-Fetch-Site`) and every value is an
+  array, so look names up case-insensitively and join the values, as the
+  documented session example does. Return several cookies through
   `multiValueHeaders`:
   `{ statusCode: 200, multiValueHeaders: { "Set-Cookie": [a, b] }, body }`.
 - Manage routes from the manifest, or with
