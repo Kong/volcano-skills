@@ -125,19 +125,30 @@ just hangs until it times out. Instead:
    async/background exec).
 2. Poll its streaming output (Claude Code: `BashOutput`) until the `Code:` and
    browser URL appear — read the **full** output, since many harnesses truncate.
-3. **Immediately** surface them to the user in this format (its own message, URL on
-   its own line):
+3. **Immediately** surface the code and URL in their own message, with the URL on its own line. Copy the exact URL printed after `Opening browser:`. Do not construct a URL from `VOLCANO_WEB_URL`, change the host or path, or remove query parameters. Apply this rule to both login and signup.
 
+Example login output (project ID and key are placeholders):
+
+```text
+Code: ABCD-EFGH
+Opening browser: https://api.volcano.dev/projects/<project-id>/auth/hosted?action=device&user_code=ABCD-EFGH&anon_key=<anon-key>
+Waiting for authentication
 ```
+
+Relay that output as:
+
+```text
 ------------------------------------------------------------
 ACTION REQUIRED — Volcano CLI authentication
 
-  Code:  XXXX-XXXX
+  Code:  ABCD-EFGH
 
   Open in your browser and approve:
-  ${VOLCANO_WEB_URL:-https://volcano.dev}/device?user_code=XXXX-XXXX
+  https://api.volcano.dev/projects/<project-id>/auth/hosted?action=device&user_code=ABCD-EFGH&anon_key=<anon-key>
 ------------------------------------------------------------
 ```
+
+Use the running CLI's code and URL, not the example values. Signup can print a different URL; copy it unchanged.
 
 4. Then keep reading the background command until it exits; a zero exit means the
    user approved and you're now authenticated. Don't paraphrase or bury the URL.
