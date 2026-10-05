@@ -125,17 +125,16 @@ just hangs until it times out. Instead:
    async/background exec).
 2. Poll its streaming output (Claude Code: `BashOutput`) until the `Code:` and
    browser URL appear — read the **full** output, since many harnesses truncate.
-3. **Immediately** surface them to the user in this format (its own message, URL on
-   its own line):
+3. **Immediately** surface them to the user in this format (its own message, URL on its own line). Replace the placeholders with the code and the exact URL printed after `Opening browser:`. Do not construct a URL from `VOLCANO_WEB_URL`, change the host or path, or remove query parameters. Apply this rule to both login and signup.
 
-```
+```text
 ------------------------------------------------------------
 ACTION REQUIRED — Volcano CLI authentication
 
   Code:  XXXX-XXXX
 
   Open in your browser and approve:
-  ${VOLCANO_WEB_URL:-https://volcano.dev}/device?user_code=XXXX-XXXX
+  <exact URL printed by the CLI>
 ------------------------------------------------------------
 ```
 
