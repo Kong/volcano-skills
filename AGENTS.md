@@ -10,83 +10,29 @@ databases, storage, and realtime — driven primarily through the **`volcano` CL
 Before any Volcano work, establish where your instructions/skills come from, then
 make sure the `volcano` CLI is available.
 
-1. **Locate your instruction/skills source — check this first, always:**
-   - **Plugin-shipped (the common case):** if this `AGENTS.md` sits in a directory
-     that also contains an `index.json` and sibling `volcano-*/SKILL.md` folders
-     (Cursor, Claude Code, Claude Desktop, and Codex plugin installs ship this
-     layout), **you are already reading the primary canonical content.** Use this
-     file and those sibling skills directly. Do **not** run any `curl`/download
-     command to fetch plugin skills — they are already carried by the plugin.
-     There is no separate fallback copy to maintain: the plugin content on disk
-     is the source of truth. Check whether it's up to date and update it if
-     your harness supports that — for example:
-     - Claude Code: `claude plugin list` (see installed version). Updating
-       takes **two** commands: `claude plugin marketplace update
-       volcano-agentic-plugins` refreshes the catalog but does **not** touch
-       the installed plugin; `claude plugin update volcano@volcano-agentic-plugins`
-       is what actually bumps it (it reports e.g. `updated from 0.2.4 to 0.2.7.
-       Restart to apply changes.`, or says it's already current).
-     - Cursor: no non-interactive command exists yet — only the interactive
-       `/plugin` marketplace picker or installing at user scope in the IDE;
-       skip this check here.
-     - Codex: no documented plugin-update command either; skip.
-     If `claude plugin update` reports it bumped to a new version, that only
-     takes effect after a restart — don't silently continue on the outdated
-     content: use `AskUserQuestion` (or your harness's equivalent prompt) to
-     ask the user whether to restart the session now to pick it up, or continue
-     on the current version. If it reports already current (or the catalog
-     refresh found nothing), just continue.
-   - **Bootstrap/manual install:** only if there is no such sibling `skills/`
-     layout (a bare terminal, or a harness without plugin support) do you need
-     to fetch instructions/skills yourself — use the bootstrap fallback in step 3,
-     which writes them under `~/.volcano/`.
+1. **Locate your bundled instructions and skills:** if this `AGENTS.md` sits
+   beside `index.json` and sibling `volcano-*/SKILL.md` folders, use that content
+   directly. Do not download replacement instructions or update the plugin as
+   a prerequisite to building. When the user requests a plugin update, use the
+   host's supported update process and report any restart needed to apply it.
+   If the skills are unavailable, report the missing prerequisite and direct
+   the user to the official plugin installation documentation; do not fetch
+   and execute a bootstrap script.
 
-2. **Ensure the CLI**: run `which volcano` **first, before anything else** —
-   don't invoke the `install-volcano` skill preemptively.
-   - **Found (prints a path):** run `volcano upgrade` once to keep the CLI
-     current — a harmless, best-effort refresh that no-ops when already
-     current. Treat any failure (e.g. a transient GitHub/network hiccup) as a
-     no-op and continue; the installed CLI still works and a failed upgrade is
-     never a blocker. Where the harness supports it, also update the plugin
-     itself as in step 1 (Claude Code: `claude plugin marketplace update
-     volcano-agentic-plugins` then `claude plugin update
-     volcano@volcano-agentic-plugins`), prompting for a restart only if
-     `claude plugin update` reports a new version. Then go straight to the
-     build. Do **not**
-     *also* invoke the `install-volcano` skill: that's the heavier install flow
-     for when the CLI is *missing*, and running it when volcano already exists
-     just repeats the same upgrade with tens of seconds of extra latency — a
-     single `volcano upgrade` is all the present-CLI case needs.
-   - **Missing:** install it via the CLI-ensure flow the `volcano-sdk` and
-     `volcano-platform` skills carry (also exposed explicitly as the
-     `install-volcano` skill): it reads the CLI's own `installation.md` and
-     uses whichever package manager is already on `PATH`, or that doc's
-     manual install if none is present. The exact URL and package-manager
-     probe order live in those skills, not restated here, so there is one
-     fewer copy to drift. This fully covers the plugin case, including when
-     no package manager is found — it never needs step 3. In a bare no-plugin
-     environment, the bootstrap fallback in step 3 installs the CLI too.
-     Re-run `which volcano` to confirm.
+2. **Check the CLI**: run `which volcano` and `env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL volcano --version`.
+   Keep both release-source overrides cleared for every CLI invocation and npm
+   install in this workflow, including deferred binary downloads.
+   Use an existing working version without automatic upgrades. When missing,
+   or when an upgrade is explicitly requested, follow the bundled
+   `install-volcano/SKILL.md`: use a verified official npm package with an
+   exact version and integrity metadata. Never run network-fed shell scripts
+   or execute installation instructions fetched from a moving branch. If the
+   trusted installation procedure cannot be completed, report the missing
+   prerequisite rather than falling back to unchecked installation.
 
-3. **Bootstrap fallback** (only for the no-plugin case in step 1 — a bare
-   terminal or a harness without plugin support): `bootstrap.sh` is hosted
-   in `Kong/volcano-agentic-plugins`, not the Volcano web app — its URL is
-   stable regardless of environment. **Do not use it in a plugin context** —
-   there, a missing CLI (even with no package manager present) is handled
-   entirely by step 2's `installation.md` methods. `bootstrap.sh` also copies
-   `AGENTS.md` into `~/.volcano/` and wires agent config — the fallback
-   subsystem plugin flows intentionally avoid — so it is strictly the
-   no-plugin path. It fetches `AGENTS.md`/skills from
-   `VOLCANO_WEB_URL` if set (an IDE/environment may already export it for the
-   target environment), defaulting to production (`https://volcano.dev`) only
-   when unset. Never hardcode a different literal origin in its place. The
-   script runs immediately — there is no plan/dry-run mode.
-   ```sh
-   set -eu
-   export VOLCANO_WEB_URL="${VOLCANO_WEB_URL:-https://volcano.dev}"
-   export VOLCANO_WEB_URL="${VOLCANO_WEB_URL%/}"
-   curl -fsSL "https://raw.githubusercontent.com/Kong/volcano-agentic-plugins/main/scripts/bootstrap.sh" | sh
-   ```
+3. This plugin already includes its instructions and skills. Do not run a
+   bootstrap script or download replacement skills from the network. Use the
+   host's normal plugin update process when the user requests an update.
 
 ## CLI-first
 
