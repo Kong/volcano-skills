@@ -28,7 +28,7 @@
     },
     {
       "name": "volcano-durable",
-      "description": "Use for Volcano durable functions, long-running or resumable workflows, checkpointed steps, waits, polling, durable executions, idempotent starts, and durable function schedulers.",
+      "description": "Use for Volcano durable functions, long-running or resumable workflows, checkpointed steps, waits, human approvals, polling, durable executions, idempotent starts, and durable function schedulers.",
       "path": "/skills/volcano-durable/SKILL.md"
     },
     {

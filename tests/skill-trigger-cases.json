@@ -140,6 +140,15 @@
       ]
     },
     {
+      "id": "durable-human-approval",
+      "prompt": "Build a refund workflow that pauses for a human approval before paying out using Volcano",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-durable", "signals": ["human approval", "workflow"] }
+      ]
+    },
+    {
       "id": "project-log-reader",
       "prompt": "Build a server-side Volcano project logs reader with retained log search and pagination",
       "expected": [
