@@ -6,8 +6,12 @@ description: Use for every Volcano project build, scaffold, local run, test, or 
 
 ## Before anything else: check the Volcano CLI
 
-Run `which volcano` and `volcano --version`. If a working CLI is installed,
-record its version and continue without upgrading it. If it is missing, read
+Run `which volcano` and
+`env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL volcano --version`.
+If a working CLI is installed,
+record its version and continue without upgrading it. Keep both release-source
+overrides cleared for every CLI invocation and npm install in this workflow,
+including deferred binary downloads. If it is missing, read
 the bundled `../install-volcano/SKILL.md` and follow its exact-version package
 verification procedure. Do not fetch and execute installation instructions,
 run remote shell installers, or use a moving release or branch as an executable

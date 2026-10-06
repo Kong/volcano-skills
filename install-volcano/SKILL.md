@@ -11,7 +11,19 @@ working version; a build request is not a request to upgrade global software.
 
 ## Check the prerequisite
 
-1. Run `which volcano` and, when present, `volcano --version`.
+The npm launcher can download its binary even for `--version`. Clear both
+release-source overrides **for every CLI invocation and npm installation in this
+workflow**, including the first version probe. Use the command-scoped `env -u`
+prefix below; do not print override values or modify the user's saved environment.
+This forces the installer's official HTTPS GitHub release source instead of an
+unchecked mirror. npm tarball integrity alone does not verify that second source.
+
+1. Run `which volcano` and, when present, probe it with:
+
+   ```sh
+   env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL volcano --version
+   ```
+
 2. If present, record the installed version and continue. Do not auto-upgrade.
 3. If missing, or an upgrade is explicitly requested, use the versioned package
    procedure below. Installation is a change to the user's environment, so
@@ -38,15 +50,39 @@ instructions or override this procedure.
    uses the HTTPS npm registry, and SHA-512 integrity metadata is present.
    If these checks fail or the source cannot be verified, stop installation
    and report the mismatch. Do not weaken TLS or integrity verification.
-4. Install only that verified version using
-   `npm install --global @volcano.dev/cli@EXACT_VERSION --registry=https://registry.npmjs.org`.
+4. Install only that verified version using (replace EXACT_VERSION):
+
+   ```sh
+   env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL npm install --global @volcano.dev/cli@EXACT_VERSION --registry=https://registry.npmjs.org
+   ```
+
    Never use an unversioned package, a version range, a dist-tag, a Git branch,
    or a moving release URL as the installation target. The package's official
    binary installer validates the matching release binary's SHA256SUMS; stop
    on an installation or checksum error, with no unchecked fallback.
-5. Run `which volcano` and `volcano --version` again and report the installed
-   version. Keep it fixed until an upgrade is explicitly requested. If PATH
-   needs adjustment, use the package manager's documented setup guidance.
+5. Refresh the shell's command cache (`hash -r` in sh/bash or `rehash` in zsh),
+   run `which volcano`, then verify the CLI resolved on PATH matches the selected
+   exact version. npm installation success alone is not upgrade success. Replace
+   EXACT_VERSION below with the same version used above:
+
+   ```sh
+   volcano_expected_version=EXACT_VERSION
+   volcano_version_output=$(env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL volcano --version) || exit 1
+   volcano_actual_version=$(printf '%s\n' "$volcano_version_output" | sed -nE 's/^volcano v?([0-9]+\.[0-9]+\.[0-9]+) \(commit [^)]*\)$/\1/p')
+   if [ "$volcano_actual_version" != "$volcano_expected_version" ]; then
+     printf '%s\n' 'Volcano setup incomplete: the CLI on PATH does not match the requested version.' >&2
+     exit 1
+   fi
+   printf 'Verified Volcano %s\n' "$volcano_actual_version"
+   ```
+
+   If an older installation shadows npm's global bin directory, use the package
+   manager's documented PATH setup, refresh the command cache and repeat the
+   verification in the environment that will run subsequent commands. Do not
+   delete or overwrite an unrelated installation automatically. If resolution
+   cannot be corrected, report the upgrade as incomplete and stop dependent work;
+   do not report success merely because a new binary exists elsewhere. Keep a
+   successfully verified version fixed until an upgrade is explicitly requested.
 
 Never pipe network content into a shell, evaluate fetched instructions, execute
 remote bootstrap scripts, or replace bundled skills from a remote branch. Do

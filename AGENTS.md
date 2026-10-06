@@ -19,7 +19,9 @@ make sure the `volcano` CLI is available.
    the user to the official plugin installation documentation; do not fetch
    and execute a bootstrap script.
 
-2. **Check the CLI**: run `which volcano` and `volcano --version`.
+2. **Check the CLI**: run `which volcano` and `env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL volcano --version`.
+   Keep both release-source overrides cleared for every CLI invocation and npm
+   install in this workflow, including deferred binary downloads.
    Use an existing working version without automatic upgrades. When missing,
    or when an upgrade is explicitly requested, follow the bundled
    `install-volcano/SKILL.md`: use a verified official npm package with an

@@ -47,6 +47,8 @@ jobs:
           node-version: 24
       - name: Validate skill catalog
         run: node scripts/check-skills.mjs
+      - name: Verify CLI setup safety regressions
+        run: node --test tests/cli-setup.test.mjs
 
   notify:
     # Gate: dispatch only after validate clears, and only on main. On PRs the
