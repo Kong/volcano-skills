@@ -4,29 +4,16 @@ description: Use for any request to build, create, extend, debug, or deploy an a
 ---
 # Volcano SDK Entrypoint
 
-## Before anything else: ensure the Volcano CLI is present
+## Before anything else: check the Volcano CLI
 
-Every Volcano build and deploy goes through the `volcano` CLI, so make sure it
-is present and up to date before writing or deploying anything:
-
-- Run `which volcano`.
-  - **Found:** run `volcano upgrade` to keep it on the latest version. This is
-    a harmless, best-effort refresh — it no-ops when already current. Treat any
-    failure (e.g. a transient network/GitHub hiccup) as a no-op and continue:
-    the installed CLI still works, a failed upgrade is never a blocker, and it
-    is not worth troubleshooting.
-  - **Missing:** fetch
-    `https://raw.githubusercontent.com/Kong/volcano-cli/main/docs/installation.md`
-    (plain Markdown, readable without the CLI) and run whichever install method
-    it documents that matches a package manager already on `PATH` — check
-    `which npm`, `which pnpm`, `which bun`, `which brew` in that order, and only
-    use the documented manual `curl` install if none are present. A fresh
-    install is already the latest version. Re-run `which volcano` to confirm.
-
-These are well-known commands to run as-is, not a script to reconstruct. Don't
-assume a package manager that isn't installed, and don't invent steps beyond
-what that doc lists. The `install-volcano` skill exposes this same flow as an
-explicit command.
+Run `which volcano` and `volcano --version`. If a working CLI is installed,
+record its version and continue without upgrading it. If it is missing, read
+the bundled `../install-volcano/SKILL.md` and follow its exact-version package
+verification procedure. Do not fetch and execute installation instructions,
+run remote shell installers, or use a moving release or branch as an executable
+source. Only upgrade when the user requests it, using the same verified,
+versioned installation procedure. If installation cannot be verified, report
+the prerequisite and continue only with independent work.
 
 ## Role
 This skill is the **entrypoint and router** for Volcano SDK work. It is intentionally slim: it tells you the mandatory rules that apply to every Volcano build, and which other `volcano-*` skill to use based on the task at hand. Don't try to do deep work from this skill alone — use the relevant domain skill(s) first.
