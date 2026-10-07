@@ -535,6 +535,27 @@ rollback step for a failed `config deploy` — neither exists or is needed:
   plan-gated field, etc.) and re-run the same command — don't try to track or
   hand-edit applied state anywhere.
 
+### Custom domains (cloud only)
+
+A frontend custom domain, attached with `volcano cloud frontends domain create`
+or a manifest `frontends[].custom_domain` entry, must sit at or below a domain
+the account has verified. Verify once per domain: every name below it is then
+covered, in managed or BYOC TLS, in any of the account's projects.
+
+```bash
+volcano cloud domains verify example.com   # fails and prints the TXT record to publish
+# the user publishes the printed _volcano.example.com TXT record with their DNS provider
+volcano cloud domains verify example.com   # succeeds once DNS serves the record
+volcano cloud domains list
+```
+
+- Only the user can publish DNS records. Relay the exact record the CLI prints;
+  never invent its value or reuse one from another domain or account.
+- An unverified attach or `config deploy` fails with the same record. Verify,
+  then re-run the same command.
+- A domain another account verified stays theirs until their record is gone
+  from DNS. Local mode serves no custom domains, so `volcano domains` refuses.
+
 ## Deploy & Local-Dev Workflow
 
 ### Local development
