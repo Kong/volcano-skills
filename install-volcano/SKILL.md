@@ -1,7 +1,6 @@
 ---
 name: install-volcano
 description: Install, upgrade, or set up the Volcano CLI. Use this whenever a task needs the volcano CLI and `which volcano` hasn't been confirmed yet, even if the user never says "install" (e.g. "build me a todo API using volcano").
-allowed-tools: Bash, WebFetch, Read
 ---
 
 # Set up the Volcano CLI from a verified package
