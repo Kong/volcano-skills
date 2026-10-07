@@ -1,0 +1,27 @@
+version: 2
+updates:
+  # The only dependencies here are the SHA-pinned actions in .github/workflows.
+  # Skills are Markdown, and scripts/ and tests/ use Node built-ins only, so
+  # there is no package manifest to watch.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    # Supply-chain safeguard: skip releases until they have aged. GitHub
+    # Actions supports only default-days, not per-SemVer cooldowns.
+    cooldown:
+      default-days: 5
+    # No dependency labels exist in this repo; [] stops Dependabot creating them.
+    labels: []
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      # Minor and patch updates share one PR; each major gets its own PR.
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
