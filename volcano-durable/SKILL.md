@@ -204,7 +204,8 @@ the workflow never receives it.
   lasts until the execution's own timeout.
 - Give each approval a stable name, unique within the execution. Replay returns
   the recorded decision and never requests the approval twice.
-- Approvals work inside `ctx.parallel`, `ctx.map`, and child contexts.
+- Approvals work inside `ctx.parallel`, `ctx.map`, and child contexts. An
+  execution can have at most 100 pending at once; the next request throws.
 - Build `title` and `details` from input or step results. `title` holds up to
   200 characters, `description` 4000, and the whole request 64 KiB.
 - `details` is shown to the person deciding and kept for a year. Do not put
