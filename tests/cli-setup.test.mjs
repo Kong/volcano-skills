@@ -6,6 +6,10 @@ import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 
 const skill = readFileSync(new URL("../install-volcano/SKILL.md", import.meta.url), "utf8");
+
+test("setup does not pre-approve host tools", () => {
+  assert.doesNotMatch(skill.split("---")[1], /^allowed-tools:/m);
+});
 const blocks = [...skill.matchAll(/```sh\n([\s\S]*?)\n\s*```/g)].map((m) => m[1]);
 assert.equal(blocks.length, 3, "probe, install and exact-version verification must be runnable");
 
