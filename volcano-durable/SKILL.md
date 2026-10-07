@@ -202,8 +202,9 @@ the workflow never receives it.
 
 - `timeout` takes the same durations as `ctx.wait`. Without one, the approval
   lasts until the execution's own timeout.
-- Give each approval a stable name, unique within the execution. Replay returns
-  the recorded decision and never requests the approval twice.
+- Give each approval a stable name; it labels the operation in the execution's
+  history. Replay returns the recorded decision and never requests the approval
+  twice.
 - Approvals work inside `ctx.parallel`, `ctx.map`, and child contexts. An
   execution can have at most 100 pending at once; the next request throws.
 - Build `title` and `details` from input or step results. `title` holds up to
