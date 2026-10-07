@@ -18,7 +18,9 @@ updates:
       prefix: "ci"
       include: "scope"
     groups:
-      # Minor and patch updates share one PR; each major gets its own PR.
+      # Minor and patch updates share one PR; majors get individual PRs.
+      # Dependabot only raises those on runs where this group has no open PR
+      # (dependabot-core#14202), so merging the group PR lets majors through.
       github-actions:
         patterns:
           - "*"
