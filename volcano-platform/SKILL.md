@@ -436,7 +436,7 @@ For public-read patterns, add a policy (its own file) with `USING (status = 'pub
 Declarative configuration for the full project: project settings, database
 assertions, variables, buckets/policies, realtime, auth (providers, email,
 templates, managed pages), function visibility/schedulers, and frontend
-custom domains. Located at `volcano/volcano-config.yaml` or root
+custom domains and function routes. Located at `volcano/volcano-config.yaml` or root
 `volcano-config.yaml`. Only declared sections are reconciled — everything
 else is left untouched.
 
@@ -476,6 +476,7 @@ to be the single source of truth instead.
 `volcano-hosting/docs/projects/configuration.md` — it also covers `project`,
 `databases`, `realtime`, `auth`, and `frontends`, omitted here for brevity):
 ```yaml
+# volcano-config.yaml
 version: 1                          # required — only version 1 is supported
 
 variables:
@@ -493,8 +494,17 @@ buckets:                            # bucket must already exist — never create
 
 functions:                          # function must already be deployed — never created here
   - name: notes-summary
-    public: false                   # required — boolean
-    schedulers:                     # fully synced when declared
+    visibility: authenticated       # private (new functions' default), authenticated, or public
+```
+
+Schedulers require SUPERAGENT. On HOBBY, config deploy refuses a manifest
+that declares `schedulers`, so add them only on a plan that includes them:
+```yaml
+# volcano-config.yaml
+version: 1
+functions:
+  - name: notes-summary
+    schedulers:                     # SUPERAGENT only; fully synced when declared
       - name: refresh-cache
         cron: "*/5 * * * *"
         enabled: true
@@ -512,14 +522,52 @@ functions:                          # function must already be deployed — neve
 - Omitted sections/fields are left untouched (patch semantics). An **empty
   declared list** for a fully-synced collection — `variables`,
   `buckets[].policies`, `auth.providers.oauth`, `auth.email.templates`,
-  `functions[].schedulers` — deletes everything currently in it. These are
+  `functions[].schedulers`, `frontends[].function_routes` — deletes everything
+  currently in it. These are
   destructive by design; declaring the section at all means it's the source
   of truth.
 - Each bucket policy `operation` must be `SELECT`, `INSERT`, `UPDATE`, or
-  `DELETE`. Each declared function needs `public` set (boolean).
+  `DELETE`.
+- `functions[].visibility` is `private`, `authenticated`, or `public`; see
+  `volcano-functions` for who each level admits. Omit it to keep a function's
+  current level. New functions start `private`, so declare `authenticated` for
+  anything a signed-in user calls from the app. The deprecated `public: true`
+  still means `public` and `public: false` means `authenticated`; write
+  `visibility` instead, and never both with different meanings.
 - Function visibility can also be set imperatively via
-  `volcano cloud functions update --public` / `--private`; `functions deploy`
-  itself does **not** read `volcano-config.yaml`.
+  `volcano cloud functions update <name> --visibility <level>`. `functions
+  deploy` reads `volcano-config.yaml` for `kind` and function variables, but
+  does **not** apply `visibility`: a new function deploys `private` until
+  `volcano config deploy` (or `functions update`) sets its level.
+
+### Frontend function routes
+
+`frontends[].function_routes` forwards paths of a frontend to functions on the
+same origin. Declaring the list makes it the complete set: routes left out are
+deleted, and `function_routes: []` deletes them all. Omit the key to leave a
+frontend's routes alone.
+
+```yaml
+# volcano-config.yaml
+version: 1
+functions:
+  - name: session
+    visibility: public              # a routed function must be public
+    invocation_mode: http           # and in HTTP mode
+frontends:
+  - name: web                       # frontend must already be deployed
+    function_routes:
+      - function: session
+        path_prefix: /api/session   # starts with /, no trailing /
+        strip_prefix: true          # optional, default false
+```
+
+- One deploy can make a function public and add its route, or delete a route
+  and make the function private. A route to a function the same file leaves
+  non-public fails the dry run, and nothing is applied.
+- The longest matching prefix wins, and a frontend holds at most 64 routes.
+- Anyone who can load the frontend can call a routed function. See
+  `volcano-functions` for the cookie-session pattern it is meant for.
 
 **There is no state file.** Don't invent one, and don't build a manual
 rollback step for a failed `config deploy` — neither exists or is needed:
@@ -568,7 +616,8 @@ volcano variables deploy
 volcano functions deploy --all
 
 # 4. Reconcile all declared config sections (project, databases, variables,
-#    buckets/policies, realtime, auth, function visibility/schedulers, frontends)
+#    buckets/policies, realtime, auth, function visibility/schedulers,
+#    frontend domains/function routes)
 volcano config deploy
 
 # 5. Apply database migrations
@@ -601,7 +650,8 @@ volcano cloud variables deploy
 volcano cloud functions deploy --all
 
 # 4. Reconcile all declared config sections (project, databases, variables,
-#    buckets/policies, realtime, auth, function visibility/schedulers, frontends)
+#    buckets/policies, realtime, auth, function visibility/schedulers,
+#    frontend domains/function routes)
 volcano cloud config deploy
 
 # 5. Apply database migrations
@@ -676,6 +726,17 @@ Easy wrong guesses to avoid (all verified against the SDK):
   is `session.access_token`, not `data.session.access_token`.
 - `functions.invoke(name, payload)` returns `{ data, status, headers, version,
   error }` — check `error` and `status` before trusting `data`.
+- Branch on `error.status === 404`, not on `status`: a refused or missing
+  function never reaches an invocation, so `status` is `null`. A `404` for a
+  function you deployed usually means its visibility refuses the caller, most
+  often because it is `private`: it looks missing to everyone but service keys
+  and schedulers, so check its `visibility` before redeploying. After widening
+  a level, the SDK keeps answering a just-refused client `404` for about 30
+  seconds. If the app should call it as the signed-in user, declare
+  `visibility: authenticated` for it in `volcano-config.yaml` and run
+  `volcano config deploy`. If it's meant for schedulers or server code only,
+  keep it private and call it from there; never ship a service key to the
+  browser.
 
 ## End-to-end checklist: build → local deploy → verify (am I done?)
 
@@ -692,7 +753,7 @@ the project genuinely doesn't use that resource).
 - [ ] `volcano start` — local stack up and `volcano status` healthy.
 - [ ] `volcano variables deploy` — env vars synced (before functions).
 - [ ] `volcano functions deploy --all` — every function in `volcano/functions/` deployed.
-- [ ] `volcano config deploy` — declared config sections reconciled (after functions).
+- [ ] `volcano config deploy` — declared config sections reconciled (after functions), including `visibility: authenticated` for every function the app calls as a signed-in user.
 - [ ] `volcano migrations deploy --all -d app` — migrations applied (schema ready).
 
 **Verify** — deploying is not the finish line (see "Verify a local deploy"):
