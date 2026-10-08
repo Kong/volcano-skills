@@ -124,14 +124,14 @@ Python durable operations are synchronous. A step function receives its scope.
 | `ctx.step(name?, fn, options?)` | Run work and record its result. Retry policy and at-most-once behavior belong here. |
 | `ctx.wait(name?, duration)` | Suspend for at least one second without holding compute. |
 | `ctx.waitUntil(name?, check, options)` | Poll state until `options.until` passes. `initialState` is required. |
-| `ctx.waitForApproval(name, options)` | Suspend until a person approves or denies, or the approval expires. Python: `ctx.wait_for_approval`. |
+| `ctx.waitForApproval(name, options)` | Suspend until a person approves or denies, or the approval expires. Python takes keywords, not an options object: `ctx.wait_for_approval(name, *, title, description=None, details=None, timeout=None)`. |
 | `ctx.map(name?, items, fn, options?)` | Run one checkpointed child context per item. Set `concurrency` when required. |
 | `ctx.parallel(name?, branches, options?)` | Run independent checkpointed branches. |
 | `ctx.child(name?, fn)` | Group operations in a child context. |
 | `ctx.log` | Log with execution identifiers attached. |
 
 Each step attempt, wait, poll check, child, map item, and parallel branch uses a
-durable operation. `durable get` shows the function's execution timeout and
+durable operation, and each approval uses three. `durable get` shows the function's execution timeout and
 result retention. Read the plan limits documentation for operation allowance,
 operations per execution, and concurrency limits.
 
@@ -202,11 +202,15 @@ the workflow never receives it.
 
 - `timeout` takes the same durations as `ctx.wait`. Without one, the approval
   lasts until the execution's own timeout.
-- Give each approval a stable name; it labels the operation in the execution's
-  history. Replay returns the recorded decision and never requests the approval
-  twice.
+- Give each approval a short, stable, plain-ASCII name; it is the operation's
+  name in the execution's history, and the SDK refuses one longer than 237
+  characters or outside printable ASCII. Replay returns the recorded decision
+  and never requests the approval twice.
 - Approvals work inside `ctx.parallel`, `ctx.map`, and child contexts. An
   execution can have at most 100 pending at once; the next request throws.
+- Each approval is three durable operations: the approval, the wait for the
+  decision, and the step that registers the request. Inside `ctx.map` that
+  cost applies per item.
 - Build `title` and `details` from input or step results. `title` holds up to
   200 characters, `description` 4000, and the whole request 64 KiB.
 - `details` is shown to the person deciding and kept for a year. Do not put
@@ -214,8 +218,8 @@ the workflow never receives it.
 
 ### Who decides
 
-A person decides, in the dashboard under **Approvals**, or from the CLI after
-`volcano login`:
+A person decides, in the dashboard under **Approvals**, or from the CLI. In
+local mode the local user decides without logging in:
 
 ```sh
 volcano durable approvals list                  # pending, newest first
@@ -225,8 +229,15 @@ volcano durable approvals deny <approval-id> --comment "Customer cancelled"
 volcano durable approvals stats --since 30d
 ```
 
-Use `volcano durable approvals ...` locally and `volcano cloud durable
-approvals ...` in cloud. The SDK owner clients expose the same operations under
+In cloud, the person runs `volcano login` and then the same commands under
+`cloud`:
+
+```sh
+volcano cloud durable approvals list
+volcano cloud durable approvals approve <approval-id> --comment "Checked stock"
+```
+
+The SDK owner clients expose the same operations under
 `durable.approvals`. Project access tokens can read approvals and stats but get
 `403` on approve and deny. The MCP tools `list_durable_approvals` and
 `get_durable_approval_stats` only read; MCP has no way to decide.
