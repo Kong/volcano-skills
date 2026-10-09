@@ -5,8 +5,8 @@
 // index.json, a catalog entry with no SKILL.md, a SKILL.md with missing/empty
 // frontmatter, name mismatch, description drift between index.json and the
 // SKILL.md frontmatter, a skill dir that was never registered in the catalog,
-// and setup CTA examples whose expected skills have no discovery signal in
-// their frontmatter. CI gates the volcano-agentic-plugins notify dispatch on
+// setup CTA examples whose expected skills have no discovery signal in their
+// frontmatter, and volcano-config.yaml examples Hosting would not check. CI gates the volcano-agentic-plugins notify dispatch on
 // this, so a broken catalog is never propagated downstream.
 //
 // Pure Node builtins (this repo has no package manager). Run:
@@ -199,6 +199,44 @@ if (triggerCases !== undefined &&
         err(`${expectedWhere} (${item.skill}): none of [${item.signals.join(", ")}] appears in both prompt and catalog description`);
       }
     });
+  });
+}
+
+// Hosting's staging gate (TestSkillManifestSnippetsCloudE2E in
+// Kong/volcano-hosting) dry-runs every fenced block whose first line is the
+// marker, in a project where the functions, frontends, buckets and variables it
+// names already exist. An unmarked manifest is never checked, and a database
+// cannot be provisioned there, so its entry would be skipped rather than
+// validated.
+const manifestMarker = "# volcano-config.yaml";
+const markdownFiles = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+  if (entry.name.startsWith(".")) return [];
+  const full = path.join(dir, entry.name);
+  if (entry.isDirectory()) return markdownFiles(full);
+  return entry.name.endsWith(".md") ? [full] : [];
+});
+for (const file of markdownFiles(root)) {
+  const rel = path.relative(root, file);
+  let block = null;
+  let start = 0;
+  readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+    if (!line.trim().startsWith("```")) {
+      if (block) block.push(line);
+      return;
+    }
+    if (!block) {
+      block = [];
+      start = i + 2;
+      return;
+    }
+    const topLevel = new Set(block.filter((l) => /^[a-z_]+:/.test(l)).map((l) => l.slice(0, l.indexOf(":"))));
+    if (block[0]?.trim() === manifestMarker) {
+      if (!topLevel.has("version")) err(`${rel}:${start}: a "${manifestMarker}" block must be a whole manifest starting with version`);
+      if (topLevel.has("databases")) err(`${rel}:${start}: a "${manifestMarker}" block may not declare databases; Hosting's snippet gate cannot provision them`);
+    } else if (topLevel.has("version") && topLevel.size > 1) {
+      err(`${rel}:${start}: a volcano-config.yaml example must start with "${manifestMarker}" so Hosting's snippet gate dry-runs it`);
+    }
+    block = null;
   });
 }
 
