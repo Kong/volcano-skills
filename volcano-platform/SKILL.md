@@ -585,10 +585,13 @@ rollback step for a failed `config deploy` — neither exists or is needed:
 
 ### Custom domains (cloud only)
 
-A frontend custom domain, attached with `volcano cloud frontends domain create`
-or a manifest `frontends[].custom_domain` entry, must sit at or below a domain
-the account has verified. Verify once per domain: every name below it is then
-covered, in managed or BYOC TLS, in any of the account's projects.
+A frontend serves a custom domain only once the account has verified that
+hostname or a domain above it. Verify once per domain: every name below it is
+then covered, in managed or BYOC TLS, in any of the account's projects. Attach
+the hostname with `volcano cloud frontends domain create` (BYOC) or a manifest
+`frontends[].custom_domain` entry. Verified domains belong to the account, so
+`volcano cloud domains` needs a `volcano login` session; a project access token
+is refused.
 
 ```bash
 volcano cloud domains verify example.com   # fails and prints the TXT record to publish
@@ -599,10 +602,16 @@ volcano cloud domains list
 
 - Only the user can publish DNS records. Relay the exact record the CLI prints;
   never invent its value or reuse one from another domain or account.
-- An unverified attach or `config deploy` fails with the same record. Verify,
-  then re-run the same command.
-- A domain another account verified stays theirs until their record is gone
-  from DNS. Local mode serves no custom domains, so `volcano domains` refuses.
+- An unverified BYOC attach (`domain create`, or `tls.mode: byoc` in
+  `config deploy`) fails and prints the record to publish. Verify, then re-run
+  the same command.
+- An unverified `tls.mode: managed` entry still deploys: Volcano holds the
+  hostname and `volcano cloud frontends domain get <frontend>` lists the
+  `_volcano` TXT record under "Verification records". Once the record is
+  published, the same command lists the certificate validation CNAME to add.
+- Keep the TXT record published. A domain another account verified stays
+  theirs until their record is gone from DNS. Local mode serves no custom
+  domains, so `volcano domains` refuses.
 
 ## Deploy & Local-Dev Workflow
 
