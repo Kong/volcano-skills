@@ -1,6 +1,6 @@
 ---
 name: volcano-typescript
-description: "Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime and Durable types, Function invocation generics, OAuth providers, middleware types, and utility types."
+description: "Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime, Durable, and durable approval types, Function invocation generics, OAuth providers, middleware types, and utility types."
 ---
 # Volcano TypeScript Types Skill
 
@@ -378,6 +378,32 @@ const execution: DurableExecution | undefined = data?.data[0];
 `DurableExecution` uses the API's snake-case fields. Its `result` is `unknown`,
 so narrow it before use.
 
+`ctx.waitForApproval` takes `WaitForApprovalOptions` and resolves with an
+`ApprovalDecision`, both from the durable entry point:
+
+```ts
+import type { ApprovalDecision, WaitForApprovalOptions } from '@volcano.dev/sdk/durable';
+
+const request: WaitForApprovalOptions = { title: 'Ship order 4417?', timeout: '3d' };
+const decision: ApprovalDecision = await ctx.waitForApproval('ship-order', request);
+// decision.status is 'approved' | 'denied' | 'expired'; decidedBy is null on expiry.
+```
+
+Reading and deciding approvals uses the main entry point's `DurableApproval`,
+`DurableApprovalStatus`, `PaginatedDurableApprovals`, and `DurableApprovalStats`,
+with `DurableApprovalListOptions` and `DurableApprovalStatsOptions` for filters:
+
+```ts
+import type { DurableApproval, DurableApprovalListOptions } from '@volcano.dev/sdk';
+
+const options: DurableApprovalListOptions = { status: 'pending', function: 'order-pipeline' };
+const { data } = await volcano.durable.approvals.list(projectId, options);
+const approval: DurableApproval | undefined = data?.data[0];
+```
+
+Like `DurableExecution`, `DurableApproval` uses snake-case fields
+(`requested_at`, `expires_at`, `decision.decided_by`).
+
 ## OAuth Types
 ```ts
 type OAuthProviderName = 'google' | 'github' | 'microsoft' | 'apple';
@@ -567,7 +593,7 @@ channel.onPostgresChanges('INSERT', 'public', 'posts', (change) => {
 | Storage | `StorageObject`, `StorageUploadResponse`, `StorageListResponse` | `storage.from(...)` operations |
 | Realtime | `PostgresChange`, `PresenceState`, `ConnectContext` | Channel callbacks |
 | Functions | `invoke<P, R>(...)` generic params | Both ends of an invocation |
-| Durable | `DurableHandler`, `DurableContext`, `DurableExecution` | Durable authoring and execution clients |
+| Durable | `DurableHandler`, `DurableContext`, `DurableExecution`, `ApprovalDecision`, `DurableApproval` | Durable authoring, approvals, and execution clients |
 | OAuth | `OAuthProviderName`, `OAuthProvider` | Provider name validation |
 | Sessions | `AuthSession`, `SessionsResponse` | Multi-device session UI |
 | Middleware | `ServerClient`, `GetUserResult` | Next.js middleware/route handlers |

@@ -1,6 +1,6 @@
 ---
 name: volcano-durable
-description: Use for Volcano durable functions, long-running or resumable workflows, checkpointed steps, waits, polling, durable executions, idempotent starts, and durable function schedulers.
+description: Use for Volcano durable functions, long-running or resumable workflows, checkpointed steps, waits, human approvals, polling, durable executions, idempotent starts, and durable function schedulers.
 ---
 # Volcano Durable Functions Skill
 
@@ -124,15 +124,128 @@ Python durable operations are synchronous. A step function receives its scope.
 | `ctx.step(name?, fn, options?)` | Run work and record its result. Retry policy and at-most-once behavior belong here. |
 | `ctx.wait(name?, duration)` | Suspend for at least one second without holding compute. |
 | `ctx.waitUntil(name?, check, options)` | Poll state until `options.until` passes. `initialState` is required. |
+| `ctx.waitForApproval(name, options)` | Suspend until a person approves or denies, or the approval expires. Python takes keywords, not an options object: `ctx.wait_for_approval(name, *, title, description=None, details=None, timeout=None)`. |
 | `ctx.map(name?, items, fn, options?)` | Run one checkpointed child context per item. Set `concurrency` when required. |
 | `ctx.parallel(name?, branches, options?)` | Run independent checkpointed branches. |
 | `ctx.child(name?, fn)` | Group operations in a child context. |
 | `ctx.log` | Log with execution identifiers attached. |
 
 Each step attempt, wait, poll check, child, map item, and parallel branch uses a
-durable operation. `durable get` shows the function's execution timeout and
+durable operation, and each approval uses three. `durable get` shows the function's execution timeout and
 result retention. Read the plan limits documentation for operation allowance,
 operations per execution, and concurrency limits.
+
+## Human approvals
+
+Use `waitForApproval` when a person must sign off before the workflow continues.
+The execution suspends without holding compute and resumes with the decision.
+Use `ctx.waitUntil` only for state your code can read, such as a payment
+settling. Do not build your own approval table and poll it.
+
+```js
+const { durable } = require('@volcano.dev/sdk/durable');
+
+exports.handler = durable(async (input, ctx) => {
+  const quote = await ctx.step('quote', () => quoteShipping(input.order_id));
+
+  const decision = await ctx.waitForApproval('ship-order', {
+    title: `Ship order ${input.order_id}?`,
+    description: 'Express shipping is billed to the customer.',
+    details: { order_id: input.order_id, cost: quote.cost },
+    timeout: '3d',
+  });
+  if (!decision.approved) {
+    return { shipped: false, status: decision.status, comment: decision.comment };
+  }
+
+  await ctx.step('ship', () => ship(input.order_id));
+  return { shipped: true, approved_by: decision.decidedBy?.email ?? null };
+});
+```
+
+```python
+from volcano_sdk.durable_authoring import durable
+
+
+@durable
+def handler(event, ctx):
+    order_id = event["order_id"]
+    quote = ctx.step("quote", lambda scope: quote_shipping(order_id))
+
+    decision = ctx.wait_for_approval(
+        "ship-order",
+        title=f"Ship order {order_id}?",
+        details={"order_id": order_id, "cost": quote["cost"]},
+        timeout="3d",
+    )
+    if not decision.approved:
+        return {"shipped": False, "status": decision.status}
+
+    ctx.step("ship", lambda scope: ship(order_id))
+    return {"shipped": True}
+```
+
+The decision has `approved`, `status`, `comment`, `decidedBy` (`{ id, email }`
+or `null`), and `decidedAt`. Python uses attributes: `decision.decided_by`
+(with `id` and `email`, or `None`) and `decision.decided_at`.
+
+| `status` | `approved` | Meaning |
+|---|---|---|
+| `approved` | `true` | A person approved, with an optional comment. |
+| `denied` | `false` | A person denied, with an optional comment. |
+| `expired` | `false` | `timeout` passed first. `comment` is empty; `decidedBy` and `decidedAt` are null. |
+
+A deny or an expiry is a return value, not an error. Branch on
+`decision.approved` and handle `expired` explicitly. An approval whose execution
+ends first (stopped, failed, or timed out) shows as `cancelled` to the owner;
+the workflow never receives it.
+
+- `timeout` takes the same durations as `ctx.wait`. Without one, the approval
+  lasts until the execution's own timeout.
+- Give each approval a short, stable, plain-ASCII name; it is the operation's
+  name in the execution's history, and the SDK refuses one longer than 237
+  characters or outside printable ASCII. Replay returns the recorded decision
+  and never requests the approval twice.
+- Approvals work inside `ctx.parallel`, `ctx.map`, and child contexts. An
+  execution can have at most 100 pending at once; the next request throws.
+- Each approval is three durable operations: the approval, the wait for the
+  decision, and the step that registers the request. Inside `ctx.map` that
+  cost applies per item.
+- Build `title` and `details` from input or step results. `title` holds up to
+  200 characters, `description` 4000, and the whole request 64 KiB.
+- `details` is shown to the person deciding and kept for a year. Do not put
+  secrets or credentials in it.
+
+### Who decides
+
+A person decides, in the dashboard under **Approvals**, or from the CLI. In
+local mode the local user decides without logging in:
+
+```sh
+volcano durable approvals list                  # pending, newest first
+volcano durable approvals get <approval-id>
+volcano durable approvals approve <approval-id> --comment "Checked stock"
+volcano durable approvals deny <approval-id> --comment "Customer cancelled"
+volcano durable approvals stats --since 30d
+```
+
+In cloud, the person runs `volcano login` and then the same commands under
+`cloud`:
+
+```sh
+volcano cloud durable approvals list
+volcano cloud durable approvals approve <approval-id> --comment "Checked stock"
+```
+
+The SDK owner clients expose the same operations under
+`durable.approvals`. Project access tokens can read approvals and stats but get
+`403` on approve and deny. The MCP tools `list_durable_approvals` and
+`get_durable_approval_stats` only read; MCP has no way to decide.
+
+Never approve or deny an approval yourself, including one your own workflow
+requested during testing. List it, tell the user its ID and title, and let them
+decide. Do not write code that decides approvals automatically; that defeats
+the approval.
 
 ## Start and manage executions from an application
 
@@ -254,9 +367,8 @@ finish quickly while still suspending and replaying checkpoints. Instant waits
 cause more resumes per wall-clock minute than production, which helps expose a
 step that is unsafe to replay. Set `LOCAL_DURABLE_REAL_TIME=true` before
 `volcano start` when wait timing must be real. Local executions persist across
-`volcano stop` and `volcano start`. Volcano does not expose externally completed
-callbacks in local or cloud execution; use `ctx.waitUntil` to poll application
-state instead.
+`volcano stop` and `volcano start`. Approval timeouts always run in real time,
+so test expiry locally with a short `timeout`.
 
 Local executions increment the same execution, operation, and compute counters
 as cloud executions. Inspect them through `GET /projects/{id}/usage`; the CLI
@@ -328,6 +440,8 @@ start.
   `executions get` until terminal.
 - Deleting a durable function removes its execution history. Confirm before
   `durable delete`, `executions stop`, or `schedulers delete`.
+- `approvals list`, `get`, and `stats` are safe to run. `approvals approve` and
+  `deny` are for the user alone; never run them.
 - Bound `logs --follow` with a timeout in agent-driven diagnostics.
 
 ## Troubleshooting
@@ -343,6 +457,12 @@ cloud state.
 5. A start during provisioning returns `409`; wait for `active`.
 6. A `429` means a concurrency or durable allowance limit blocked the start.
 7. A scheduler `403` can mean the project plan does not include schedulers.
+8. An execution that stays `running` may be waiting on an approval. Check
+   `durable approvals list --execution <execution-id>`.
+9. An approve or deny `403` means the credential is not a person's. A `409`
+   means the approval was already decided, expired, or cancelled.
+10. `VOLCANO_PLATFORM_API_URL` is reserved. The platform sets it on durable
+    functions; a project variable with that name is rejected.
 
 ## Verification
 
@@ -351,6 +471,7 @@ cloud state.
 - Run `volcano start` and `volcano durable deploy --all`.
 - Wait for local function status `active`.
 - Start one local execution with a unique idempotency name.
+- If it waits on an approval, give the user its ID and ask them to decide.
 - Poll it to a terminal status and check its result.
 - Read runtime logs if the result is not `succeeded`.
 - After approved cloud deployment, repeat the execution check with
@@ -359,6 +480,7 @@ cloud state.
 ## References
 
 - Hosting contract: `volcano-hosting/docs/public/functions/durable-functions.md`
+- Approvals: `volcano-hosting/docs/public/functions/durable-approvals.md`
 - Local guide: `volcano-hosting/docs/public/guides/durable-functions-locally.md`
 - CLI contract: `volcano-cli/docs/durable-functions.md`
 - Command source: `volcano-cli/internal/cmd/durable/`
