@@ -193,6 +193,17 @@
         { "skill": "volcano-platform", "signals": ["volcano-config.yaml"] },
         { "skill": "volcano-functions", "signals": ["function"] }
       ]
+    },
+    {
+      "id": "deploy-whole-project",
+      "prompt": "Deploy my whole Volcano project locally in one step: variables, migrations, functions, durable workflows, and the frontend",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano", "deploy"] },
+        { "skill": "volcano-platform", "signals": ["deploy", "frontend", "migrations"] },
+        { "skill": "volcano-database", "signals": ["migrations"] },
+        { "skill": "volcano-functions", "signals": ["functions"] },
+        { "skill": "volcano-durable", "signals": ["durable", "workflows"] }
+      ]
     }
   ]
 }
