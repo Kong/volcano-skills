@@ -34,7 +34,7 @@ This skill focuses on **project shape and deploy mechanics**, not on how to writ
 
 ```
 volcano/                        # Volcano-managed project directory
-volcano/.gitignore              # ignores *.env (volcano.env, cloud.env), .env.local, logs
+volcano/.gitignore              # ignores *.env (volcano.env, cloud.env), .env.local, logs; before CLI 0.45.0 only volcano.env
 volcano/volcano.env             # local server's environment variables (gitignored)
 volcano/volcano.env.example     # env var documentation (committed)
 volcano/migrations/             # SQL migration files
@@ -71,7 +71,7 @@ Note: `volcano-config.yaml` comes with `volcano init javascript` (with or withou
 │   │   └── 002_add_posts.sql
 │   ├── volcano-config.yaml         # declarative project config (see "volcano-config.yaml" below)
 │   ├── volcano.env                 # local server's env vars (gitignored)
-│   ├── cloud.env                   # cloud project's env vars (gitignored; you create it)
+│   ├── cloud.env                   # cloud project's env vars (you create it; check it's gitignored)
 │   ├── volcano.env.example         # env var documentation (committed)
 │   └── .gitignore
 ├── package.json                    # optional — needed only for the build model
@@ -691,8 +691,17 @@ visibility it sets.
   and the commands that finish the rest. Rerun without `--with-migrations` if
   the migrations already applied.
 - **Frontends come from `.volcano/source-layout.json`**, which `volcano init
-  nextjs` creates. Each entry names a frontend, the directory to upload
-  (`workspace`), and the Next.js app inside it (`app_root`). The upload skips
+  nextjs` creates from CLI 0.45.0 on. Each entry names a frontend, the
+  directory to upload (`workspace`), and the Next.js app inside it
+  (`app_root`). A project scaffolded earlier has none, and the plan shows
+  `frontends  skipped: no .volcano/source-layout.json`; for the Next.js
+  starter's layout, create it with:
+
+  ```json
+  {"version": 1, "frontends": [{"name": "web", "workspace": "", "app_root": "web"}]}
+  ```
+
+  `version: 1` is required. The upload skips
   what the root `.gitignore` lists and always leaves out `volcano/*.env` and
   the env file the run deployed. A frontend's manifest entry with
   `variable_scope: all`, or `scoped` with a `variables` list, decides which
@@ -705,11 +714,10 @@ visibility it sets.
   loop.
 - **The wait lasts up to 30 minutes.** Run `volcano deploy` with a tool
   timeout that long, or in the background, and read its output until it
-  exits. Alternatively pass `--no-wait`, which returns once the config step
-  is done, then poll `volcano functions get <name>` and
-  `volcano frontends get <name>` until each `Status` is `active`.
-  Never rerun a deploy you stopped mid-wait with `--with-migrations`; the
-  migrations already ran.
+  exits. Don't swap in `--no-wait` and poll `get`: a frontend whose redeploy
+  fails keeps serving its previous build and still shows `active`, so only
+  the deploy's own wait reports the failure. Never rerun a deploy you stopped
+  mid-wait with `--with-migrations`; the migrations already ran.
 
 Redeploy one piece with its own command from the "Same as" column. For a
 frontend, use the command a failed `volcano deploy` prints, which carries the
@@ -732,7 +740,12 @@ volcano cloud deploy --env-file volcano/cloud.env --with-migrations -d <database
 
 `volcano cloud deploy` runs the same steps against the selected cloud project.
 `volcano/volcano.env` points at the local server, so the cloud deploy reads
-`volcano/cloud.env`, which you create with every variable the project needs
+`volcano/cloud.env`. It holds secrets, so before creating it run
+`git check-ignore -q volcano/cloud.env`. If that exits non-zero, add
+`volcano/*.env` to the root `.gitignore`: projects scaffolded before CLI
+0.45.0 ignore only `volcano.env`, and the root `.gitignore` is also what keeps
+older CLIs from uploading the file with a frontend. Create it with every
+variable the project needs
 in the cloud: its own secrets and settings (`STRIPE_SECRET_KEY`, `GREETING`),
 plus the cloud values of `VOLCANO_API_URL` (`https://api.volcano.dev`),
 `VOLCANO_ANON_KEY`, and `VOLCANO_DATABASE` when functions read them, and their
@@ -767,8 +780,16 @@ volcano cloud config deploy
 On a CLI older than 0.45.0, which has no `volcano cloud deploy`, run the same
 steps one at a time: the three commands above, with
 `volcano cloud functions deploy --all`, `volcano cloud durable deploy --all`,
-and `volcano cloud frontends deploy --name <name> --path <workspace>` before
-`config deploy`.
+and the frontend deploy before `config deploy`. Check first that
+`volcano/cloud.env` is gitignored at the root (see above): these CLIs upload
+whatever the root `.gitignore` doesn't exclude. Pass the frontend's variable
+selection, or a new frontend builds with no variables:
+
+```sh
+volcano cloud frontends deploy --name <name> --path <workspace> --app-root <app_root> \
+  --variable-scope scoped --variable NEXT_PUBLIC_VOLCANO_API_URL \
+  --variable NEXT_PUBLIC_VOLCANO_ANON_KEY --variable NEXT_PUBLIC_VOLCANO_DATABASE
+```
 
 Cloud deploys need the user's explicit go-ahead (see `AGENTS.md`).
 
@@ -903,7 +924,7 @@ Cloud is out of scope here — never auto-deploy to cloud (see `AGENTS.md` safet
 - `volcano-config.yaml` (if present) has `version: 1`. There is no minimum
   section requirement — a manifest can declare only `variables`, only
   `project`, etc.; omitted sections are left untouched, not an error.
-- Environment variables are deployed via `volcano deploy` or `volcano variables deploy` (local), or their `volcano cloud` forms — not assumed auto-injected.
+- Environment variables are deployed via `volcano deploy` or `volcano variables deploy` (local), or `volcano cloud deploy --env-file volcano/cloud.env` or `volcano cloud variables deploy -f volcano/cloud.env` (cloud) — not assumed auto-injected.
 - `VOLCANO_DATABASE` is used (not `VOLCANO_DB_NAME`).
 - If using the build model: `npm run build:functions` produces `.js` files under `volcano/functions/` before deploy.
 - Any npm package a native-JS function imports (e.g. `@volcano.dev/sdk`) is declared in a `volcano/functions/package.json` — an undeclared import fails at runtime with `Cannot find package`.

@@ -162,7 +162,8 @@ the user explicitly asks for it. Then run these in order:
 3. **Deploy** — `volcano cloud deploy --env-file volcano/cloud.env` against that
    project. `volcano/volcano.env` holds the local server's URL and keys, and a
    cloud deploy refuses it; put the cloud project's values in
-   `volcano/cloud.env` first. Migrations are not tracked, so every
+   `volcano/cloud.env` first, after checking Git ignores it (see
+   `volcano-platform`). Migrations are not tracked, so every
    `--with-migrations` run applies every file again; pass
    `--with-migrations -d <database>` only when the user agrees the migrations
    should run on that cloud database, and once it shows `active` in
