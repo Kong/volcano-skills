@@ -116,7 +116,11 @@ and never touches cloud/production resources, so this default is safe:
    when `volcano/migrations/` holds files to apply. It deploys variables,
    migrations, functions, durable functions, frontends, and
    `volcano-config.yaml` in that order, skipping whatever the project lacks,
-   then waits for the deployments to finish (see `volcano-platform`).
+   then waits up to 30 minutes for the deployments to finish (see
+   `volcano-platform`). `volcano deploy` needs CLI 0.45.0 or later. On an
+   older CLI, deploy the pieces with the step-by-step commands in
+   `volcano-platform` instead, never `volcano frontends deploy`, and suggest
+   upgrading the CLI in `Next:`.
 4. Exercise what was built through the local API at `http://localhost:8000`
    (for example, invoke the new function) and report the result.
 
@@ -161,7 +165,9 @@ the user explicitly asks for it. Then run these in order:
    `volcano/cloud.env` first. Migrations are not tracked, so every
    `--with-migrations` run applies every file again; pass
    `--with-migrations -d <database>` only when the user agrees the migrations
-   should run on that cloud database.
+   should run on that cloud database, and once it shows `active` in
+   `volcano cloud databases get <database>`. On a CLI older than 0.45.0, run
+   the per-step cloud commands in `volcano-platform` instead.
 
 **Ask before deploying** — get the user's explicit go-ahead before running step 3
 (and the `volcano projects create` in step 2, since it's part of carrying out that
@@ -207,6 +213,10 @@ commands when no database was used), and use exact CLI commands:
 - After a **cloud deploy**: suggest verification with exactly one method, not
   a menu of options, e.g. "Next: check it with `volcano cloud functions logs
   <name>`."
+- On a CLI older than 0.45.0, suggest the upgrade before anything else, e.g.
+  "Next: upgrade the Volcano CLI to 0.45.0 or later so `volcano deploy`
+  deploys the whole project, including frontends, in one run." Suggest it
+  only; upgrading is the user's call (see `install-volcano`).
 
 Suggesting a cloud deploy here is not permission to run it — it still requires
 explicit user confirmation per the safety model below.
@@ -261,14 +271,14 @@ never a diagnostic detour.
 - List/get: `volcano functions list|get`, `volcano variables list|get`, `volcano databases list|get`, `volcano storage bucket list|get`
 - Logs: `volcano functions logs <name> --type build|runtime`
 - Local dev: `volcano start|stop|restart|status` — automatic by default after building (see "Build vs. run/test/deploy"), and whenever the user asks to run/test/preview locally
-- Local deploy: `volcano deploy [--with-migrations]`, or one piece with `volcano functions deploy`, `volcano frontends deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app` — automatic by default after building, and whenever the user asks to run/test/preview locally
+- Local deploy: `volcano deploy [--with-migrations]`, or one piece with `volcano functions deploy`, `volcano durable deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app` — automatic by default after building, and whenever the user asks to run/test/preview locally. `volcano frontends deploy` is automatic only on CLI 0.45.0 or later; on older CLIs it deploys to the cloud project, so it is confirm-first there.
 
 **Confirm-first:**
 - Cloud deploys: `volcano cloud deploy`, `volcano cloud functions deploy`, `volcano cloud frontends deploy`, `volcano cloud config deploy`, `volcano cloud variables deploy`
 - Cloud project creation: `volcano projects create` (a cloud resource; ask first, including when it's the project-context step of a cloud deploy)
 - Deletions: any `... delete` (local or cloud)
 - Local data reset: `volcano reset` (drops all local databases + local platform data; local-only but destructive and not recoverable — confirm first, then re-deploy migrations)
-- Secret / variable changes: `volcano cloud variables deploy`
+- Secret / variable changes: `volcano cloud variables deploy -f volcano/cloud.env`
 - Permission / visibility changes: `volcano cloud functions update --visibility`, `volcano cloud frontends routes`, storage policies, custom domains, verified domains (`volcano cloud domains verify|remove`)
 - Billing / account changes: plan changes, account promotion
 
@@ -293,9 +303,10 @@ volcano init [javascript|nextjs|python|ruby]
 # Local development (targets local dev server)
 volcano start|stop|restart|status
 volcano reset [--yes]                      # DESTRUCTIVE: drop local DBs + re-provision local state (local-recovery; confirm first)
-volcano deploy [--with-migrations]         # whole project: variables, migrations, functions, durable, frontends, config
+volcano deploy [--with-migrations]         # CLI 0.45.0+: whole project: variables, migrations, functions, durable, frontends, config
 volcano functions deploy --all | deploy -f <name> | list | get | logs
-volcano frontends deploy --name <name> --path <dir> | list | get | logs
+volcano durable deploy --all
+volcano frontends deploy --name <name> --path <dir> | list | get | logs | routes   # CLI 0.45.0+; older CLIs deploy to the cloud
 volcano variables deploy | list | get
 volcano config deploy
 volcano databases list|get
@@ -303,15 +314,18 @@ volcano storage bucket list|get
 volcano migrations deploy --all -d app
 
 # Cloud (requires login + use)
-volcano cloud deploy --env-file volcano/cloud.env [--with-migrations -d <database>]
+volcano cloud deploy --env-file volcano/cloud.env [--with-migrations -d <database>]   # CLI 0.45.0+
 volcano cloud functions deploy --all
 volcano cloud frontends deploy --name <name> --path <dir> | list | logs
-volcano cloud variables deploy
+volcano cloud variables deploy -f volcano/cloud.env
+volcano cloud databases create <database> --region <region> --pg-version 16 | get <database>
+volcano cloud databases migration up --all -d <database>
 volcano cloud config deploy
 volcano cloud domains list | verify <domain> | remove <domain>   # domains your account owns, for custom domains
 ```
 
-> `volcano local ...` is a deprecated alias.
+> `volcano local ...` is a deprecated alias. Before CLI 0.45.0, so is
+> `volcano frontends ...`, for `volcano cloud frontends ...`.
 
 ## Skills
 

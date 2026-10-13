@@ -50,7 +50,7 @@ Templates add language-specific files on top of the base scaffold:
 
 Add `--example` for a more complete demo: `volcano init nextjs --example notes`, or `volcano init javascript|python|ruby --example hello-world`.
 
-Note: `volcano-config.yaml` is created only by the `javascript` template, not by the base scaffold. You can also create it manually at `volcano/volcano-config.yaml`.
+Note: `volcano-config.yaml` comes with `volcano init javascript` (with or without `--example hello-world`) and `volcano init nextjs --example notes`, not with the base scaffold or the other templates. You can also create it manually at `volcano/volcano-config.yaml`.
 
 `volcano init` does **not** create an `src/api/` directory, an OpenAPI dispatcher, or a single bundled entry point. Functions deploy individually from `volcano/functions/`.
 
@@ -476,7 +476,8 @@ deploy` will delete anything only `variables deploy` set. Pick one path for
 variables per project — typically `variables deploy` from `volcano.env` for
 day-to-day secrets, and only add `variables` to the manifest if you want it
 to be the single source of truth instead. `volcano deploy` refuses to run
-when it finds both an env file and a manifest `variables` section.
+when it finds both an env file and a manifest `variables` section; with the
+manifest as the source, run `volcano deploy --no-env-file`.
 
 **Partial example** (see the full schema at
 `volcano-hosting/docs/projects/configuration.md` — it also covers `project`,
@@ -638,6 +639,23 @@ npm run build:functions
 volcano deploy --with-migrations
 ```
 
+`volcano deploy` and local `volcano frontends` need Volcano CLI 0.45.0 or
+later; check the version `volcano --version` printed. On an older CLI,
+`volcano deploy` fails with `unknown command "deploy"`, and
+`volcano frontends deploy` is an alias that uploads to the selected **cloud**
+project, so never run it there. Deploy the pieces the project has instead, in
+this order, and suggest upgrading the CLI in `Next:`:
+
+```sh
+volcano variables deploy
+volcano migrations deploy --all -d app     # only when migrations need applying
+volcano functions deploy --all
+volcano durable deploy --all               # only when the manifest declares kind: durable
+volcano config deploy
+```
+
+Older CLIs can't deploy a frontend locally; run it with `npm run dev`.
+
 `volcano deploy` prints its plan, then runs these steps in order, skipping a
 step the project has nothing for:
 
@@ -647,7 +665,7 @@ step the project has nothing for:
 | migrations | `volcano/migrations/*.sql`, only with `--with-migrations` | `volcano migrations deploy --all -d app` |
 | functions | standard functions in `volcano/functions/` | `volcano functions deploy --all` |
 | durable | functions the manifest marks `kind: durable` | `volcano durable deploy --all` |
-| frontends | frontends listed in `.volcano/source-layout.json` | `volcano frontends deploy` |
+| frontends | frontends listed in `.volcano/source-layout.json` | `volcano frontends deploy --name <name> --path <workspace>` (see below) |
 | config | `volcano/volcano-config.yaml` | `volcano config deploy` |
 
 Then it waits for every deployment it started, prints each result and the
@@ -657,30 +675,48 @@ schema before code that queries it, config after the functions whose
 visibility it sets.
 
 - **Inputs come only from flags.** `--env-file <file>` picks another env
-  file. `-c <manifest>` (repeatable, applied in order) replaces the default
-  manifest; the first one supplies function kinds, variable scopes, and
-  frontend variable selections. `-d <database>` picks the migration target.
+  file, and `--no-env-file` deploys none, for a project whose manifest owns
+  its variables. `-c <manifest>` (repeatable, applied in order) replaces the
+  default manifest; the first one supplies function kinds, variable scopes,
+  and frontend variable selections. `-d <database>` picks the migration target.
 - **It refuses before changing anything** when an input file is broken or
   missing, when an env file and a manifest `variables` section are both
-  present (see "volcano-config.yaml" above), when `-d` comes without
-  `--with-migrations`, or when a manifest after the first declares
-  `kind: durable` or a frontend's `variable_scope`/`variables`.
+  present (see "volcano-config.yaml" above), when two manifests declare the
+  same variable section, when `-d` comes without `--with-migrations`, when a
+  manifest after the first declares `kind: durable` or a frontend's
+  `variable_scope`/`variables`, or when `-c` leaves out
+  `volcano/volcano-config.yaml` while it declares durable functions the first
+  manifest doesn't.
 - **A failed step stops the run.** The output names the steps that already ran
   and the commands that finish the rest. Rerun without `--with-migrations` if
   the migrations already applied.
 - **Frontends come from `.volcano/source-layout.json`**, which `volcano init
   nextjs` creates. Each entry names a frontend, the directory to upload
   (`workspace`), and the Next.js app inside it (`app_root`). The upload skips
-  what the root `.gitignore` lists and always leaves out `volcano/*.env`. The
-  frontend's `variable_scope`/`variables` entry in the manifest decides which
-  variables its build sees.
+  what the root `.gitignore` lists and always leaves out `volcano/*.env` and
+  the env file the run deployed. A frontend's manifest entry with
+  `variable_scope: all`, or `scoped` with a `variables` list, decides which
+  variables its build sees. Any other entry (`shared`, or a missing field)
+  builds with the selection the frontend already has, none when it's new; the
+  CLI warns, and a second deploy rebuilds with the selection the config step
+  applied.
 - **Frontend builds take minutes.** Pass `--no-frontends` when only function
   code, migrations, or config changed, and while `npm run dev` is the edit
   loop.
-- **`--no-wait`** returns once the config step is done, without waiting for
-  the deployments.
+- **The wait lasts up to 30 minutes.** Run `volcano deploy` with a tool
+  timeout that long, or in the background, and read its output until it
+  exits. Alternatively pass `--no-wait`, which returns once the config step
+  is done, then poll `volcano functions get <name>` and
+  `volcano frontends get <name>` until each `Status` is `active`.
+  Never rerun a deploy you stopped mid-wait with `--with-migrations`; the
+  migrations already ran.
 
-Redeploy one piece with its own command from the "Same as" column.
+Redeploy one piece with its own command from the "Same as" column. For a
+frontend, use the command a failed `volcano deploy` prints, which carries the
+name, path, `--app-root`, and variable selection. A bare
+`volcano frontends deploy` names the frontend after the current directory and
+creates a second one. In the cloud, prefix each command with `cloud`, except
+migrations: `volcano cloud databases migration up --all -d <database>`.
 
 To seed a manifest from an existing project, run `volcano config pull` once
 before the first deploy. A pulled manifest has no `variables` section, so it
@@ -696,20 +732,45 @@ volcano cloud deploy --env-file volcano/cloud.env --with-migrations -d <database
 
 `volcano cloud deploy` runs the same steps against the selected cloud project.
 `volcano/volcano.env` points at the local server, so the cloud deploy reads
-`volcano/cloud.env`, which you create with the cloud project's values under the
-same names: `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, and `VOLCANO_DATABASE` for
-functions, and their `NEXT_PUBLIC_VOLCANO_*` copies for a Next.js frontend,
-whose build never sees `VOLCANO_*` names. Get an anon key with
-`volcano projects keys anon list`. The command refuses an env file that still
-holds the local server's keys or a localhost `VOLCANO_API_URL`.
-The cloud database must already exist and be `active`; `-d` can be left out
-when the manifest's `databases:` section declares exactly one. Migrations are
-not tracked, so `--with-migrations` applies every file to the cloud database
-again; only pass it when the files are safe to re-run there. A project that
-deploys code from a connected Git repository is refused before anything
-changes: push to deploy code, and use `volcano cloud variables deploy` and
-`volcano cloud config deploy` for the rest. Cloud deploys need the user's
-explicit go-ahead (see `AGENTS.md`).
+`volcano/cloud.env`, which you create with every variable the project needs
+in the cloud: its own secrets and settings (`STRIPE_SECRET_KEY`, `GREETING`),
+plus the cloud values of `VOLCANO_API_URL` (`https://api.volcano.dev`),
+`VOLCANO_ANON_KEY`, and `VOLCANO_DATABASE` when functions read them, and their
+`NEXT_PUBLIC_VOLCANO_*` copies for a Next.js frontend, whose build never sees
+`VOLCANO_*` names. Get an anon key with `volcano projects keys anon list`. The
+command refuses an env file that still holds the local server's keys or a
+localhost `VOLCANO_API_URL`.
+
+`--with-migrations` needs the cloud database to exist and be `active`;
+otherwise the deploy stops at migrations after saving the variables. Create
+it first, and repeat `get` until `Status` is `active`:
+
+```sh
+volcano cloud databases create <database> --region us-east-1 --pg-version 16
+volcano cloud databases get <database>
+```
+
+`-d` can be left out when the manifest's `databases:` section declares exactly
+one. Migrations are not tracked, so `--with-migrations` applies every file to
+the cloud database again; only pass it when the files are safe to re-run
+there.
+
+A project that deploys code from a connected Git repository is refused before
+anything changes. Push to deploy code, and deploy the rest with:
+
+```sh
+volcano cloud variables deploy -f volcano/cloud.env
+volcano cloud databases migration up --all -d <database>   # only when migrations need applying
+volcano cloud config deploy
+```
+
+On a CLI older than 0.45.0, which has no `volcano cloud deploy`, run the same
+steps one at a time: the three commands above, with
+`volcano cloud functions deploy --all`, `volcano cloud durable deploy --all`,
+and `volcano cloud frontends deploy --name <name> --path <workspace>` before
+`config deploy`.
+
+Cloud deploys need the user's explicit go-ahead (see `AGENTS.md`).
 
 Deploying uploads local source, so it is a CLI action; the Volcano MCP server
 has no deploy tool. An agent on MCP checks what a deploy produced with
@@ -806,7 +867,7 @@ the project genuinely doesn't use that resource).
 
 **Local deploy** — see "Local deploy" above:
 - [ ] `volcano start` — local stack up and `volcano status` healthy.
-- [ ] `volcano deploy --with-migrations` (drop the flag when there are no migrations to apply) exited zero, and its plan listed every resource the build added: variables, migrations, functions, durable functions, frontends, config.
+- [ ] `volcano deploy --with-migrations` (drop the flag when there are no migrations to apply), on CLI 0.45.0 or later, printed a plan whose steps cover what the build added: the env file, the migrations directory, `volcano/functions`, each durable function and frontend by name, and the manifest. `volcano functions list` shows every function.
 - [ ] It exited zero with no `✗` lines, and each frontend printed a URL. (`unchanged` means the deploy had nothing new for that resource.)
 - [ ] The manifest declares `visibility: authenticated` for every function the app calls as a signed-in user.
 
@@ -823,7 +884,7 @@ Cloud is out of scope here — never auto-deploy to cloud (see `AGENTS.md` safet
 
 ## Forbidden Patterns
 - Do NOT create an `src/api/index.ts` route dispatcher or `openapi.yaml` — Volcano Functions deploy individually from `volcano/functions/`, not through a single entry point.
-- Do NOT expect `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, or `VOLCANO_DATABASE` to be auto-injected — define them as project variables via `volcano variables deploy` (local) or `volcano cloud variables deploy` (cloud).
+- Do NOT expect `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, or `VOLCANO_DATABASE` to be auto-injected — define them as project variables via `volcano variables deploy` (local) or `volcano cloud variables deploy -f volcano/cloud.env` (cloud).
 - Do NOT use `VOLCANO_DB_NAME` — the canonical variable is `VOLCANO_DATABASE`.
 - Do NOT use bare `uid()`, `email()`, `role()` — always use the `auth.` schema prefix: `auth.uid()`, `auth.email()`, `auth.role()`.
 - Do NOT use `pg`/`pg-pool`/`DATABASE_URL` as a replacement for the SDK client — use `VOLCANO_DATABASE` and the SDK for all standard CRUD. Direct Postgres access is a discouraged, narrowly-scoped last resort ONLY for query-builder gaps that are provably impossible otherwise (joins/upserts/multi-statement transactions), NOT a general-purpose data layer or a reason to introduce an ORM as project architecture, and ONLY after rewriting `application_name` to `volcano_user_access:{user_id}` (raw `DATABASE_URL` bypasses RLS) — see `volcano-database`'s "Direct Postgres Access" section.
