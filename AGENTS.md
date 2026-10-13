@@ -256,11 +256,13 @@ never a diagnostic detour.
 - Scaffold: `volcano init`, `volcano storage bucket create <name>` (local only — creating a bucket needed for what was built is local scaffolding like `volcano init`; cloud bucket creation follows the cloud-deploy confirmation below)
 - List/get: `volcano functions list|get`, `volcano variables list|get`, `volcano databases list|get`, `volcano storage bucket list|get`
 - Logs: `volcano functions logs <name> --type build|runtime`
+- Durable messages: `volcano [cloud] durable messages list|waits`, and `volcano durable messages send` against local executions while testing
 - Local dev: `volcano start|stop|restart|status` — automatic by default after building (see "Build vs. run/test/deploy"), and whenever the user asks to run/test/preview locally
 - Local deploy: `volcano functions deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app` — automatic by default after building, and whenever the user asks to run/test/preview locally
 
 **Confirm-first:**
 - Cloud deploys: `volcano cloud functions deploy`, `volcano cloud frontends deploy`, `volcano cloud config deploy`, `volcano cloud variables deploy`
+- Cloud durable messages: `volcano cloud durable messages send` (resumes a real execution; a send cannot be taken back)
 - Cloud project creation: `volcano projects create` (a cloud resource; ask first, including when it's the project-context step of a cloud deploy)
 - Deletions: any `... delete` (local or cloud)
 - Local data reset: `volcano reset` (drops all local databases + local platform data; local-only but destructive and not recoverable — confirm first, then re-deploy migrations)

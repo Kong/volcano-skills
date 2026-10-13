@@ -149,6 +149,24 @@
       ]
     },
     {
+      "id": "durable-wait-for-message",
+      "prompt": "Build a publishing workflow that pauses until a webhook sends it a message with the posted URL using Volcano",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-durable", "signals": ["message", "workflow"] }
+      ]
+    },
+    {
+      "id": "durable-live-progress",
+      "prompt": "Show live workflow progress in the browser while a long Volcano export runs",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-durable", "signals": ["live workflow progress"] }
+      ]
+    },
+    {
       "id": "project-log-reader",
       "prompt": "Build a server-side Volcano project logs reader with retained log search and pagination",
       "expected": [

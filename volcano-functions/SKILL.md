@@ -241,6 +241,63 @@ exports.handler = async (event) => {
 };
 ```
 
+### Forward a webhook to a durable workflow
+A durable workflow waiting with `ctx.waitForMessage` resumes when the webhook
+receiver sends it a message (see `volcano-durable`). Make the receiver a
+public HTTP-mode function that skips Volcano auth, verify the provider's
+signature, and send with the service key from a project variable:
+```yaml
+# volcano-config.yaml
+version: 1
+functions:
+  - name: publisher-webhook
+    visibility: public
+    invocation_mode: http
+    http_auth_mode: none
+    variable_scope: scoped
+    variables: [PUBLISHER_WEBHOOK_SECRET, VOLCANO_API_URL, VOLCANO_SERVICE_KEY]
+```
+```js
+// functions/publisher-webhook.js
+const crypto = require('node:crypto');
+const { VolcanoAuth } = require('@volcano.dev/sdk');
+
+exports.handler = async (event) => {
+  const rawBody = Buffer.from(event.body || '', event.is_base64_encoded ? 'base64' : 'utf8');
+  const expected = crypto
+    .createHmac('sha256', process.env.PUBLISHER_WEBHOOK_SECRET)
+    .update(rawBody)
+    .digest('hex');
+  const supplied = Buffer.from(event.headers['Publisher-Signature']?.[0] || '');
+  if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, Buffer.from(expected))) {
+    return { statusCode: 401, body: 'invalid signature' };
+  }
+
+  const hook = JSON.parse(rawBody.toString('utf8'));
+  // The id the app saved when it started the workflow for this post.
+  const executionId = await executionIdForPost(hook.post_id);
+  if (!executionId) return { statusCode: 202, body: '' };
+
+  const volcano = new VolcanoAuth({
+    apiUrl: process.env.VOLCANO_API_URL,
+    anonKey: process.env.VOLCANO_SERVICE_KEY,
+  });
+  const sent = await volcano.durable.messages.send(
+    { functionName: 'publish-post', executionId },
+    'posted',
+    { url: hook.url },
+    { idempotencyKey: hook.id },
+  );
+  if (sent.error && sent.status !== 409) return { statusCode: 502, body: sent.error.message };
+  return { statusCode: 202, body: '' };
+};
+```
+- The provider's event id as `idempotencyKey` makes its retries harmless.
+- A `409` means the workflow ended or its queue is full; acknowledge it so the
+  provider stops retrying.
+- The service key reaches every execution in the project. Keep it in a scoped
+  variable on the receiver only.
+
 ## When to Use Functions
 | Use case | Example |
 |---|---|

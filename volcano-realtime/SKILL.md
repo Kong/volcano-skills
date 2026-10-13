@@ -5,7 +5,7 @@ description: Use for realtime or live updates in Volcano apps, including collabo
 # Volcano Realtime Skill
 
 ## Role
-Implement live updates with deterministic realtime lifecycle handling. This skill is self-contained: connection lifecycle, all three channel types (postgres / broadcast / presence), token refresh, and cleanup are embedded.
+Implement live updates with deterministic realtime lifecycle handling. This skill is self-contained: connection lifecycle, all three channel types (postgres / broadcast / presence), token refresh, and cleanup are embedded. Live progress from a durable workflow uses `durable.messages.subscribe` (see "Durable workflow progress").
 
 ## Workflow
 1. Enable realtime for the project — `realtime: { enabled: true }` in `volcano-config.yaml`, then `config deploy` (off by default; see "Enable realtime").
@@ -245,6 +245,27 @@ await channel.track({
   last_seen: new Date().toISOString(),
 });
 ```
+
+## Durable workflow progress
+
+To show what a durable execution publishes with `ctx.publish`, use
+`volcano.durable.messages.subscribe` on a connected client. Never subscribe to
+a raw `durable:` channel; the SDK resolves it and catches up from the message
+list so nothing published before the subscribe is missed.
+
+```ts
+const { data: subscription, error } = await volcano.durable.messages.subscribe(
+  { functionName: 'publish-post', executionId: execution.id, clientToken: execution.client_token },
+  (message) => showProgress(message.data),
+  { realtime },
+);
+// On teardown
+await subscription?.unsubscribe();
+```
+
+Realtime must be enabled for the project, and each delivered message counts as
+a Realtime message. Clients cannot publish on that channel; they send with
+`durable.messages.send`. See `volcano-durable` for who can reach an execution.
 
 ## Channel Management
 ```ts
