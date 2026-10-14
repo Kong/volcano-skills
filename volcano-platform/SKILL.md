@@ -650,11 +650,14 @@ volcano variables deploy
 volcano migrations deploy --all -d app     # only when migrations need applying
 volcano functions deploy --all
 volcano durable deploy --all               # only when the manifest declares kind: durable
-# 0.45.x only, once per frontend:
-volcano frontends deploy --name <name> --path <workspace> --app-root <app_root> \
+# 0.45.x only, once per frontend (Next.js starter layout shown):
+volcano frontends deploy --name web --path . --app-root web \
   --variable-scope scoped --variable <NEXT_PUBLIC_NAME>
 volcano config deploy
 ```
+
+`--path` is the directory to upload and `--app-root` the Next.js app inside
+it. For the Next.js starter that is the project root (`.`) and `web`.
 
 Below 0.45.0, `volcano frontends deploy` is an alias that uploads to the
 selected **cloud** project, so never run it there; run the frontend with
@@ -669,7 +672,7 @@ step the project has nothing for:
 | migrations | `volcano/migrations/*.sql`, only with `--with-migrations` | `volcano migrations deploy --all -d app` |
 | functions | standard functions in `volcano/functions/` | `volcano functions deploy --all` |
 | durable | functions the manifest marks `kind: durable` | `volcano durable deploy --all` |
-| frontends | frontends listed in `.volcano/source-layout.json` | `volcano frontends deploy --name <name> --path <workspace>` (see below) |
+| frontends | frontends listed in `.volcano/source-layout.json` | `volcano frontends deploy --name web --path . --app-root web` for the Next.js starter (see below) |
 | config | `volcano/volcano-config.yaml` | `volcano config deploy` |
 
 Then it waits for every deployment it started, prints each result and the
@@ -709,10 +712,14 @@ visibility it sets.
   what the root `.gitignore` lists and always leaves out `volcano/*.env` and
   the env file the run deployed. A frontend's manifest entry with
   `variable_scope: all`, or `scoped` with a `variables` list, decides which
-  variables its build sees. Any other entry (`shared`, or a missing field)
-  builds with the selection the frontend already has, none when it's new; the
-  CLI warns, and a second deploy rebuilds with the selection the config step
-  applied.
+  variables its build sees. Otherwise the build uses the selection the
+  frontend already has, none when it's new. The CLI warns for `shared` or an
+  entry missing one of the two fields, and a second deploy rebuilds with the
+  selection the config step applied. It does **not** warn when the frontend
+  has no `frontends:` entry, or an entry with neither field. The plain
+  `volcano init nextjs` starter is in that case: it has a layout file but no
+  manifest, so once its app reads `NEXT_PUBLIC_*` names, add a `frontends:`
+  entry that selects them (see `volcano-nextjs`).
 - **Frontend builds take minutes.** Pass `--no-frontends` when only function
   code, migrations, or config changed, and while `npm run dev` is the edit
   loop.
@@ -724,8 +731,12 @@ visibility it sets.
   mid-wait with `--with-migrations`; the migrations already ran.
 
 Redeploy one piece with its own command from the "Same as" column. For a
-frontend, use the command a failed `volcano deploy` prints, which carries the
-name, path, `--app-root`, and variable selection. A bare
+frontend whose deploy step failed, use the command `volcano deploy` prints,
+which carries the name, path, `--app-root`, and variable selection. A build
+that fails during the wait prints no such command: the output is the `✗`
+line, `volcano frontends logs <name> --type build`, and
+`N deployment(s) failed: frontend <name>`. Read the build logs, fix the
+build, and rerun `volcano deploy` without `--with-migrations`. A bare
 `volcano frontends deploy` names the frontend after the current directory and
 creates a second one. In the cloud, prefix each command with `cloud`, except
 migrations: `volcano cloud databases migration up --all -d <database>`.
@@ -790,10 +801,13 @@ whatever the root `.gitignore` doesn't exclude. Pass the frontend's variable
 selection, or a new frontend builds with no variables:
 
 ```sh
-volcano cloud frontends deploy --name <name> --path <workspace> --app-root <app_root> \
+volcano cloud frontends deploy --name web --path . --app-root web \
   --variable-scope scoped --variable NEXT_PUBLIC_VOLCANO_API_URL \
   --variable NEXT_PUBLIC_VOLCANO_ANON_KEY --variable NEXT_PUBLIC_VOLCANO_DATABASE
 ```
+
+That is the Next.js starter's layout; for another, `--path` is the directory
+to upload and `--app-root` the app inside it.
 
 Cloud deploys need the user's explicit go-ahead (see `AGENTS.md`).
 

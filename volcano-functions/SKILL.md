@@ -143,9 +143,9 @@ frontends:
   `{ statusCode: 200, multiValueHeaders: { "Set-Cookie": [a, b] }, body }`.
 - Manage routes from the manifest, or with
   `volcano cloud frontends routes create web --path /api/session --function session --strip-prefix`.
-  That command is cloud-only. Locally, declare `function_routes` in the
-  manifest and run `volcano deploy`, which deploys the frontend and applies
-  its routes.
+  Locally (CLI 0.45.0+), use `volcano frontends routes create ...`, or
+  declare `function_routes` in the manifest and run `volcano deploy`, which
+  deploys the frontend and applies its routes.
 - `volcano docs search "function routes"` finds the full session example,
   including sign-in, sign-out, and the CSRF check.
 
