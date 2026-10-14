@@ -17,14 +17,25 @@ Implement Volcano SDK in Next.js with strict client/server separation and middle
 Read `volcano-uiux` for every user-facing Next.js interface. It owns accessibility, responsive layout, loading and progress feedback, forms, navigation, and interface-state guidance. This skill owns the Next.js implementation and client/server boundary.
 
 ## Environment Contract
-`.env.local`:
+A deployed frontend builds with the project variables its `volcano-config.yaml`
+entry selects. Declare them in `volcano/volcano.env` for the local server and
+in `volcano/cloud.env` for the cloud project:
 ```env
-NEXT_PUBLIC_VOLCANO_API_URL=https://api.yourproject.volcano.dev
+NEXT_PUBLIC_VOLCANO_API_URL=http://localhost:8000   # https://api.volcano.dev in cloud.env
 NEXT_PUBLIC_VOLCANO_ANON_KEY=ak-your-anon-key
-NEXT_PUBLIC_VOLCANO_DATABASE_NAME=your-database
+NEXT_PUBLIC_VOLCANO_DATABASE=app
+```
+```yaml
+# volcano/volcano-config.yaml
+frontends:
+  - name: web
+    variable_scope: scoped
+    variables: [NEXT_PUBLIC_VOLCANO_API_URL, NEXT_PUBLIC_VOLCANO_ANON_KEY, NEXT_PUBLIC_VOLCANO_DATABASE]
 ```
 - `NEXT_PUBLIC_*` vars are exposed to both client and server.
 - Server-only secrets MUST NOT have the `NEXT_PUBLIC_` prefix.
+- `web/.env.local` serves only `npm run dev`. Deploys never upload it, so a
+  value kept only there is missing from every deployed build.
 
 ## Execution Environments
 | Environment | SDK usage |
@@ -47,7 +58,7 @@ export function getVolcano(): VolcanoAuth {
       apiUrl: process.env.NEXT_PUBLIC_VOLCANO_API_URL!,
       anonKey: process.env.NEXT_PUBLIC_VOLCANO_ANON_KEY!,
     });
-    volcano.database(process.env.NEXT_PUBLIC_VOLCANO_DATABASE_NAME!);
+    volcano.database(process.env.NEXT_PUBLIC_VOLCANO_DATABASE!);
   }
   return volcano;
 }
@@ -266,7 +277,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     anonKey: process.env.NEXT_PUBLIC_VOLCANO_ANON_KEY!,
     accessToken: token,
   });
-  volcano.database(process.env.NEXT_PUBLIC_VOLCANO_DATABASE_NAME!);
+  volcano.database(process.env.NEXT_PUBLIC_VOLCANO_DATABASE!);
 
   const { data, error } = await volcano
     .from('posts')
@@ -362,7 +373,7 @@ export async function getPosts() {
     anonKey: process.env.NEXT_PUBLIC_VOLCANO_ANON_KEY!,
     accessToken: token,
   });
-  volcano.database(process.env.NEXT_PUBLIC_VOLCANO_DATABASE_NAME!);
+  volcano.database(process.env.NEXT_PUBLIC_VOLCANO_DATABASE!);
 
   const { data } = await volcano
     .from('posts')

@@ -25,7 +25,8 @@ functions. The handler contracts differ.
 - A function kind is fixed when the function is created.
 - Deploy locally with `volcano durable deploy` and to cloud with
   `volcano cloud durable deploy`. Standard function deploy skips manifest
-  entries marked durable.
+  entries marked durable. `volcano deploy` and `volcano cloud deploy` deploy
+  them with the rest of the project, after the standard functions.
 - Start an execution. Do not invoke a durable function.
 - A start returns an execution handle. Poll the execution for its result.
 - JavaScript, TypeScript, and Python can author durable handlers. Ruby clients
@@ -350,7 +351,7 @@ Run and verify Durable functions locally before cloud deployment:
 
 ```sh
 volcano start
-volcano durable deploy --all
+volcano deploy                  # or only the durable functions: volcano durable deploy --all
 volcano durable get order-pipeline
 
 volcano durable start order-pipeline \
@@ -381,7 +382,10 @@ Cloud deploy requires explicit user approval. Follow `volcano-platform` for
 login, project selection, variables, and config deployment.
 
 ```sh
-# Deploy every manifest entry marked durable.
+# Deploy the whole project, durable functions included, and wait until active.
+volcano cloud deploy --env-file volcano/cloud.env
+
+# Or deploy only the manifest entries marked durable.
 volcano cloud durable deploy --all
 
 # Or deploy one source. --visibility works only with -f; leave it out to keep
@@ -468,7 +472,7 @@ cloud state.
 
 - Validate source syntax or run the project's typecheck and unit tests.
 - Confirm the manifest names every durable function with `kind: durable`.
-- Run `volcano start` and `volcano durable deploy --all`.
+- Run `volcano start` and `volcano deploy` (or `volcano durable deploy --all`).
 - Wait for local function status `active`.
 - Start one local execution with a unique idempotency name.
 - If it waits on an approval, give the user its ID and ask them to decide.

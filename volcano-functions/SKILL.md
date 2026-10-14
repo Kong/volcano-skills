@@ -143,7 +143,9 @@ frontends:
   `{ statusCode: 200, multiValueHeaders: { "Set-Cookie": [a, b] }, body }`.
 - Manage routes from the manifest, or with
   `volcano cloud frontends routes create web --path /api/session --function session --strip-prefix`.
-  The CLI deploys frontends only to cloud, so test routes there.
+  Locally (CLI 0.45.0+), use `volcano frontends routes create ...`, or
+  declare `function_routes` in the manifest and run `volcano deploy`, which
+  deploys the frontend and applies its routes.
 - `volcano docs search "function routes"` finds the full session example,
   including sign-in, sign-out, and the CSRF check.
 
@@ -293,10 +295,10 @@ exports.handler = async (event) => {
 ## Environment Variables
 Functions receive **only user-defined project variables**. Volcano does not auto-inject any variables — you must deploy them yourself:
 ```sh
-volcano variables deploy           # local
-volcano cloud variables deploy     # cloud (requires volcano login + volcano use)
+volcano variables deploy                          # local, from volcano/volcano.env
+volcano cloud variables deploy -f volcano/cloud.env   # cloud (requires volcano login + volcano use)
 ```
-This reads from `volcano/volcano.env` and sets project-scoped variables available to all functions at runtime.
+This sets project-scoped variables available to all functions at runtime. `volcano/volcano.env` holds the local server's values; keep the cloud project's in `volcano/cloud.env`. `volcano deploy` (or `volcano cloud deploy --env-file volcano/cloud.env`) deploys them before the functions in the same run.
 
 **Canonical names** (the shared client factory expects these):
 - `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, `VOLCANO_DATABASE` (defaults to `'app'`).
