@@ -117,10 +117,11 @@ and never touches cloud/production resources, so this default is safe:
    migrations, functions, durable functions, frontends, and
    `volcano-config.yaml` in that order, skipping whatever the project lacks,
    then waits up to 30 minutes for the deployments to finish (see
-   `volcano-platform`). `volcano deploy` needs CLI 0.45.0 or later. On an
+   `volcano-platform`). `volcano deploy` needs CLI 0.46.0 or later. On an
    older CLI, deploy the pieces with the step-by-step commands in
-   `volcano-platform` instead, never `volcano frontends deploy`, and suggest
-   upgrading the CLI in `Next:`.
+   `volcano-platform` instead, and suggest upgrading the CLI in `Next:`.
+   Below 0.45.0, never run `volcano frontends deploy`: it deploys to the
+   cloud there.
 4. Exercise what was built through the local API at `http://localhost:8000`
    (for example, invoke the new function) and report the result.
 
@@ -167,7 +168,7 @@ the user explicitly asks for it. Then run these in order:
    `--with-migrations` run applies every file again; pass
    `--with-migrations -d <database>` only when the user agrees the migrations
    should run on that cloud database, and once it shows `active` in
-   `volcano cloud databases get <database>`. On a CLI older than 0.45.0, run
+   `volcano cloud databases get <database>`. On a CLI older than 0.46.0, run
    the per-step cloud commands in `volcano-platform` instead.
 
 **Ask before deploying** — get the user's explicit go-ahead before running step 3
@@ -214,8 +215,8 @@ commands when no database was used), and use exact CLI commands:
 - After a **cloud deploy**: suggest verification with exactly one method, not
   a menu of options, e.g. "Next: check it with `volcano cloud functions logs
   <name>`."
-- On a CLI older than 0.45.0, suggest the upgrade before anything else, e.g.
-  "Next: upgrade the Volcano CLI to 0.45.0 or later so `volcano deploy`
+- On a CLI older than 0.46.0, suggest the upgrade before anything else, e.g.
+  "Next: upgrade the Volcano CLI to 0.46.0 or later so `volcano deploy`
   deploys the whole project, including frontends, in one run." Suggest it
   only; upgrading is the user's call (see `install-volcano`).
 
@@ -304,7 +305,7 @@ volcano init [javascript|nextjs|python|ruby]
 # Local development (targets local dev server)
 volcano start|stop|restart|status
 volcano reset [--yes]                      # DESTRUCTIVE: drop local DBs + re-provision local state (local-recovery; confirm first)
-volcano deploy [--with-migrations]         # CLI 0.45.0+: whole project: variables, migrations, functions, durable, frontends, config
+volcano deploy [--with-migrations]         # CLI 0.46.0+: whole project: variables, migrations, functions, durable, frontends, config
 volcano functions deploy --all | deploy -f <name> | list | get | logs
 volcano durable deploy --all
 volcano frontends deploy --name <name> --path <dir> | list | get | logs | routes   # CLI 0.45.0+; older CLIs deploy to the cloud
@@ -315,7 +316,7 @@ volcano storage bucket list|get
 volcano migrations deploy --all -d app
 
 # Cloud (requires login + use)
-volcano cloud deploy --env-file volcano/cloud.env [--with-migrations -d <database>]   # CLI 0.45.0+
+volcano cloud deploy --env-file volcano/cloud.env [--with-migrations -d <database>]   # CLI 0.46.0+
 volcano cloud functions deploy --all
 volcano cloud frontends deploy --name <name> --path <dir> | list | logs
 volcano cloud variables deploy -f volcano/cloud.env

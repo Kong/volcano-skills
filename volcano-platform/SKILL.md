@@ -34,7 +34,7 @@ This skill focuses on **project shape and deploy mechanics**, not on how to writ
 
 ```
 volcano/                        # Volcano-managed project directory
-volcano/.gitignore              # ignores *.env (volcano.env, cloud.env), .env.local, logs; before CLI 0.45.0 only volcano.env
+volcano/.gitignore              # ignores *.env (volcano.env, cloud.env), .env.local, logs; before CLI 0.46.0 only volcano.env
 volcano/volcano.env             # local server's environment variables (gitignored)
 volcano/volcano.env.example     # env var documentation (committed)
 volcano/migrations/             # SQL migration files
@@ -639,11 +639,10 @@ npm run build:functions
 volcano deploy --with-migrations
 ```
 
-`volcano deploy` and local `volcano frontends` need Volcano CLI 0.45.0 or
-later; check the version `volcano --version` printed. On an older CLI,
-`volcano deploy` fails with `unknown command "deploy"`, and
-`volcano frontends deploy` is an alias that uploads to the selected **cloud**
-project, so never run it there. Deploy the pieces the project has instead, in
+`volcano deploy` needs Volcano CLI 0.46.0 or later, and local
+`volcano frontends` needs 0.45.0 or later; check the version
+`volcano --version` printed. On an older CLI, `volcano deploy` fails with
+`unknown command "deploy"`. Deploy the pieces the project has instead, in
 this order, and suggest upgrading the CLI in `Next:`:
 
 ```sh
@@ -651,10 +650,15 @@ volcano variables deploy
 volcano migrations deploy --all -d app     # only when migrations need applying
 volcano functions deploy --all
 volcano durable deploy --all               # only when the manifest declares kind: durable
+# 0.45.x only, once per frontend:
+volcano frontends deploy --name <name> --path <workspace> --app-root <app_root> \
+  --variable-scope scoped --variable <NEXT_PUBLIC_NAME>
 volcano config deploy
 ```
 
-Older CLIs can't deploy a frontend locally; run it with `npm run dev`.
+Below 0.45.0, `volcano frontends deploy` is an alias that uploads to the
+selected **cloud** project, so never run it there; run the frontend with
+`npm run dev` instead.
 
 `volcano deploy` prints its plan, then runs these steps in order, skipping a
 step the project has nothing for:
@@ -691,7 +695,7 @@ visibility it sets.
   and the commands that finish the rest. Rerun without `--with-migrations` if
   the migrations already applied.
 - **Frontends come from `.volcano/source-layout.json`**, which `volcano init
-  nextjs` creates from CLI 0.45.0 on. Each entry names a frontend, the
+  nextjs` creates from CLI 0.46.0 on. Each entry names a frontend, the
   directory to upload (`workspace`), and the Next.js app inside it
   (`app_root`). A project scaffolded earlier has none, and the plan shows
   `frontends  skipped: no .volcano/source-layout.json`; for the Next.js
@@ -743,7 +747,7 @@ volcano cloud deploy --env-file volcano/cloud.env --with-migrations -d <database
 `volcano/cloud.env`. It holds secrets, so before creating it run
 `git check-ignore -q volcano/cloud.env`. If that exits non-zero, add
 `volcano/*.env` to the root `.gitignore`: projects scaffolded before CLI
-0.45.0 ignore only `volcano.env`, and the root `.gitignore` is also what keeps
+0.46.0 ignore only `volcano.env`, and the root `.gitignore` is also what keeps
 older CLIs from uploading the file with a frontend. Create it with every
 variable the project needs
 in the cloud: its own secrets and settings (`STRIPE_SECRET_KEY`, `GREETING`),
@@ -777,7 +781,7 @@ volcano cloud databases migration up --all -d <database>   # only when migration
 volcano cloud config deploy
 ```
 
-On a CLI older than 0.45.0, which has no `volcano cloud deploy`, run the same
+On a CLI older than 0.46.0, which has no `volcano cloud deploy`, run the same
 steps one at a time: the three commands above, with
 `volcano cloud functions deploy --all`, `volcano cloud durable deploy --all`,
 and the frontend deploy before `config deploy`. Check first that
@@ -888,7 +892,7 @@ the project genuinely doesn't use that resource).
 
 **Local deploy** — see "Local deploy" above:
 - [ ] `volcano start` — local stack up and `volcano status` healthy.
-- [ ] `volcano deploy --with-migrations` (drop the flag when there are no migrations to apply), on CLI 0.45.0 or later, printed a plan whose steps cover what the build added: the env file, the migrations directory, `volcano/functions`, each durable function and frontend by name, and the manifest. `volcano functions list` shows every function.
+- [ ] `volcano deploy --with-migrations` (drop the flag when there are no migrations to apply), on CLI 0.46.0 or later, printed a plan whose steps cover what the build added: the env file, the migrations directory, `volcano/functions`, each durable function and frontend by name, and the manifest. `volcano functions list` shows every function.
 - [ ] It exited zero with no `✗` lines, and each frontend printed a URL. (`unchanged` means the deploy had nothing new for that resource.)
 - [ ] The manifest declares `visibility: authenticated` for every function the app calls as a signed-in user.
 
