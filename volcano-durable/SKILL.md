@@ -312,9 +312,11 @@ def handler(event, ctx):
   characters. Data is any JSON value up to 64 KiB.
 - The first `publish` in each context opens a messages session: three
   operations and one resume, once. It shows in the trace as a child named
-  `volcano:messages-session`.
-- Per execution: 100 queued messages, 1,000 published, 100 open waits, 20
-  sessions, and 3,600 sends per hour.
+  `volcano:messages-session`. Every `ctx.map` item and `ctx.parallel` branch
+  that publishes is its own context, so publish from the parent, after the map
+  returns or after each batch, rather than from each item.
+- Per execution: 100 queued messages, 100 open waits, 3,600 sends per hour,
+  and, over its life, 1,000 published messages and 1,000 sessions.
 
 ### Who can send and read
 
@@ -388,8 +390,15 @@ page = client.durable.messages.list("publish-post", execution.id, direction: "ou
 ```
 
 `subscribe` catches up from the list, then delivers each published message
-once, in `seq` order. It needs Realtime enabled (see `volcano-realtime`) and
-counts against the Realtime message allowance; listing works without it.
+once, in `seq` order. Each live message carries the `seq` published before it
+(`prev_seq`), so the SDK reads a lost one back from the list first. It needs
+Realtime enabled (see `volcano-realtime`) and counts against the Realtime
+message allowance; listing works without it.
+
+In Python and Ruby, `subscribe` needs a client signed in as a user: the
+realtime connection opens only for a user session. With just the client token
+or the service key it raises, so a backend holding those polls `list` with
+`after` instead.
 Never subscribe to a raw `durable:` channel. Pass `projectId` (`project_id`)
 to use the project endpoint with an owner or project access token.
 
@@ -641,7 +650,9 @@ cloud state.
     `messages waits`. A send `404` means the caller cannot reach the
     execution: an anon key or another user needs its `client_token`.
 11. A message send `409` with `execution_not_running` means the execution
-    ended; `too_many_queued_messages` means 100 messages are waiting unread.
+    ended; `too_many_queued_messages` means 100 messages are waiting unread,
+    so retry later. A `409` `callback_taken` from a wait or publish comes only
+    from a modified SDK reusing a callback.
 12. `VOLCANO_PLATFORM_API_URL` is reserved. The platform sets it on durable
     functions; a project variable with that name is rejected. A function last
     deployed before approvals existed needs one redeploy before

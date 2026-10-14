@@ -288,13 +288,17 @@ exports.handler = async (event) => {
     { url: hook.url },
     { idempotencyKey: hook.id },
   );
-  if (sent.error && sent.status !== 409) return { statusCode: 502, body: sent.error.message };
+  if (sent.error && sent.error.code !== 'execution_not_running') {
+    return { statusCode: 503, body: sent.error.message };
+  }
   return { statusCode: 202, body: '' };
 };
 ```
 - The provider's event id as `idempotencyKey` makes its retries harmless.
-- A `409` means the workflow ended or its queue is full; acknowledge it so the
-  provider stops retrying.
+- Acknowledge only `execution_not_running`: the workflow ended and no retry
+  will reach it. Any other error, including a `409`
+  `too_many_queued_messages` full queue, returns `503` so the provider retries
+  later instead of dropping the event.
 - The service key reaches every execution in the project. Keep it in a scoped
   variable on the receiver only.
 

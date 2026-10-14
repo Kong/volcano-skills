@@ -279,15 +279,18 @@ export async function POST(request: NextRequest) {
     { url: event.url },
     { idempotencyKey: event.id },
   );
-  if (sent.error && sent.status !== 409) {
-    return NextResponse.json({ error: sent.error.message }, { status: 502 });
+  const ended = sent.error !== null && 'code' in sent.error && sent.error.code === 'execution_not_running';
+  if (sent.error && !ended) {
+    return NextResponse.json({ error: sent.error.message }, { status: 503 });
   }
   return NextResponse.json({ received: true });
 }
 ```
-The event id as the idempotency key makes provider retries harmless. A `409`
-means the workflow already ended or its queue is full; acknowledge it so the
-provider stops retrying. Save `execution.id` when you start the workflow. A
+The event id as the idempotency key makes provider retries harmless.
+Acknowledge only `execution_not_running`, which means the workflow already
+ended. Any other error, including a full queue (`409`
+`too_many_queued_messages`), returns `503` so the provider retries later
+instead of dropping the event. Save `execution.id` when you start the workflow. A
 repeated start under the execution name also returns the id, but starts a new
 execution once the old one is past retention.
 
