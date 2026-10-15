@@ -278,6 +278,7 @@ never a diagnostic detour.
 **Confirm-first:**
 - Cloud deploys: `volcano cloud deploy`, `volcano cloud functions deploy`, `volcano cloud frontends deploy`, `volcano cloud config deploy`, `volcano cloud variables deploy`
 - Cloud project creation: `volcano projects create` (a cloud resource; ask first, including when it's the project-context step of a cloud deploy)
+- Cloud database changes: `volcano cloud databases create`, `volcano cloud databases migration up` (migrations are not tracked, so it re-applies every file)
 - Deletions: any `... delete` (local or cloud)
 - Local data reset: `volcano reset` (drops all local databases + local platform data; local-only but destructive and not recoverable — confirm first, then re-deploy migrations)
 - Secret / variable changes: `volcano cloud variables deploy -f volcano/cloud.env`

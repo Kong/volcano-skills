@@ -755,11 +755,18 @@ volcano cloud deploy --env-file volcano/cloud.env --with-migrations -d <database
 
 `volcano cloud deploy` runs the same steps against the selected cloud project.
 `volcano/volcano.env` points at the local server, so the cloud deploy reads
-`volcano/cloud.env`. It holds secrets, so before creating it run
-`git check-ignore -q volcano/cloud.env`. If that exits non-zero, add
-`volcano/*.env` to the root `.gitignore`: projects scaffolded before CLI
-0.46.0 ignore only `volcano.env`, and the root `.gitignore` is also what keeps
-older CLIs from uploading the file with a frontend. Create it with every
+`volcano/cloud.env`. It holds secrets, so before creating it make
+`volcano/*.env` the last line of the project root's `.gitignore`; the last
+matching rule wins, so no earlier `!` rule can re-include it:
+
+```sh
+[ "$(tail -n 1 .gitignore 2>/dev/null)" = 'volcano/*.env' ] || printf '\nvolcano/*.env\n' >> .gitignore
+```
+
+Projects scaffolded before CLI 0.46.0 ignore only `volcano.env`, and older CLIs
+read only the root `.gitignore` when deciding what to upload with a frontend, so
+a rule in `volcano/.gitignore` or a global ignore file keeps the file out of Git
+but not out of the upload. Create it with every
 variable the project needs
 in the cloud: its own secrets and settings (`STRIPE_SECRET_KEY`, `GREETING`),
 plus the cloud values of `VOLCANO_API_URL` (`https://api.volcano.dev`),
@@ -774,7 +781,7 @@ otherwise the deploy stops at migrations after saving the variables. Create
 it first, and repeat `get` until `Status` is `active`:
 
 ```sh
-volcano cloud databases create <database> --region us-east-1 --pg-version 16
+volcano cloud databases create <database> --region <region> --pg-version 16
 volcano cloud databases get <database>
 ```
 

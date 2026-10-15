@@ -19,14 +19,17 @@ Read `volcano-uiux` for every user-facing Next.js interface. It owns accessibili
 ## Environment Contract
 A deployed frontend builds with the project variables its `volcano-config.yaml`
 entry selects. Declare them in `volcano/volcano.env` for the local server and
-in `volcano/cloud.env` for the cloud project:
+in `volcano/cloud.env` for the cloud project, where the API URL is
+`https://api.volcano.dev`:
 ```env
-NEXT_PUBLIC_VOLCANO_API_URL=http://localhost:8000   # https://api.volcano.dev in cloud.env
+NEXT_PUBLIC_VOLCANO_API_URL=http://localhost:8000
 NEXT_PUBLIC_VOLCANO_ANON_KEY=ak-your-anon-key
 NEXT_PUBLIC_VOLCANO_DATABASE=app
 ```
+Then select them in the frontend's entry in `volcano/volcano-config.yaml`:
 ```yaml
-# volcano/volcano-config.yaml
+# volcano-config.yaml
+version: 1
 frontends:
   - name: web
     variable_scope: scoped
