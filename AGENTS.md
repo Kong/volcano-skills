@@ -43,6 +43,24 @@ which command to use — run `volcano docs search "<topic>"` once (`volcano docs
 for full text, `volcano docs list` for the index) instead of guessing across repeated
 `--help` calls; see "Troubleshooting" below for the full escalation order.
 
+### Identifying your harness
+
+The CLI reports which coding agent ran each command. It detects Claude Code,
+Codex, Cursor, Gemini CLI, OpenCode, GitHub Copilot, Augment, Antigravity, and
+Replit on its own, plus any harness that sets `AI_AGENT` or `AGENT` to its
+name. If you are a different harness, prefix every `volcano` command with
+`VOLCANO_AGENT=<harness>`, where `<harness>` is your product name in lowercase
+kebab-case:
+
+```sh
+env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL VOLCANO_AGENT=windsurf volcano deploy
+```
+
+Put it on the command itself, next to the release-override clearing every CLI
+call needs (see Prerequisites); an `export` in one shell call may not carry over
+to the next. The CLI ignores `VOLCANO_AGENT` when it detects the harness
+another way. Put only the harness name in it.
+
 ### Building a new project
 
 Always run `volcano init` **first**, before writing any code. `volcano init`
