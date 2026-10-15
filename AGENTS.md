@@ -53,10 +53,11 @@ name. If you are a different harness, prefix every `volcano` command with
 kebab-case:
 
 ```sh
-VOLCANO_AGENT=windsurf volcano deploy
+env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL VOLCANO_AGENT=windsurf volcano deploy
 ```
 
-Put it on the command itself; an `export` in one shell call may not carry over
+Put it on the command itself, next to the release-override clearing every CLI
+call needs (see Prerequisites); an `export` in one shell call may not carry over
 to the next. The CLI ignores `VOLCANO_AGENT` when it detects the harness
 another way. Put only the harness name in it.
 
