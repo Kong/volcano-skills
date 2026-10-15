@@ -755,11 +755,12 @@ volcano cloud deploy --env-file volcano/cloud.env --with-migrations -d <database
 
 `volcano cloud deploy` runs the same steps against the selected cloud project.
 `volcano/volcano.env` points at the local server, so the cloud deploy reads
-`volcano/cloud.env`. It holds secrets, so before creating it make sure the
-project root's `.gitignore` lists it:
+`volcano/cloud.env`. It holds secrets, so before creating it make
+`volcano/*.env` the last line of the project root's `.gitignore`; the last
+matching rule wins, so no earlier `!` rule can re-include it:
 
 ```sh
-grep -qxF 'volcano/*.env' .gitignore || printf '\nvolcano/*.env\n' >> .gitignore
+[ "$(tail -n 1 .gitignore 2>/dev/null)" = 'volcano/*.env' ] || printf '\nvolcano/*.env\n' >> .gitignore
 ```
 
 Projects scaffolded before CLI 0.46.0 ignore only `volcano.env`, and older CLIs
