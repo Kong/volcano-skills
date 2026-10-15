@@ -100,7 +100,7 @@ These apply to every Volcano build, regardless of which domain skills are loaded
 - Do NOT use `pg`/`pg-pool`/`DATABASE_URL` — use `volcano.from(...)` (with `VOLCANO_DATABASE`) instead. Direct Postgres access is a discouraged, untested-surface-area last resort — see `volcano-database`'s "Direct Postgres Access" section before ever reaching for it.
 - Do NOT mix `NEXT_PUBLIC_*` env vars into function/server code, or `VOLCANO_*` (un-prefixed) into browser code.
 - Do NOT place service keys (`sk-*`) in browser code — the SDK throws if you do.
-- Do NOT expect `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, or `VOLCANO_DATABASE` to be auto-injected into functions — deploy them via `volcano variables deploy` (local) or `volcano cloud variables deploy` (cloud).
+- Do NOT expect `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, or `VOLCANO_DATABASE` to be auto-injected into functions — deploy them via `volcano deploy` or `volcano variables deploy` (local), or `volcano cloud deploy --env-file volcano/cloud.env` or `volcano cloud variables deploy -f volcano/cloud.env` (cloud). A bare `volcano cloud variables deploy` reads `volcano/volcano.env`, the local server's values.
 - Do NOT skip `await volcano.initialize()` before user-scoped flows in the browser.
 - Do NOT use `.ts`/`.tsx` extensions in TypeScript imports — extensionless relative imports only.
 - Do NOT use bare `uid()` in RLS policies — always use the schema-qualified `auth.uid()`.

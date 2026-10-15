@@ -88,7 +88,7 @@ const volcano = new VolcanoAuth({
   apiUrl: process.env.NEXT_PUBLIC_VOLCANO_API_URL!,
   anonKey: process.env.NEXT_PUBLIC_VOLCANO_ANON_KEY!,
 });
-volcano.database(process.env.NEXT_PUBLIC_VOLCANO_DATABASE_NAME!);
+volcano.database(process.env.NEXT_PUBLIC_VOLCANO_DATABASE!);
 ```
 Service keys (prefix `sk-`) are server-only; using one in `anonKey` from a browser environment throws.
 

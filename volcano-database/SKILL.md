@@ -23,7 +23,7 @@ const volcano = new VolcanoAuth({
   apiUrl: process.env.NEXT_PUBLIC_VOLCANO_API_URL!,
   anonKey: process.env.NEXT_PUBLIC_VOLCANO_ANON_KEY!,
 });
-volcano.database(process.env.NEXT_PUBLIC_VOLCANO_DATABASE_NAME!);
+volcano.database(process.env.NEXT_PUBLIC_VOLCANO_DATABASE!);
 ```
 
 ### Function / Server-Side
