@@ -265,6 +265,15 @@ which remain legitimate. For diagnosing a problem, the human's device-code appro
 during `volcano login`/`volcano signup` is the only browser step in this workflow —
 never a diagnostic detour.
 
+## Reporting Volcano problems
+
+When you hit a problem with Volcano itself during a task, such as a CLI bug,
+docs or a skill that disagree with the CLI, a missing command that forced a
+workaround, a server error that repeats, or conflicting Volcano instructions,
+note it and keep working. After the task, file each problem with `volcano
+feedback` from a background agent, as the `volcano-feedback` skill describes.
+Do not report bugs in the user's own code.
+
 ## Safety model
 
 **Automatic when relevant to the user's requested scope (no confirmation needed):**
