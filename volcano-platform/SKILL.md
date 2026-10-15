@@ -755,13 +755,17 @@ volcano cloud deploy --env-file volcano/cloud.env --with-migrations -d <database
 
 `volcano cloud deploy` runs the same steps against the selected cloud project.
 `volcano/volcano.env` points at the local server, so the cloud deploy reads
-`volcano/cloud.env`. It holds secrets, so before creating it run
-`git check-ignore -v volcano/cloud.env`. Unless that prints a rule from the
-root `.gitignore` (the line starts with `.gitignore:`), add `volcano/*.env` to
-the root `.gitignore`: projects scaffolded before CLI 0.46.0 ignore only
-`volcano.env`, and older CLIs read only the root `.gitignore` when deciding
-what to upload with a frontend, so a rule in `volcano/.gitignore` or a global
-ignore file keeps the file out of Git but not out of the upload. Create it with every
+`volcano/cloud.env`. It holds secrets, so before creating it make sure the
+project root's `.gitignore` lists it:
+
+```sh
+grep -qxF 'volcano/*.env' .gitignore || printf '\nvolcano/*.env\n' >> .gitignore
+```
+
+Projects scaffolded before CLI 0.46.0 ignore only `volcano.env`, and older CLIs
+read only the root `.gitignore` when deciding what to upload with a frontend, so
+a rule in `volcano/.gitignore` or a global ignore file keeps the file out of Git
+but not out of the upload. Create it with every
 variable the project needs
 in the cloud: its own secrets and settings (`STRIPE_SECRET_KEY`, `GREETING`),
 plus the cloud values of `VOLCANO_API_URL` (`https://api.volcano.dev`),
