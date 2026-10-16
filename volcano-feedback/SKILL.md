@@ -82,29 +82,32 @@ distinct problem. Report each feedback ID, or why it was not sent.
 
 One report per distinct problem. Merge notes that share a cause.
 
+Pass the report as one JSON object on stdin with `--input -`. This avoids
+shell quoting for long or multi-line text:
+
 ```bash
-volcano feedback \
-  --category docs_mismatch \
-  --summary "volcano-platform skill passes --json to functions list; the CLI rejects it" \
-  --details "$(cat <<'EOF'
-Checking a local deploy, I ran the command the volcano-platform skill shows to
-list functions. The CLI rejected the flag. volcano functions list --help shows
-no --json flag.
+volcano feedback --input - <<'EOF'
+{
+  "category": "docs_mismatch",
+  "summary": "volcano-platform skill passes --json to functions list; the CLI rejects it",
+  "details": "Checking a local deploy, I ran the command the volcano-platform skill shows to list functions. The CLI rejected the flag. volcano functions list --help shows no --json flag.",
+  "commands": ["volcano functions list --json"],
+  "expected": "JSON list of functions",
+  "actual": "Error: unknown flag: --json",
+  "workaround": "Parsed the table output instead."
+}
 EOF
-)" \
-  --command "volcano functions list --json" \
-  --expected "JSON list of functions" \
-  --actual "Error: unknown flag: --json" \
-  --workaround "Parsed the table output instead."
 ```
 
-- `--category`, `--summary`, and `--details` are required. Add `--command`
-  (repeat it per command), `--expected`, `--actual`, and `--workaround`
-  whenever you have them.
-- `--details` says what you were doing and what happened, in order. Write it so
-  someone who did not see your session can follow it.
-- `--actual` is the exact error text.
-- Run `--dry-run` first if you are unsure what will be sent.
+- `category`, `summary`, and `details` are required. Add `commands` (a list),
+  `expected`, `actual`, and `workaround` whenever you have them.
+- `details` says what you were doing and what happened, in order. Write it so
+  someone who did not see your session can follow it. Use `\n` for line breaks.
+- `actual` is the exact error text.
+- An unknown key is an error. Each key also has a flag (`--category`,
+  `--summary`, `--details`, `--command` repeated per command, `--expected`,
+  `--actual`, `--workaround`), but do not mix flags with `--input`.
+- Add `--dry-run` first if you are unsure what will be sent.
 
 Do not ask the user before filing. Feedback is on by default, and the user can
 turn it off with `volcano telemetry disable`.
