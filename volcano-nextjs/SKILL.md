@@ -265,6 +265,49 @@ export async function GET(request: NextRequest) {
 }
 ```
 
+### Webhook into a durable workflow
+When a durable workflow waits with `ctx.waitForMessage`, the webhook route
+forwards the event as a message using the service key. Keep the key in a
+server-only variable (never `NEXT_PUBLIC_`) and verify the provider's signature
+before sending. See `volcano-durable` for the wait side.
+```ts
+// app/api/webhooks/publisher/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { VolcanoAuth } from '@volcano.dev/sdk';
+
+export async function POST(request: NextRequest) {
+  const event = await verifyPublisherWebhook(request); // provider's signature check
+  if (!event) return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+
+  // The id the app saved when it started the workflow for this post.
+  const executionId = await executionIdForPost(event.post_id);
+  if (!executionId) return NextResponse.json({ received: true });
+
+  const volcano = new VolcanoAuth({
+    apiUrl: process.env.NEXT_PUBLIC_VOLCANO_API_URL!,
+    anonKey: process.env.VOLCANO_SERVICE_KEY!,
+  });
+  const sent = await volcano.durable.messages.send(
+    { functionName: 'publish-post', executionId },
+    'posted',
+    { url: event.url },
+    { idempotencyKey: event.id },
+  );
+  const ended = sent.error !== null && 'code' in sent.error && sent.error.code === 'execution_not_running';
+  if (sent.error && !ended) {
+    return NextResponse.json({ error: sent.error.message }, { status: 503 });
+  }
+  return NextResponse.json({ received: true });
+}
+```
+The event id as the idempotency key makes provider retries harmless.
+Acknowledge only `execution_not_running`, which means the workflow already
+ended. Any other error, including a full queue (`409`
+`too_many_queued_messages`), returns `503` so the provider retries later
+instead of dropping the event. Save `execution.id` when you start the workflow. A
+repeated start under the execution name also returns the id, but starts a new
+execution once the old one is past retention.
+
 ## API Routes — Pages Router
 ```ts
 // pages/api/posts.ts
