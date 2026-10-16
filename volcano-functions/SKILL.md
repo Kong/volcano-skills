@@ -278,7 +278,7 @@ exports.handler = async (event) => {
   const hook = JSON.parse(rawBody.toString('utf8'));
   // The id the app saved when it started the workflow for this post.
   const executionId = await executionIdForPost(hook.post_id);
-  if (!executionId) return { statusCode: 202, body: '' };
+  if (!executionId) return { statusCode: 200, body: '' };
 
   const volcano = new VolcanoAuth({
     apiUrl: process.env.VOLCANO_API_URL,
@@ -293,7 +293,7 @@ exports.handler = async (event) => {
   if (sent.error && sent.error.code !== 'execution_not_running') {
     return { statusCode: 503, body: sent.error.message };
   }
-  return { statusCode: 202, body: '' };
+  return { statusCode: 200, body: '' };
 };
 ```
 - The provider's event id as `idempotencyKey` makes its retries harmless.

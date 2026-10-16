@@ -393,13 +393,18 @@ page = client.durable.messages.list("publish-post", execution.id, direction: "ou
 `subscribe` catches up from the list, then delivers each published message
 once, in `seq` order. Each live message carries the `seq` published before it
 (`prev_seq`), so the SDK reads a lost one back from the list first. It needs
-Realtime enabled (see `volcano-realtime`) and counts against the Realtime
-message allowance; listing works without it.
+Realtime enabled (see `volcano-realtime`); listing works without it. A publish
+with subscribers counts as one Realtime message plus one for each subscriber it
+reaches; a publish nobody is subscribed to costs nothing.
 
 In Python and Ruby, `subscribe` needs a client signed in as a user: the
 realtime connection opens only for a user session. With just the client token
 or the service key it raises, so a backend holding those polls `list` with
-`after` instead.
+`after` instead. Poll no faster than the app needs: on the application
+endpoint, sends and lists share the function's rate limit with its invocations
+and starts (on HOBBY, 100 requests per 10 seconds for one function and 600
+across the project), and a tight loop gets `429`. Read on while `has_more` is
+`true`; a page stops early once its messages carry 1 MiB of data.
 Never subscribe to a raw `durable:` channel. Pass `projectId` (`project_id`)
 to use the project endpoint with an owner or project access token.
 
@@ -423,7 +428,10 @@ Local message timeouts run in real time.
 
 The MCP tools `list_durable_messages` and `list_durable_message_waits` read;
 `send_durable_message` sends and is refused to a `read_only` project access
-token.
+token. Pass `functionId` as the function's name or id and `executionId` as the
+execution's hyphenated UUID. A page too large for the tool result sets
+`data_omitted: true` and `data: null` on its largest messages but keeps every
+`seq` and `has_more`, so keep paging with `after`.
 
 ## Start and manage executions from an application
 

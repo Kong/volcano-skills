@@ -263,8 +263,9 @@ const { data: subscription, error } = await volcano.durable.messages.subscribe(
 await subscription?.unsubscribe();
 ```
 
-Realtime must be enabled for the project, and each delivered message counts as
-a Realtime message. Clients cannot publish on that channel; they send with
+Realtime must be enabled for the project. A publish counts as one Realtime
+message plus one for each subscriber it reaches; with no subscribers it costs
+nothing. Clients cannot publish on that channel; they send with
 `durable.messages.send`. See `volcano-durable` for who can reach an execution.
 
 ## Channel Management
