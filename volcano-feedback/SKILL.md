@@ -82,27 +82,22 @@ distinct problem. Report each feedback ID, or why it was not sent.
 
 One report per distinct problem. Merge notes that share a cause.
 
-Pass the report as one JSON object on stdin with `--input -`. This avoids
-shell quoting for long or multi-line text:
+Pass the report as one JSON object to `--input`, in single quotes:
 
 ```bash
-volcano feedback --input - <<'EOF'
-{
-  "category": "docs_mismatch",
-  "summary": "volcano-platform skill passes --json to functions list; the CLI rejects it",
-  "details": "Checking a local deploy, I ran the command the volcano-platform skill shows to list functions. The CLI rejected the flag. volcano functions list --help shows no --json flag.",
-  "commands": ["volcano functions list --json"],
-  "expected": "JSON list of functions",
-  "actual": "Error: unknown flag: --json",
-  "workaround": "Parsed the table output instead."
-}
-EOF
+volcano feedback --input '{"category": "docs_mismatch", "summary": "volcano-platform skill passes --json to functions list; the CLI rejects it", "details": "Checking a local deploy, I ran the command the volcano-platform skill shows to list functions. The CLI rejected the flag. volcano functions list --help shows no --json flag.", "commands": ["volcano functions list --json"], "expected": "JSON list of functions", "actual": "Error: unknown flag: --json", "workaround": "Parsed the table output instead."}'
 ```
 
+- A single quote inside a value ends the shell string. Write your own text
+  without one ("cannot", not "can't").
+- When exact error text has a single quote, write the object to a file outside
+  the user's project with your file-writing tool, run `volcano feedback --input
+  <file>`, and delete the file. `--input -` reads the object from stdin.
+- Use `\n` for a line break inside a value.
 - `category`, `summary`, and `details` are required. Add `commands` (a list),
   `expected`, `actual`, and `workaround` whenever you have them.
 - `details` says what you were doing and what happened, in order. Write it so
-  someone who did not see your session can follow it. Use `\n` for line breaks.
+  someone who did not see your session can follow it.
 - `actual` is the exact error text.
 - An unknown key is an error. Each key also has a flag (`--category`,
   `--summary`, `--details`, `--command` repeated per command, `--expected`,
