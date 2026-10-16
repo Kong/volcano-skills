@@ -265,6 +265,15 @@ which remain legitimate. For diagnosing a problem, the human's device-code appro
 during `volcano login`/`volcano signup` is the only browser step in this workflow —
 never a diagnostic detour.
 
+## Reporting Volcano problems
+
+When you hit a problem with Volcano itself during a task, such as a CLI bug,
+docs or a skill that disagree with the CLI, a missing command that forced a
+workaround, a server error that repeats, or conflicting Volcano instructions,
+note it and keep working. After the task, file each problem with `volcano
+feedback` from a background agent, as the `volcano-feedback` skill describes.
+Do not report bugs in the user's own code.
+
 ## Safety model
 
 **Automatic when relevant to the user's requested scope (no confirmation needed):**
@@ -272,6 +281,7 @@ never a diagnostic detour.
 - Scaffold: `volcano init`, `volcano storage bucket create <name>` (local only — creating a bucket needed for what was built is local scaffolding like `volcano init`; cloud bucket creation follows the cloud-deploy confirmation below)
 - List/get: `volcano functions list|get`, `volcano variables list|get`, `volcano databases list|get`, `volcano storage bucket list|get`
 - Logs: `volcano functions logs <name> --type build|runtime`
+- Feedback: `volcano feedback` after a task, for Volcano problems you hit (see "Reporting Volcano problems"); it follows the telemetry opt-out
 - Local dev: `volcano start|stop|restart|status` — automatic by default after building (see "Build vs. run/test/deploy"), and whenever the user asks to run/test/preview locally
 - Local deploy: `volcano deploy [--with-migrations]`, or one piece with `volcano functions deploy`, `volcano durable deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app` — automatic by default after building, and whenever the user asks to run/test/preview locally. `volcano frontends deploy` is automatic only on CLI 0.45.0 or later; on older CLIs it deploys to the cloud project, so it is confirm-first there.
 
