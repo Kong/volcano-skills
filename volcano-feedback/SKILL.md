@@ -11,9 +11,7 @@ the CLI, the platform, the docs, and these skills. `volcano feedback` sends a
 structured report. This skill says what to report, what not to report, and how
 to file it without holding up the user's work.
 
-`volcano feedback --help` is the source of truth for flags and limits. If it
-fails because the installed CLI is older and has no `feedback` command, skip
-feedback.
+`volcano feedback --help` is the source of truth for flags and limits.
 
 ## During the task: keep notes, file nothing
 
@@ -22,7 +20,8 @@ user's task. Do not stop to file it. Each note holds:
 
 - the category (below)
 - the command you ran, or the step you were on
-- the exact error text, copied from the output, not paraphrased
+- the exact error text, copied from the output, not paraphrased, with names
+  from the user's project replaced by placeholders (see Privacy)
 - what you expected
 - what you tried, and the workaround that worked, if any
 
@@ -58,15 +57,20 @@ File a problem only when all of these hold:
 
 Finish the user's task first. Then, when you have at least one note:
 
-1. Start a background agent so the user's work is not held up.
+1. Run `volcano feedback --help`. If it fails, the installed CLI has no
+   `feedback` command: skip feedback and do not mention it.
+2. Start a background agent so the user's work is not held up.
    - If your harness can fork an agent that inherits your context (Claude
      Code's Agent tool with `subagent_type: "fork"`), use it.
    - Otherwise start a background subagent and paste your notes into its
      prompt. It cannot see your conversation.
    - If your harness has no background agents, run the commands yourself right
      before your final message.
-2. In your final message, add one line saying you are sending feedback to the
-   Volcano team, with each report's summary.
+3. In your final message, add one line saying you are filing feedback with
+   the Volcano team, with each report's summary. Do not say it was sent unless
+   you ran the command yourself and saw `Feedback sent`: nothing is sent when
+   Volcano telemetry is off. Put this line before the `Next:` line, which
+   stays last.
 
 Prompt for the background agent:
 
@@ -88,17 +92,19 @@ Pass the report as one JSON object to `--input`, in single quotes:
 volcano feedback --input '{"category": "docs_mismatch", "summary": "volcano-platform skill passes --json to functions list; the CLI rejects it", "details": "Checking a local deploy, I ran the command the volcano-platform skill shows to list functions. The CLI rejected the flag. volcano functions list --help shows no --json flag.", "commands": ["volcano functions list --json"], "expected": "JSON list of functions", "actual": "Error: unknown flag: --json", "workaround": "Parsed the table output instead."}'
 ```
 
-- A single quote inside a value ends the shell string. Write your own text
-  without one ("cannot", not "can't").
-- When exact error text has a single quote, write the object to a file outside
-  the user's project with your file-writing tool, run `volcano feedback --input
-  <file>`, and delete the file. `--input -` reads the object from stdin.
+- A single quote inside any value ends the shell string, and the rest of the
+  value runs as shell. Write your own text without one ("cannot", not
+  "can't"), and write placeholders without quotes (`--payload <payload>`).
+- When a value still needs a single quote, such as exact error text or a
+  command, write the object to a file outside the user's project with your
+  file-writing tool, run `volcano feedback --input <file>`, and delete the
+  file. `--input -` reads the object from stdin.
 - Use `\n` for a line break inside a value.
 - `category`, `summary`, and `details` are required. Add `commands` (a list),
   `expected`, `actual`, and `workaround` whenever you have them.
 - `details` says what you were doing and what happened, in order. Write it so
   someone who did not see your session can follow it.
-- `actual` is the exact error text.
+- `actual` is the exact error text, with placeholders as described in Privacy.
 - An unknown key is an error. Each key also has a flag (`--category`,
   `--summary`, `--details`, `--command` repeated per command, `--expected`,
   `--actual`, `--workaround`), but do not mix flags with `--input`.
@@ -109,7 +115,21 @@ turn it off with `volcano telemetry disable`.
 
 ## Privacy
 
-Write only what Volcano printed and what you did. Never include:
+Write only what Volcano printed and what you did. In `commands`, `actual`,
+and `details`, keep Volcano's wording exact, but replace anything from the
+user's project with a placeholder:
+
+- project, function, frontend, database, and bucket names: `<project>`,
+  `<function>`, `<frontend>`, `<database>`, `<bucket>`
+- file paths: `<path>`
+- URLs of the user's deployments: `<url>`
+- payload and variable values: `<payload>`, `<value>`
+
+For example, `Error: function "acme-billing" not found` becomes
+`Error: function "<function>" not found`. The Volcano team can match a report
+to the commands that failed without these names.
+
+Never include:
 
 - file contents, beyond the one line of a Volcano error that quotes it
 - environment variable values, tokens, or keys
