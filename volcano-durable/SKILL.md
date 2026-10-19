@@ -258,7 +258,8 @@ Use `waitForMessage` when the workflow waits on something code reports: a
 webhook, a payment provider, a button in the app, another function finishing.
 Use `publish` to report progress that a browser or backend shows live. Both
 need `@volcano.dev/sdk` 2.1 or `volcano-sdk-python` 0.15; Ruby can send, list,
-and subscribe but not author handlers.
+and subscribe but not author handlers. The `volcano [cloud] durable messages`
+commands need CLI 0.47.0 or later.
 
 | Answer comes from | Use |
 |---|---|
@@ -308,7 +309,9 @@ def handler(event, ctx):
 - Messages sent before anything waits for their name are queued. Each wait
   takes the oldest one with its name, so a loop drains a burst in order. Waits
   work inside `ctx.parallel`, `ctx.map`, and child contexts.
-- Replay returns the recorded message and never publishes twice.
+- Replay returns the recorded message and never publishes twice. A publish
+  that runs again after a crash is sent again, since the crash may have come
+  before subscribers got it; `subscribe` still delivers it once.
 - Names follow the approval rule: short, stable, printable ASCII, up to 237
   characters. Data is any JSON value up to 64 KiB.
 - The first `publish` in each context opens a messages session: three
@@ -330,14 +333,12 @@ function's `visibility` must admit it first, then:
 | Signed-in user | Executions that user started, plus any whose client token they send |
 | Anon key | Only executions whose client token it sends |
 
-Anything else gets `404`. The start that creates an execution returns
-`client_token`; a repeated start under the same name returns the same
-execution id but never the token. A backend that starts with the service key
-can hand the token to the browser that should follow the execution. Save the
-execution id where the sender can find it. A sender that knows only the
-execution name can start again under that name to get the id; that start is
-free and begins nothing while the execution is retained, but starts a new one
-after.
+Anything else gets `404`, and so does every caller but the service key while
+the execution is still `pending`; send and read once it is `running`. The
+start that creates an execution returns `client_token`; a repeated start under
+the same name returns the same execution id but never the token. A backend
+that starts with the service key can hand the token to the browser that should
+follow the execution. Save the execution id where the sender can find it.
 
 Keep the service key in server-only code: a webhook route, a function, a
 backend job. Send each webhook's event id as the idempotency key so provider
@@ -395,7 +396,8 @@ once, in `seq` order. Each live message carries the `seq` published before it
 (`prev_seq`), so the SDK reads a lost one back from the list first. It needs
 Realtime enabled (see `volcano-realtime`); listing works without it. A publish
 with subscribers counts as one Realtime message plus one for each subscriber it
-reaches; a publish nobody is subscribed to costs nothing.
+reaches, and again if it reruns after a crash; a publish nobody is subscribed
+to costs nothing.
 
 In Python and Ruby, `subscribe` needs a client signed in as a user: the
 realtime connection opens only for a user session. With just the client token
@@ -660,12 +662,17 @@ cloud state.
    means the approval was already decided, expired, or cancelled.
 10. A message stuck at `queued` has a name no wait uses yet; compare it with
     `messages waits`. A send `404` means the caller cannot reach the
-    execution: an anon key or another user needs its `client_token`.
+    execution: an anon key or another user needs its `client_token`, and only
+    the service key reaches one that is still `pending`.
 11. A message send `409` with `execution_not_running` means the execution
     ended; `too_many_queued_messages` means 100 messages are waiting unread,
     so retry later. A `409` `callback_taken` from a wait or publish comes only
     from a modified SDK reusing a callback.
-12. `VOLCANO_PLATFORM_API_URL` is reserved. The platform sets it on durable
+12. A start `409` with `execution_name_held` means an earlier start under that
+    name failed before it began, and only the service key, the signed-in user
+    who made it, or (if an anon key made it) an anon key may retry it. Start
+    under a new execution name.
+13. `VOLCANO_PLATFORM_API_URL` is reserved. The platform sets it on durable
     functions; a project variable with that name is rejected. A function last
     deployed before approvals existed needs one redeploy before
     `waitForMessage` or `publish` work.
