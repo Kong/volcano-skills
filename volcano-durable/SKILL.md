@@ -422,10 +422,10 @@ with subscribers counts as one Realtime message plus one for each subscriber it
 reaches, and again if it reruns after a crash; a publish nobody is subscribed
 to costs nothing.
 
-In Python and Ruby, `subscribe` needs a client signed in as a user: the
-realtime connection opens only for a user session. With just the client token
-or the service key it raises, so a backend holding those polls `list` with
-`after` instead. Poll no faster than the app needs: on the application
+`subscribe` opens a realtime connection, which needs a user session (an
+anonymous user counts). JavaScript can also connect with a service key, on a
+server only. With the bare anon key, or in Python and Ruby with the service
+key, it cannot subscribe, so poll `list` with `after` instead. Poll no faster than the app needs: on the application
 endpoint, sends and lists share the function's rate limit with its invocations
 and starts (on HOBBY, 100 requests per 10 seconds for one function and 600
 across the project), and a tight loop gets `429`. Read on while `has_more` is
@@ -662,10 +662,11 @@ start.
   send cannot be taken back.
 - Never put a service key in browser code to send messages. Start the
   execution from the server and give the browser its `client_token`. The
-  function's `visibility` must still admit the browser: `authenticated` for
-  signed-in users, `public` for the anon key. `public` also lets anyone with
-  the anon key start executions; when that matters, serve progress from a
-  backend route instead.
+  function's `visibility` must still admit the browser. Prefer
+  `authenticated` with a user session, signing a visitor in as an anonymous
+  user if needed; only a session can `subscribe`. `public` admits the bare anon
+  key, which can only `list` and `send`, and lets anyone holding it start
+  executions.
 - Message data is stored with the execution and listed to everyone who can
   reach it. Do not put secrets or credentials in it.
 - Bound `logs --follow` and `messages list --follow` with a timeout in
@@ -691,8 +692,8 @@ cloud state.
 9. An approve or deny `403` means the credential is not a person's. A `409`
    means the approval was already decided, expired, or cancelled.
 10. A message stuck at `queued` has a name no wait uses yet; compare it with
-    `messages waits`. A send, list, or subscribe `404` means the caller cannot
-    reach the execution: the function's `visibility` must admit it (`private`
+    `messages waits`. A send or list `404`, or a refused subscribe, means the
+    caller cannot reach the execution: the function's `visibility` must admit it (`private`
     admits only service keys), an anon key or another user needs its
     `client_token`, and only the service key reaches one that is still
     `pending`.

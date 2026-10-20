@@ -266,8 +266,11 @@ await subscription?.unsubscribe();
 Realtime must be enabled for the project. A publish counts as one Realtime
 message plus one for each subscriber it reaches, and again if it reruns after
 a crash; with no subscribers it costs nothing. Clients cannot publish on that channel; they send with
-`durable.messages.send`. The function's `visibility` must admit the browser
-(`authenticated` for signed-in users, `public` for the anon key); see
+`durable.messages.send`. The connection needs a user session, so sign the
+browser in first; for a visitor who has no account, use an anonymous user
+(`signUpAnonymous`, see `volcano-auth`). Keep the function `authenticated`,
+which admits both. The bare anon key never connects: with a `public` function
+it can only `list` and `send`, and anyone holding it can start executions. See
 `volcano-durable` for who can reach an execution.
 
 ## Channel Management
@@ -385,9 +388,9 @@ try {
   (see "Enable realtime"). Off by default in local **and** cloud.
 - `invalid apikey` / `anon key not found` — wrong `anonKey` for the target
   project (or the wrong `apiUrl`).
-- Missing/invalid token — realtime requires an authenticated session; pass a
-  real `accessToken` (`signIn` first). There is no anonymous/token-less
-  realtime connection, in local or cloud.
+- Missing/invalid token — realtime requires a user session; pass a real
+  `accessToken` (`signIn` first, or `signUpAnonymous` for a visitor without an
+  account). The anon key alone never connects, in local or cloud.
 
 ## Verification Checklist
 - Realtime is enabled for the project (`realtime: { enabled: true }` in `volcano-config.yaml`, `config deploy`d) — off by default.
