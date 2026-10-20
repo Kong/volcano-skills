@@ -398,7 +398,8 @@ client.durable.messages.send(
 page = client.durable.messages.list(
     "publish-post", execution.id, direction="out", client_token=execution.client_token,
 )
-subscription = await client.durable.messages.subscribe(
+# subscribe needs a client signed in as a user; see below.
+subscription = await user_client.durable.messages.subscribe(
     "publish-post", execution.id, on_message, client_token=execution.client_token,
 )
 ```
@@ -663,7 +664,9 @@ start.
   execution from the server and give the browser its `client_token`.
 - Message data is stored with the execution and listed to everyone who can
   reach it. Do not put secrets or credentials in it.
-- Bound `logs --follow` with a timeout in agent-driven diagnostics.
+- Bound `logs --follow` and `messages list --follow` with a timeout in
+  agent-driven diagnostics. `messages list --follow` reads until the execution
+  ends, which can be a day or more for one that waits.
 
 ## Troubleshooting
 

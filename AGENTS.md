@@ -245,7 +245,9 @@ through this order before rewriting code or asking the user to check something m
 4. **Check logs for the specific resource**: `volcano functions logs <name> --type
    build|runtime`. `--follow` streams indefinitely like `tail -f` — only use it bounded
    (e.g. `timeout 15 volcano functions logs <name> --type runtime --follow`); a bare
-   synchronous `--follow` call hangs until the harness's own timeout kills the turn.
+   synchronous `--follow` call hangs until the harness's own timeout kills the turn. The
+   same goes for `volcano [cloud] durable messages list --follow`, which reads until the
+   execution ends.
 5. **Search the bundled docs** instead of repeatedly guessing flags via `--help`:
    `volcano docs search "<topic or error text>"` (works offline from a local cache with
    `--offline`; `volcano docs list` / `volcano docs get <doc>` for full text).
