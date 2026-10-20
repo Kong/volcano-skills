@@ -291,7 +291,8 @@ exports.handler = async (event) => {
   const hook = JSON.parse(rawBody.toString('utf8'));
   // The id the app saved when it started the workflow for this post.
   const executionId = await executionIdForPost(hook.post_id);
-  if (!executionId) return { statusCode: 200, body: '' };
+  // The callback can beat the app saving the id; a retry delivers it.
+  if (!executionId) return { statusCode: 503, body: 'workflow not started' };
 
   // Server code passes the service key as anonKey; the SDK refuses it only in a browser.
   const volcano = new VolcanoAuth({
@@ -317,7 +318,8 @@ exports.handler = async (event) => {
 - Acknowledge and log only what no retry can fix: `409`
   `execution_not_running` (the workflow ended) and a `400` (data over 64 KiB
   or another invalid send). Return `503` for everything else so the provider
-  retries: a network error (`status` is `null`), `429`, a `5xx`, a full queue,
+  retries: an execution id not saved yet, a network error (`status` is
+  `null`), `429`, a `5xx`, a full queue,
   and a `401`, `403`, or `404`, which can each mean the variable holds the
   wrong key (a `404` for a running execution usually means the anon key). The
   provider stops on its own schedule, and a corrected variable lets its next
