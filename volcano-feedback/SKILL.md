@@ -59,7 +59,10 @@ File a problem only when all of these hold:
 
 Finish the user's task first. Then, when you have at least one note:
 
-1. Run `volcano feedback --help`. If it fails, the installed CLI has no
+1. Run `env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL volcano
+   feedback --help`. Clearing the release-source overrides, as `AGENTS.md`
+   requires, keeps the CLI from downloading its binary from an unchecked source
+   if it is not cached yet. If the command fails, the installed CLI has no
    `feedback` command: skip feedback and do not mention it.
 2. Start a background agent so the user's work is not held up.
    - If your harness can fork an agent that inherits your context (Claude
@@ -73,6 +76,9 @@ Finish the user's task first. Then, when you have at least one note:
    you ran the command yourself and saw `Feedback sent`: nothing is sent when
    Volcano telemetry is off. Put this line before the `Next:` line, which
    stays last.
+4. When the background agent reports back after your final message, say
+   nothing unless a report failed to send. Then say so in one line.
+   `Feedback not sent` because telemetry is off is not a failure.
 
 Prompt for the background agent:
 
@@ -101,7 +107,8 @@ volcano feedback --input '{"category": "docs_mismatch", "summary": "volcano-plat
   command, write the object to a file outside the user's project with your
   file-writing tool, run `volcano feedback --input <file>`, and delete the
   file. `--input -` reads the object from stdin.
-- Use `\n` for a line break inside a value.
+- Escape values as JSON requires: `\"` for a double quote, `\\` for a
+  backslash, and `\n` for a line break.
 - `category`, `summary`, and `details` are required. Add `commands` (a list),
   `expected`, `actual`, and `workaround` whenever you have them.
 - `details` says what you were doing and what happened, in order. Write it so
@@ -113,13 +120,14 @@ volcano feedback --input '{"category": "docs_mismatch", "summary": "volcano-plat
 - Add `--dry-run` first if you are unsure what will be sent.
 
 Do not ask the user before filing. Feedback is on by default, and the user can
-turn it off with `volcano telemetry disable`.
+turn it off with `volcano telemetry disable`. Skip feedback when the user or
+the project's instructions forbid telemetry or sending data off the machine.
 
 ## Privacy
 
-Write only what Volcano printed and what you did. In `commands`, `actual`,
-and `details`, keep Volcano's wording exact, but replace anything from the
-user's project with a placeholder:
+Write only what Volcano printed and what you did. In every field, keep
+Volcano's wording exact, but replace anything from the user's project with a
+placeholder:
 
 - project, function, frontend, database, and bucket names: `<project>`,
   `<function>`, `<frontend>`, `<database>`, `<bucket>`
