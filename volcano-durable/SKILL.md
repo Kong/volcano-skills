@@ -661,7 +661,11 @@ start.
   or the MCP `send_durable_message` tool: each resumes a real execution, and a
   send cannot be taken back.
 - Never put a service key in browser code to send messages. Start the
-  execution from the server and give the browser its `client_token`.
+  execution from the server and give the browser its `client_token`. The
+  function's `visibility` must still admit the browser: `authenticated` for
+  signed-in users, `public` for the anon key. `public` also lets anyone with
+  the anon key start executions; when that matters, serve progress from a
+  backend route instead.
 - Message data is stored with the execution and listed to everyone who can
   reach it. Do not put secrets or credentials in it.
 - Bound `logs --follow` and `messages list --follow` with a timeout in
@@ -687,9 +691,11 @@ cloud state.
 9. An approve or deny `403` means the credential is not a person's. A `409`
    means the approval was already decided, expired, or cancelled.
 10. A message stuck at `queued` has a name no wait uses yet; compare it with
-    `messages waits`. A send `404` means the caller cannot reach the
-    execution: an anon key or another user needs its `client_token`, and only
-    the service key reaches one that is still `pending`.
+    `messages waits`. A send, list, or subscribe `404` means the caller cannot
+    reach the execution: the function's `visibility` must admit it (`private`
+    admits only service keys), an anon key or another user needs its
+    `client_token`, and only the service key reaches one that is still
+    `pending`.
 11. A message send `409` with `execution_not_running` means the execution
     ended; `too_many_queued_messages` means 100 messages are waiting unread,
     so retry later. A `409` `callback_taken` from a wait or publish comes only
