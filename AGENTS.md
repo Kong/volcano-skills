@@ -245,7 +245,9 @@ through this order before rewriting code or asking the user to check something m
 4. **Check logs for the specific resource**: `volcano functions logs <name> --type
    build|runtime`. `--follow` streams indefinitely like `tail -f` — only use it bounded
    (e.g. `timeout 15 volcano functions logs <name> --type runtime --follow`); a bare
-   synchronous `--follow` call hangs until the harness's own timeout kills the turn.
+   synchronous `--follow` call hangs until the harness's own timeout kills the turn. The
+   same goes for `volcano [cloud] durable messages list --follow`, which reads until the
+   execution ends.
 5. **Search the bundled docs** instead of repeatedly guessing flags via `--help`:
    `volcano docs search "<topic or error text>"` (works offline from a local cache with
    `--offline`; `volcano docs list` / `volcano docs get <doc>` for full text).
@@ -272,11 +274,14 @@ never a diagnostic detour.
 - Scaffold: `volcano init`, `volcano storage bucket create <name>` (local only — creating a bucket needed for what was built is local scaffolding like `volcano init`; cloud bucket creation follows the cloud-deploy confirmation below)
 - List/get: `volcano functions list|get`, `volcano variables list|get`, `volcano databases list|get`, `volcano storage bucket list|get`
 - Logs: `volcano functions logs <name> --type build|runtime`
+- Durable messages (CLI 0.47.0 or later): `volcano [cloud] durable messages list|waits`, and `volcano durable messages send` against local executions while testing
 - Local dev: `volcano start|stop|restart|status` — automatic by default after building (see "Build vs. run/test/deploy"), and whenever the user asks to run/test/preview locally
 - Local deploy: `volcano deploy [--with-migrations]`, or one piece with `volcano functions deploy`, `volcano durable deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app` — automatic by default after building, and whenever the user asks to run/test/preview locally. `volcano frontends deploy` is automatic only on CLI 0.45.0 or later; on older CLIs it deploys to the cloud project, so it is confirm-first there.
 
 **Confirm-first:**
 - Cloud deploys: `volcano cloud deploy`, `volcano cloud functions deploy`, `volcano cloud frontends deploy`, `volcano cloud config deploy`, `volcano cloud variables deploy`
+- Cloud durable messages (CLI 0.47.0 or later): `volcano cloud durable messages send`, and the MCP `send_durable_message` tool (each resumes a real execution; a send cannot be taken back)
+- Cloud service keys: `volcano projects keys service create` (a new credential that bypasses row-level security)
 - Cloud project creation: `volcano projects create` (a cloud resource; ask first, including when it's the project-context step of a cloud deploy)
 - Cloud database changes: `volcano cloud databases create`, `volcano cloud databases migration up` (migrations are not tracked, so it re-applies every file)
 - Deletions: any `... delete` (local or cloud)
@@ -309,6 +314,8 @@ volcano reset [--yes]                      # DESTRUCTIVE: drop local DBs + re-pr
 volcano deploy [--with-migrations]         # CLI 0.46.0+: whole project: variables, migrations, functions, durable, frontends, config
 volcano functions deploy --all | deploy -f <name> | list | get | logs
 volcano durable deploy --all
+volcano durable messages list | waits <function> <execution-id>   # CLI 0.47.0+
+volcano durable messages send <function> <execution-id> <message-name> --data <json>
 volcano frontends deploy --name <name> --path <dir> | list | get | logs | routes   # CLI 0.45.0+; older CLIs deploy to the cloud
 volcano variables deploy | list | get
 volcano config deploy
@@ -319,6 +326,9 @@ volcano migrations deploy --all -d app
 # Cloud (requires login + use)
 volcano cloud deploy --env-file volcano/cloud.env [--with-migrations -d <database>]   # CLI 0.46.0+
 volcano cloud functions deploy --all
+volcano cloud durable messages list | waits <function> <execution-id>   # CLI 0.47.0+
+volcano cloud durable messages send <function> <execution-id> <message-name> --data <json>   # confirm first
+volcano projects keys service create <name> --permission <permission> --json   # new credential; confirm first
 volcano cloud frontends deploy --name <name> --path <dir> | list | logs
 volcano cloud variables deploy -f volcano/cloud.env
 volcano cloud databases create <database> --region <region> --pg-version 16 | get <database>

@@ -243,6 +243,92 @@ exports.handler = async (event) => {
 };
 ```
 
+### Forward a webhook to a durable workflow
+A durable workflow waiting with `ctx.waitForMessage` resumes when the webhook
+receiver sends it a message (see `volcano-durable`). Make the receiver a
+public HTTP-mode function that skips Volcano auth, verify the provider's
+signature, and send with the service key from a project variable. Add
+`PUBLISHER_WEBHOOK_SECRET`, `VOLCANO_API_URL`, and `VOLCANO_SERVICE_KEY` to
+`volcano/volcano.env` and `volcano/cloud.env`, and select them in the
+function's entry, or the receiver reads `undefined`. `volcano status` prints
+the local server's service key. For the cloud, create a narrower one with
+`volcano projects keys service create webhooks --permission functions.invoke
+--json`. It can still invoke any of the project's functions, private ones
+included, and start and message any durable execution, so say that when you
+ask the user to confirm creating it:
+```yaml
+# volcano-config.yaml
+version: 1
+functions:
+  - name: publisher-webhook
+    visibility: public
+    invocation_mode: http
+    http_auth_mode: none
+    variable_scope: scoped
+    variables: [PUBLISHER_WEBHOOK_SECRET, VOLCANO_API_URL, VOLCANO_SERVICE_KEY]
+```
+```js
+// functions/publisher-webhook.js
+const crypto = require('node:crypto');
+const { VolcanoAuth } = require('@volcano.dev/sdk');
+
+function header(event, name) {
+  const key = Object.keys(event.headers || {}).find((k) => k.toLowerCase() === name.toLowerCase());
+  return key ? event.headers[key].join(',') : '';
+}
+
+exports.handler = async (event) => {
+  const rawBody = Buffer.from(event.body || '', event.is_base64_encoded ? 'base64' : 'utf8');
+  const expected = crypto
+    .createHmac('sha256', process.env.PUBLISHER_WEBHOOK_SECRET)
+    .update(rawBody)
+    .digest('hex');
+  const supplied = Buffer.from(header(event, 'publisher-signature'));
+  if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, Buffer.from(expected))) {
+    return { statusCode: 401, body: 'invalid signature' };
+  }
+
+  const hook = JSON.parse(rawBody.toString('utf8'));
+  // The id the app saved when it started the workflow for this post.
+  const executionId = await executionIdForPost(hook.post_id);
+  // The callback can beat the app saving the id; a retry delivers it.
+  if (!executionId) return { statusCode: 503, body: 'workflow not started' };
+
+  // Server code passes the service key as anonKey; the SDK refuses it only in a browser.
+  const volcano = new VolcanoAuth({
+    apiUrl: process.env.VOLCANO_API_URL,
+    anonKey: process.env.VOLCANO_SERVICE_KEY,
+  });
+  const sent = await volcano.durable.messages.send(
+    { functionName: 'publish-post', executionId },
+    'posted',
+    { url: hook.url },
+    { idempotencyKey: hook.id },
+  );
+  if (sent.error) {
+    // Only an ended execution or data it will never take is final.
+    const final = sent.status === 400 || sent.error.code === 'execution_not_running';
+    if (!final) return { statusCode: 503, body: sent.error.message };
+    console.error('publisher webhook dropped', hook.id, sent.status, sent.error.message);
+  }
+  return { statusCode: 200, body: '' };
+};
+```
+- The provider's event id as `idempotencyKey` makes its retries harmless.
+- Acknowledge and log only what no retry can fix: `409`
+  `execution_not_running` (the workflow ended) and a `400` (data over 64 KiB
+  or another invalid send). Return `503` for everything else so the provider
+  retries: an execution id not saved yet, a network error (`status` is
+  `null`), `429`, a `5xx`, a full queue,
+  and a `401`, `403`, or `404`, which can each mean the variable holds the
+  wrong key (a `404` for a running execution usually means the anon key). The
+  provider stops on its own schedule, and a corrected variable lets its next
+  retry deliver.
+- The service key reaches every execution in the project. Select it only in
+  the receiver's `variables`, and give every other function a
+  `variable_scope: scoped` list too: a function without one receives every
+  project variable, the service key included.
+
 ## When to Use Functions
 | Use case | Example |
 |---|---|

@@ -1,6 +1,6 @@
 ---
 name: volcano-durable
-description: Use for Volcano durable functions, long-running or resumable workflows, checkpointed steps, waits, human approvals, polling, durable executions, idempotent starts, and durable function schedulers.
+description: Use for Volcano durable functions, long-running or resumable workflows, checkpointed steps, waits, human approvals, messages sent to a running workflow, live workflow progress, polling, durable executions, idempotent starts, and durable function schedulers.
 ---
 # Volcano Durable Functions Skill
 
@@ -8,7 +8,8 @@ description: Use for Volcano durable functions, long-running or resumable workfl
 
 Use a durable function when work must survive restarts, wait without holding a
 request open, or resume from completed steps. Examples include order pipelines,
-agent runs, approval flows, reconciliation jobs, and slow batch work.
+agent runs, approval flows, workflows that wait on a webhook, reconciliation
+jobs, and slow batch work.
 
 Always pair this skill with:
 - `volcano-sdk` for the application entrypoint and domain routing.
@@ -126,13 +127,16 @@ Python durable operations are synchronous. A step function receives its scope.
 | `ctx.wait(name?, duration)` | Suspend for at least one second without holding compute. |
 | `ctx.waitUntil(name?, check, options)` | Poll state until `options.until` passes. `initialState` is required. |
 | `ctx.waitForApproval(name, options)` | Suspend until a person approves or denies, or the approval expires. Python takes keywords, not an options object: `ctx.wait_for_approval(name, *, title, description=None, details=None, timeout=None)`. |
+| `ctx.waitForMessage(name, options?)` | Suspend until a message with that name arrives, or `options.timeout` passes and it resolves with `null`. Python: `ctx.wait_for_message(name, *, timeout=None)`, returning `None` on timeout. |
+| `ctx.publish(name, data?)` | Record a message that applications list or receive live. Resolves with `{ id, seq }`. Python: `ctx.publish(name, data=None)`. |
 | `ctx.map(name?, items, fn, options?)` | Run one checkpointed child context per item. Set `concurrency` when required. |
 | `ctx.parallel(name?, branches, options?)` | Run independent checkpointed branches. |
 | `ctx.child(name?, fn)` | Group operations in a child context. |
 | `ctx.log` | Log with execution identifiers attached. |
 
-Each step attempt, wait, poll check, child, map item, and parallel branch uses a
-durable operation, and each approval uses three. `durable get` shows the function's execution timeout and
+Each step attempt, wait, poll check, child, map item, parallel branch, and
+publish uses a durable operation. Each approval and each message wait uses
+three. `durable get` shows the function's execution timeout and
 result retention. Read the plan limits documentation for operation allowance,
 operations per execution, and concurrency limits.
 
@@ -247,6 +251,214 @@ Never approve or deny an approval yourself, including one your own workflow
 requested during testing. List it, tell the user its ID and title, and let them
 decide. Do not write code that decides approvals automatically; that defeats
 the approval.
+
+## Messages
+
+Use `waitForMessage` when the workflow waits on something code reports: a
+webhook, a payment provider, a button in the app, another function finishing.
+Use `publish` to report progress that a browser or backend shows live. Both
+need `@volcano.dev/sdk` 2.1 or `volcano-sdk-python` 0.15; Ruby can send, list,
+and subscribe but not author handlers. The `volcano [cloud] durable messages`
+commands need CLI 0.47.0 or later.
+
+| Answer comes from | Use |
+|---|---|
+| A person who must decide | `ctx.waitForApproval` |
+| Code, a webhook, or a user action in the app | `ctx.waitForMessage` |
+| State your code can read on its own | `ctx.waitUntil` |
+
+A message never decides an approval. Do not replace an approval with a message
+where an answer from code would defeat the sign-off, and do not use an approval
+comment to pass data into a workflow. Do not poll a table with `ctx.waitUntil`
+for something a sender could deliver as a message.
+
+```js
+const { durable } = require('@volcano.dev/sdk/durable');
+
+exports.handler = durable(async (input, ctx) => {
+  await ctx.publish('progress', { stage: 'waiting-for-post' });
+
+  // Only the webhook route (service key) or the project's own credentials
+  // (CLI, MCP, dashboard) may report the post.
+  let posted;
+  do {
+    posted = await ctx.waitForMessage('posted', { timeout: '1d' });
+  } while (posted !== null && !['service_key', 'project'].includes(posted.sender.type));
+  if (posted === null) return { status: 'abandoned' };
+
+  await ctx.publish('progress', { stage: 'done', url: posted.data.url });
+  return { status: 'done', url: posted.data.url };
+});
+```
+
+```python
+from volcano_sdk.durable_authoring import durable
+
+
+@durable
+def handler(event, ctx):
+    ctx.publish("progress", {"stage": "waiting-for-post"})
+
+    # Only the webhook route (service key) or the project's own credentials
+    # (CLI, MCP, dashboard) may report the post.
+    posted = ctx.wait_for_message("posted", timeout="1d")
+    while posted is not None and posted.sender.type not in ("service_key", "project"):
+        posted = ctx.wait_for_message("posted", timeout="1d")
+    if posted is None:
+        return {"status": "abandoned"}
+
+    ctx.publish("progress", {"stage": "done", "url": posted.data["url"]})
+    return {"status": "done", "url": posted.data["url"]}
+```
+
+- A timeout is a return value, not an error. Branch on `null` (`None`).
+- The message has `id`, `name`, `data`, `sender` (`type` is `service_key`,
+  `user`, `anon`, or `project`; `userId` for a user), and `sentAt`. Python uses
+  `sender.user_id` and `sent_at`. `project` is the owner's or a project access
+  token, which the CLI, MCP, and dashboard send with.
+- Messages sent before anything waits for their name are queued. Each wait
+  takes the oldest one with its name, so a loop drains a burst in order. Waits
+  work inside `ctx.parallel`, `ctx.map`, and child contexts.
+- Replay returns the recorded message and never publishes twice. A publish
+  that runs again after a crash is sent again, since the crash may have come
+  before subscribers got it; `subscribe` still delivers it once.
+- Names follow the approval rule: short, stable, printable ASCII, up to 237
+  characters. Data is any JSON value up to 64 KiB.
+- The first `publish` in each context opens a messages session: three
+  operations and one resume, once. It shows in the trace as a child named
+  `volcano:messages-session`. Every `ctx.map` item and `ctx.parallel` branch
+  that publishes is its own context, so publish from the parent, after the map
+  returns or after each batch, rather than from each item.
+- Per execution: 100 queued messages, 100 open waits, 3,600 sends per hour,
+  and, over its life, 1,000 published messages and 1,000 sessions.
+
+### Who can send and read
+
+Send, list, and subscribe with the credential the caller already has. The
+function's `visibility` must admit it first, then:
+
+| Credential | Reaches |
+|---|---|
+| Service key | Any execution of the project |
+| Signed-in user | Executions that user started, plus any whose client token they send |
+| Anon key | Only executions whose client token it sends |
+
+Anything else gets `404`, and so does every caller but the service key while
+the execution is still `pending`; send and read once it is `running`. The
+start that creates an execution returns `client_token`; a repeated start under
+the same name returns the same execution id but never the token. A backend
+that starts with the service key can hand the token to the browser that should
+follow the execution. Save the execution id where the sender can find it.
+
+The token lets its holder send as well as read. When a message's data must
+come from trusted code, such as a webhook that checked the provider's
+signature, have the handler ignore other senders by `sender.type`, as the
+example above does, or keep the token on the server and serve progress from a
+backend route. Each ignored message costs the loop another wait and starts its
+timeout over, so a token holder can keep the workflow waiting; keep the token
+on the server when that matters.
+
+Keep the service key in server-only code: a webhook route, a function, a
+backend job. Send each webhook's event id as the idempotency key so provider
+retries do not deliver twice.
+
+### Send, list, and subscribe from an application
+
+```ts
+const target = {
+  functionName: 'publish-post',
+  executionId: execution.id,
+  clientToken: execution.client_token,
+};
+
+const sent = await volcano.durable.messages.send(
+  target,
+  'posted',
+  { url: 'https://example.com/p/42' },
+  { idempotencyKey: webhookEventId },
+);
+if (sent.error) throw sent.error;
+
+const { data: page } = await volcano.durable.messages.list(target, { direction: 'out' });
+
+const { data: subscription, error } = await volcano.durable.messages.subscribe(
+  target,
+  (message) => showProgress(message.data),
+  { realtime },
+);
+// Refused without a user session, with Realtime off, or past visibility.
+if (error) throw error;
+// On teardown
+await subscription?.unsubscribe();
+```
+
+```python
+client.durable.messages.send(
+    "publish-post", execution.id, "posted", {"url": url},
+    client_token=execution.client_token, idempotency_key=event_id,
+)
+page = client.durable.messages.list(
+    "publish-post", execution.id, direction="out", client_token=execution.client_token,
+)
+# subscribe needs a client signed in as a user; see below.
+subscription = await user_client.durable.messages.subscribe(
+    "publish-post", execution.id, on_message, client_token=execution.client_token,
+)
+```
+
+```ruby
+client.durable.messages.send_message(
+  "publish-post", execution.id, "posted", { url: url },
+  client_token: execution.client_token, idempotency_key: event_id
+)
+page = client.durable.messages.list(
+  "publish-post", execution.id, direction: "out", client_token: execution.client_token
+)
+```
+
+`subscribe` catches up from the list, then delivers each published message
+once, in `seq` order. Each live message carries the `seq` published before it
+(`prev_seq`), so the SDK reads a lost one back from the list first. It needs
+Realtime enabled (see `volcano-realtime`); listing works without it. A publish
+with subscribers counts as one Realtime message plus one for each subscriber it
+reaches, and again if it reruns after a crash; a publish nobody is subscribed
+to costs nothing.
+
+`subscribe` opens a realtime connection, which needs a user session (an
+anonymous user counts). JavaScript can also connect with a service key, on a
+server only. With the bare anon key, or in Python and Ruby with the service
+key, it cannot subscribe, so poll `list` with `after` instead. Poll no faster than the app needs: on the application
+endpoint, sends and lists share the function's rate limit with its invocations
+and starts (on HOBBY, 100 requests per 10 seconds for one function and 600
+across the project), and a tight loop gets `429`. Read on while `has_more` is
+`true`; a page stops early once its messages carry 1 MiB of data.
+Never subscribe to a raw `durable:` channel. Pass `projectId` (`project_id`)
+to use the project endpoint with an owner or project access token.
+
+A send to an ended execution fails with `409` and code `execution_not_running`;
+a full queue gives `too_many_queued_messages`. JavaScript returns these in its
+envelope; Python and Ruby raise a conflict error whose `code` says which.
+
+### From the CLI and MCP
+
+```sh
+volcano durable messages waits publish-post <execution-id>
+volcano durable messages send publish-post <execution-id> posted \
+  --data '{"url":"https://example.com/p/42"}'
+volcano durable messages list publish-post <execution-id> --direction out
+```
+
+Insert `cloud` after `volcano` for cloud. `send` takes `--data` or
+`--data-file` and `--idempotency-key`; `list` takes `--direction in|out`,
+`--name`, `--after`, `--limit`, and `--follow`. Every command takes `--json`.
+Local message timeouts run in real time.
+
+The MCP tools `list_durable_messages` and `list_durable_message_waits` read;
+`send_durable_message` sends, so confirm it with the user first, and is
+refused to a `read_only` project access token. Pass `functionId` as the function's name or id and `executionId` as the
+execution's hyphenated UUID. A page too large for the tool result sets
+`data_omitted: true` and `data: null` on its largest messages but keeps every
+`seq` and `has_more`, so keep paging with `after`.
 
 ## Start and manage executions from an application
 
@@ -436,7 +648,8 @@ start.
 ## Safety
 
 - Validate public-function input. Anyone with the project's anon key can spend
-  execution and operation allowance on a public durable function.
+  execution and operation allowance on a public durable function, or on an
+  `authenticated` one when anonymous sign-in is on.
 - Keep execution names tied to one unit of work. A name stays reserved while
   its execution is readable.
 - Keep returned results small. Persist data that must outlive result retention.
@@ -446,7 +659,22 @@ start.
   `durable delete`, `executions stop`, or `schedulers delete`.
 - `approvals list`, `get`, and `stats` are safe to run. `approvals approve` and
   `deny` are for the user alone; never run them.
-- Bound `logs --follow` with a timeout in agent-driven diagnostics.
+- `messages list` and `messages waits` are safe to run. Send local messages
+  freely while testing. Confirm before `volcano cloud durable messages send`
+  or the MCP `send_durable_message` tool: each resumes a real execution, and a
+  send cannot be taken back.
+- Never put a service key in browser code to send messages. Start the
+  execution from the server and give the browser its `client_token`. The
+  function's `visibility` must still admit the browser: `authenticated` for a
+  user session, which `subscribe` needs, or `public` for the bare anon key,
+  which can only `list` and `send`. A visitor without an account can sign in
+  as an anonymous user, but that takes only the anon key, so it leaves starts
+  as open as `public`.
+- Message data is stored with the execution and listed to everyone who can
+  reach it. Do not put secrets or credentials in it.
+- Bound `logs --follow` and `messages list --follow` with a timeout in
+  agent-driven diagnostics. `messages list --follow` reads until the execution
+  ends, which can be a day or more for one that waits.
 
 ## Troubleshooting
 
@@ -461,12 +689,29 @@ cloud state.
 5. A start during provisioning returns `409`; wait for `active`.
 6. A `429` means a concurrency or durable allowance limit blocked the start.
 7. A scheduler `403` can mean the project plan does not include schedulers.
-8. An execution that stays `running` may be waiting on an approval. Check
-   `durable approvals list --execution <execution-id>`.
+8. An execution that stays `running` may be waiting on an approval or a
+   message. Check `durable approvals list --execution <execution-id>` and
+   `durable messages waits <name> <execution-id>`.
 9. An approve or deny `403` means the credential is not a person's. A `409`
    means the approval was already decided, expired, or cancelled.
-10. `VOLCANO_PLATFORM_API_URL` is reserved. The platform sets it on durable
-    functions; a project variable with that name is rejected.
+10. A message stuck at `queued` has a name no wait uses yet; compare it with
+    `messages waits`. A send or list `404`, or a refused subscribe, means the
+    caller cannot reach the execution: the function's `visibility` must admit it (`private`
+    admits only service keys), an anon key or another user needs its
+    `client_token`, and only the service key reaches one that is still
+    `pending`.
+11. A message send `409` with `execution_not_running` means the execution
+    ended; `too_many_queued_messages` means 100 messages are waiting unread,
+    so retry later. A `409` `callback_taken` from a wait or publish comes only
+    from a modified SDK reusing a callback.
+12. A start `409` with `execution_name_held` means an earlier start under that
+    name failed before it began, and only the service key, the signed-in user
+    who made it, or (if an anon key made it) an anon key may retry it. Start
+    under a new execution name.
+13. `VOLCANO_PLATFORM_API_URL` is reserved. The platform sets it on durable
+    functions; a project variable with that name is rejected. A function last
+    deployed before approvals existed needs one redeploy before
+    `waitForMessage` or `publish` work.
 
 ## Verification
 
@@ -476,6 +721,8 @@ cloud state.
 - Wait for local function status `active`.
 - Start one local execution with a unique idempotency name.
 - If it waits on an approval, give the user its ID and ask them to decide.
+- If it waits on a message, send it with `volcano durable messages send` and
+  check what it published with `messages list --direction out`.
 - Poll it to a terminal status and check its result.
 - Read runtime logs if the result is not `succeeded`.
 - After approved cloud deployment, repeat the execution check with
@@ -485,6 +732,7 @@ cloud state.
 
 - Hosting contract: `volcano-hosting/docs/public/functions/durable-functions.md`
 - Approvals: `volcano-hosting/docs/public/functions/durable-approvals.md`
+- Messages: `volcano-hosting/docs/public/functions/durable-messages.md`
 - Local guide: `volcano-hosting/docs/public/guides/durable-functions-locally.md`
 - CLI contract: `volcano-cli/docs/durable-functions.md`
 - Command source: `volcano-cli/internal/cmd/durable/`
