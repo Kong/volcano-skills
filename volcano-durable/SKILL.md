@@ -646,7 +646,8 @@ start.
 ## Safety
 
 - Validate public-function input. Anyone with the project's anon key can spend
-  execution and operation allowance on a public durable function.
+  execution and operation allowance on a public durable function, or on an
+  `authenticated` one when anonymous sign-in is on.
 - Keep execution names tied to one unit of work. A name stays reserved while
   its execution is readable.
 - Keep returned results small. Persist data that must outlive result retention.
@@ -662,11 +663,11 @@ start.
   send cannot be taken back.
 - Never put a service key in browser code to send messages. Start the
   execution from the server and give the browser its `client_token`. The
-  function's `visibility` must still admit the browser. Prefer
-  `authenticated` with a user session, signing a visitor in as an anonymous
-  user if needed; only a session can `subscribe`. `public` admits the bare anon
-  key, which can only `list` and `send`, and lets anyone holding it start
-  executions.
+  function's `visibility` must still admit the browser: `authenticated` for a
+  user session, which `subscribe` needs, or `public` for the bare anon key,
+  which can only `list` and `send`. A visitor without an account can sign in
+  as an anonymous user, but that takes only the anon key, so it leaves starts
+  as open as `public`.
 - Message data is stored with the execution and listed to everyone who can
   reach it. Do not put secrets or credentials in it.
 - Bound `logs --follow` and `messages list --follow` with a timeout in

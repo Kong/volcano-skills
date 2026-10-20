@@ -268,10 +268,11 @@ message plus one for each subscriber it reaches, and again if it reruns after
 a crash; with no subscribers it costs nothing. Clients cannot publish on that channel; they send with
 `durable.messages.send`. The connection needs a user session, so sign the
 browser in first; for a visitor who has no account, use an anonymous user
-(`signUpAnonymous`, see `volcano-auth`). Keep the function `authenticated`,
-which admits both. The bare anon key never connects: with a `public` function
-it can only `list` and `send`, and anyone holding it can start executions. See
-`volcano-durable` for who can reach an execution.
+(`signUpAnonymous`, see `volcano-auth`). The function must be
+`authenticated`, which admits both. The bare anon key never connects: with a
+`public` function it can only `list` and `send`. Anonymous sign-in takes only
+the anon key, so either way anyone can start executions; validate their
+input. See `volcano-durable` for who can reach an execution.
 
 ## Channel Management
 ```ts

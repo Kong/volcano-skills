@@ -435,7 +435,9 @@ const target: DurableMessageTarget = {
   clientToken: execution.client_token,
 };
 const { data } = await volcano.durable.messages.list(target, { direction: 'out' });
-const latest: DurableMessage | undefined = data?.data.at(-1);
+// One page, oldest first: read on with `after` while `has_more`, or use
+// `subscribe`, to reach the newest.
+const lastOnPage: DurableMessage | undefined = data?.data.at(-1);
 ```
 
 A start that creates an execution returns `client_token` on its

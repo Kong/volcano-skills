@@ -314,7 +314,8 @@ volcano reset [--yes]                      # DESTRUCTIVE: drop local DBs + re-pr
 volcano deploy [--with-migrations]         # CLI 0.46.0+: whole project: variables, migrations, functions, durable, frontends, config
 volcano functions deploy --all | deploy -f <name> | list | get | logs
 volcano durable deploy --all
-volcano durable messages list | waits | send <name> <execution-id>   # CLI 0.47.0+
+volcano durable messages list | waits <function> <execution-id>   # CLI 0.47.0+
+volcano durable messages send <function> <execution-id> <message-name> --data <json>
 volcano frontends deploy --name <name> --path <dir> | list | get | logs | routes   # CLI 0.45.0+; older CLIs deploy to the cloud
 volcano variables deploy | list | get
 volcano config deploy
@@ -325,7 +326,8 @@ volcano migrations deploy --all -d app
 # Cloud (requires login + use)
 volcano cloud deploy --env-file volcano/cloud.env [--with-migrations -d <database>]   # CLI 0.46.0+
 volcano cloud functions deploy --all
-volcano cloud durable messages list | waits | send <name> <execution-id>   # CLI 0.47.0+; send is confirm-first
+volcano cloud durable messages list | waits <function> <execution-id>   # CLI 0.47.0+
+volcano cloud durable messages send <function> <execution-id> <message-name> --data <json>   # confirm first
 volcano projects keys service create <name> --permission <permission> --json   # new credential; confirm first
 volcano cloud frontends deploy --name <name> --path <dir> | list | logs
 volcano cloud variables deploy -f volcano/cloud.env
