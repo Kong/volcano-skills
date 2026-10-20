@@ -126,9 +126,12 @@ user's project with a placeholder:
 - file paths: `<path>`
 - URLs of the user's deployments: `<url>`
 - payload and variable values: `<payload>`, `<value>`
+- passwords, tokens, API keys, and connection strings, including inside a
+  command or error text: `<secret>`
 
 For example, `Error: function "acme-billing" not found` becomes
-`Error: function "<function>" not found`. The Volcano team can match a report
+`Error: function "<function>" not found`, and `--token pt-...` becomes
+`--token <secret>`. The Volcano team can match a report
 to the commands that failed without these names.
 
 Never include:
@@ -138,7 +141,9 @@ Never include:
 - application data, such as database rows or function responses
 - customer, company, or product names from the user's project
 
-The CLI redacts common secret shapes, but it cannot catch everything.
+Redact secrets yourself. The CLI removes only a few Volcano token formats,
+bearer tokens, and email addresses; a `password=` value or a cloud provider key
+goes out as written.
 
 ## Results
 
