@@ -278,7 +278,11 @@ const { durable } = require('@volcano.dev/sdk/durable');
 exports.handler = durable(async (input, ctx) => {
   await ctx.publish('progress', { stage: 'waiting-for-post' });
 
-  const posted = await ctx.waitForMessage('posted', { timeout: '1d' });
+  // Only the webhook route, which holds the service key, may report the post.
+  let posted;
+  do {
+    posted = await ctx.waitForMessage('posted', { timeout: '1d' });
+  } while (posted !== null && posted.sender.type !== 'service_key');
   if (posted === null) return { status: 'abandoned' };
 
   await ctx.publish('progress', { stage: 'done', url: posted.data.url });
@@ -294,7 +298,10 @@ from volcano_sdk.durable_authoring import durable
 def handler(event, ctx):
     ctx.publish("progress", {"stage": "waiting-for-post"})
 
+    # Only the webhook route, which holds the service key, may report the post.
     posted = ctx.wait_for_message("posted", timeout="1d")
+    while posted is not None and posted.sender.type != "service_key":
+        posted = ctx.wait_for_message("posted", timeout="1d")
     if posted is None:
         return {"status": "abandoned"}
 
@@ -340,6 +347,12 @@ the same name returns the same execution id but never the token. A backend
 that starts with the service key can hand the token to the browser that should
 follow the execution. Save the execution id where the sender can find it.
 
+The token lets its holder send as well as read. When a message's data must
+come from trusted code, such as a webhook that checked the provider's
+signature, have the handler ignore other senders by `sender.type`, as the
+example above does, or keep the token on the server and serve progress from a
+backend route.
+
 Keep the service key in server-only code: a webhook route, a function, a
 backend job. Send each webhook's event id as the idempotency key so provider
 retries do not deliver twice.
@@ -377,7 +390,9 @@ client.durable.messages.send(
     "publish-post", execution.id, "posted", {"url": url},
     client_token=execution.client_token, idempotency_key=event_id,
 )
-page = client.durable.messages.list("publish-post", execution.id, direction="out")
+page = client.durable.messages.list(
+    "publish-post", execution.id, direction="out", client_token=execution.client_token,
+)
 subscription = await client.durable.messages.subscribe(
     "publish-post", execution.id, on_message, client_token=execution.client_token,
 )
@@ -388,7 +403,9 @@ client.durable.messages.send_message(
   "publish-post", execution.id, "posted", { url: url },
   client_token: execution.client_token, idempotency_key: event_id
 )
-page = client.durable.messages.list("publish-post", execution.id, direction: "out")
+page = client.durable.messages.list(
+  "publish-post", execution.id, direction: "out", client_token: execution.client_token
+)
 ```
 
 `subscribe` catches up from the list, then delivers each published message

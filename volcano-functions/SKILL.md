@@ -280,6 +280,7 @@ exports.handler = async (event) => {
   const executionId = await executionIdForPost(hook.post_id);
   if (!executionId) return { statusCode: 200, body: '' };
 
+  // Server code passes the service key as anonKey; the SDK refuses it only in a browser.
   const volcano = new VolcanoAuth({
     apiUrl: process.env.VOLCANO_API_URL,
     anonKey: process.env.VOLCANO_SERVICE_KEY,
@@ -290,17 +291,21 @@ exports.handler = async (event) => {
     { url: hook.url },
     { idempotencyKey: hook.id },
   );
-  if (sent.error && sent.error.code !== 'execution_not_running') {
-    return { statusCode: 503, body: sent.error.message };
+  if (sent.error) {
+    const retryable = sent.status === null || sent.status === 429 || sent.status >= 500
+      || sent.error.code === 'too_many_queued_messages';
+    if (retryable) return { statusCode: 503, body: sent.error.message };
+    console.error('publisher webhook dropped', hook.id, sent.status, sent.error.message);
   }
   return { statusCode: 200, body: '' };
 };
 ```
 - The provider's event id as `idempotencyKey` makes its retries harmless.
-- Acknowledge only `execution_not_running`: the workflow ended and no retry
-  will reach it. Any other error, including a `409`
-  `too_many_queued_messages` full queue, returns `503` so the provider retries
-  later instead of dropping the event.
+- Return `503` only for what a retry can fix: a network error (`status` is
+  `null`), `429`, a `5xx`, or a full queue (`409` `too_many_queued_messages`).
+  Acknowledge and log the rest: `execution_not_running` means the workflow
+  ended, and a `404` or `400` (an execution past retention, data over 64 KiB)
+  fails the same way every time.
 - The service key reaches every execution in the project. Keep it in a scoped
   variable on the receiver only.
 

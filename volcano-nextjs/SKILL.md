@@ -267,9 +267,20 @@ export async function GET(request: NextRequest) {
 
 ### Webhook into a durable workflow
 When a durable workflow waits with `ctx.waitForMessage`, the webhook route
-forwards the event as a message using the service key. Keep the key in a
-server-only variable (never `NEXT_PUBLIC_`) and verify the provider's signature
-before sending. See `volcano-durable` for the wait side.
+forwards the event as a message using the service key. Verify the provider's
+signature before sending. See `volcano-durable` for the wait side.
+
+Keep the key in a server-only variable (never `NEXT_PUBLIC_`): add
+`VOLCANO_SERVICE_KEY` to `volcano/volcano.env` and `volcano/cloud.env`, and
+select it in the frontend's entry, or the route reads `undefined`:
+```yaml
+# volcano-config.yaml
+version: 1
+frontends:
+  - name: web
+    variable_scope: scoped
+    variables: [NEXT_PUBLIC_VOLCANO_API_URL, NEXT_PUBLIC_VOLCANO_ANON_KEY, NEXT_PUBLIC_VOLCANO_DATABASE, VOLCANO_SERVICE_KEY]
+```
 ```ts
 // app/api/webhooks/publisher/route.ts
 import { NextRequest, NextResponse } from 'next/server';
@@ -283,6 +294,7 @@ export async function POST(request: NextRequest) {
   const executionId = await executionIdForPost(event.post_id);
   if (!executionId) return NextResponse.json({ received: true });
 
+  // Server code passes the service key as anonKey; the SDK refuses it only in a browser.
   const volcano = new VolcanoAuth({
     apiUrl: process.env.NEXT_PUBLIC_VOLCANO_API_URL!,
     anonKey: process.env.VOLCANO_SERVICE_KEY!,
@@ -293,20 +305,23 @@ export async function POST(request: NextRequest) {
     { url: event.url },
     { idempotencyKey: event.id },
   );
-  const ended = sent.error !== null && 'code' in sent.error && sent.error.code === 'execution_not_running';
-  if (sent.error && !ended) {
-    return NextResponse.json({ error: sent.error.message }, { status: 503 });
+  if (sent.error) {
+    const full = 'code' in sent.error && sent.error.code === 'too_many_queued_messages';
+    if (sent.status === null || sent.status === 429 || sent.status >= 500 || full) {
+      return NextResponse.json({ error: sent.error.message }, { status: 503 });
+    }
+    console.error('publisher webhook dropped', event.id, sent.status, sent.error.message);
   }
   return NextResponse.json({ received: true });
 }
 ```
-The event id as the idempotency key makes provider retries harmless.
-Acknowledge only `execution_not_running`, which means the workflow already
-ended. Any other error, including a full queue (`409`
-`too_many_queued_messages`), returns `503` so the provider retries later
-instead of dropping the event. Save `execution.id` when you start the workflow. A
-repeated start under the execution name also returns the id, but starts a new
-execution once the old one is past retention.
+The event id as the idempotency key makes provider retries harmless. Return
+`503` only for what a retry can fix: a network error (`status` is `null`),
+`429`, a `5xx`, or a full queue (`409` `too_many_queued_messages`).
+Acknowledge and log the rest: `execution_not_running` means the workflow
+ended, and a `404` or `400` (an execution past retention, data over 64 KiB)
+fails the same way every time. Save `execution.id` when you start the
+workflow.
 
 ## API Routes — Pages Router
 ```ts
