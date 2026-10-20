@@ -250,7 +250,11 @@ public HTTP-mode function that skips Volcano auth, verify the provider's
 signature, and send with the service key from a project variable. Add
 `PUBLISHER_WEBHOOK_SECRET`, `VOLCANO_API_URL`, and `VOLCANO_SERVICE_KEY` to
 `volcano/volcano.env` and `volcano/cloud.env`, and select them in the
-function's entry, or the receiver reads `undefined`:
+function's entry, or the receiver reads `undefined`. `volcano status` prints
+the local server's service key. For the cloud, create one that can only send
+with `volcano projects keys service create webhooks --permission
+functions.invoke --json`; it is a new credential, so confirm with the user
+first:
 ```yaml
 # volcano-config.yaml
 version: 1
@@ -295,7 +299,7 @@ exports.handler = async (event) => {
     { idempotencyKey: hook.id },
   );
   if (sent.error) {
-    const retryable = sent.status === null || sent.status === 429 || sent.status >= 500
+    const retryable = sent.status === null || [401, 403, 429].includes(sent.status) || sent.status >= 500
       || sent.error.code === 'too_many_queued_messages';
     if (retryable) return { statusCode: 503, body: sent.error.message };
     console.error('publisher webhook dropped', hook.id, sent.status, sent.error.message);
@@ -305,10 +309,13 @@ exports.handler = async (event) => {
 ```
 - The provider's event id as `idempotencyKey` makes its retries harmless.
 - Return `503` only for what a retry can fix: a network error (`status` is
-  `null`), `429`, a `5xx`, or a full queue (`409` `too_many_queued_messages`).
-  Acknowledge and log the rest: `execution_not_running` means the workflow
-  ended, and a `404` or `400` (an execution past retention, data over 64 KiB)
-  fails the same way every time.
+  `null`), a `401` or `403` (a wrong or revoked key, fixed by correcting the
+  variable), `429`, a `5xx`, or a full queue (`409`
+  `too_many_queued_messages`). Acknowledge and log the rest:
+  `execution_not_running` means the workflow ended, and a `404` or `400` (an
+  execution past retention, data over 64 KiB) fails the same way every time.
+  A `404` for an execution that is running usually means the variable holds
+  the anon key instead of the service key.
 - The service key reaches every execution in the project. Keep it in a scoped
   variable on the receiver only.
 
