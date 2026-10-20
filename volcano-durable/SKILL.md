@@ -278,11 +278,12 @@ const { durable } = require('@volcano.dev/sdk/durable');
 exports.handler = durable(async (input, ctx) => {
   await ctx.publish('progress', { stage: 'waiting-for-post' });
 
-  // Only the webhook route, which holds the service key, may report the post.
+  // Only the webhook route (service key) or the project's own credentials
+  // (CLI, MCP, dashboard) may report the post.
   let posted;
   do {
     posted = await ctx.waitForMessage('posted', { timeout: '1d' });
-  } while (posted !== null && posted.sender.type !== 'service_key');
+  } while (posted !== null && !['service_key', 'project'].includes(posted.sender.type));
   if (posted === null) return { status: 'abandoned' };
 
   await ctx.publish('progress', { stage: 'done', url: posted.data.url });
@@ -298,9 +299,10 @@ from volcano_sdk.durable_authoring import durable
 def handler(event, ctx):
     ctx.publish("progress", {"stage": "waiting-for-post"})
 
-    # Only the webhook route, which holds the service key, may report the post.
+    # Only the webhook route (service key) or the project's own credentials
+    # (CLI, MCP, dashboard) may report the post.
     posted = ctx.wait_for_message("posted", timeout="1d")
-    while posted is not None and posted.sender.type != "service_key":
+    while posted is not None and posted.sender.type not in ("service_key", "project"):
         posted = ctx.wait_for_message("posted", timeout="1d")
     if posted is None:
         return {"status": "abandoned"}
@@ -312,7 +314,8 @@ def handler(event, ctx):
 - A timeout is a return value, not an error. Branch on `null` (`None`).
 - The message has `id`, `name`, `data`, `sender` (`type` is `service_key`,
   `user`, `anon`, or `project`; `userId` for a user), and `sentAt`. Python uses
-  `sender.user_id` and `sent_at`.
+  `sender.user_id` and `sent_at`. `project` is the owner's or a project access
+  token, which the CLI, MCP, and dashboard send with.
 - Messages sent before anything waits for their name are queued. Each wait
   takes the oldest one with its name, so a loop drains a burst in order. Waits
   work inside `ctx.parallel`, `ctx.map`, and child contexts.
@@ -351,7 +354,9 @@ The token lets its holder send as well as read. When a message's data must
 come from trusted code, such as a webhook that checked the provider's
 signature, have the handler ignore other senders by `sender.type`, as the
 example above does, or keep the token on the server and serve progress from a
-backend route.
+backend route. Each ignored message costs the loop another wait and starts its
+timeout over, so a token holder can keep the workflow waiting; keep the token
+on the server when that matters.
 
 Keep the service key in server-only code: a webhook route, a function, a
 backend job. Send each webhook's event id as the idempotency key so provider
@@ -446,8 +451,8 @@ Insert `cloud` after `volcano` for cloud. `send` takes `--data` or
 Local message timeouts run in real time.
 
 The MCP tools `list_durable_messages` and `list_durable_message_waits` read;
-`send_durable_message` sends and is refused to a `read_only` project access
-token. Pass `functionId` as the function's name or id and `executionId` as the
+`send_durable_message` sends, so confirm it with the user first, and is
+refused to a `read_only` project access token. Pass `functionId` as the function's name or id and `executionId` as the
 execution's hyphenated UUID. A page too large for the tool result sets
 `data_omitted: true` and `data: null` on its largest messages but keeps every
 `seq` and `has_more`, so keep paging with `after`.
@@ -651,8 +656,9 @@ start.
 - `approvals list`, `get`, and `stats` are safe to run. `approvals approve` and
   `deny` are for the user alone; never run them.
 - `messages list` and `messages waits` are safe to run. Send local messages
-  freely while testing. Confirm before `volcano cloud durable messages send`:
-  it resumes a real execution, and a send cannot be taken back.
+  freely while testing. Confirm before `volcano cloud durable messages send`
+  or the MCP `send_durable_message` tool: each resumes a real execution, and a
+  send cannot be taken back.
 - Never put a service key in browser code to send messages. Start the
   execution from the server and give the browser its `client_token`.
 - Message data is stored with the execution and listed to everyone who can

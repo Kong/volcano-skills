@@ -247,7 +247,10 @@ exports.handler = async (event) => {
 A durable workflow waiting with `ctx.waitForMessage` resumes when the webhook
 receiver sends it a message (see `volcano-durable`). Make the receiver a
 public HTTP-mode function that skips Volcano auth, verify the provider's
-signature, and send with the service key from a project variable:
+signature, and send with the service key from a project variable. Add
+`PUBLISHER_WEBHOOK_SECRET`, `VOLCANO_API_URL`, and `VOLCANO_SERVICE_KEY` to
+`volcano/volcano.env` and `volcano/cloud.env`, and select them in the
+function's entry, or the receiver reads `undefined`:
 ```yaml
 # volcano-config.yaml
 version: 1
