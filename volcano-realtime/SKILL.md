@@ -259,6 +259,8 @@ const { data: subscription, error } = await volcano.durable.messages.subscribe(
   (message) => showProgress(message.data),
   { realtime },
 );
+// Refused without a user session, with Realtime off, or past visibility.
+if (error) throw error;
 // On teardown
 await subscription?.unsubscribe();
 ```

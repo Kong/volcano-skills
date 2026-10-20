@@ -270,8 +270,9 @@ When a durable workflow waits with `ctx.waitForMessage`, the webhook route
 forwards the event as a message using the service key. Verify the provider's
 signature before sending. See `volcano-durable` for the wait side.
 
-Keep the key in a server-only variable (never `NEXT_PUBLIC_`): add
-`VOLCANO_SERVICE_KEY` to `volcano/volcano.env` and `volcano/cloud.env`, and
+Keep the key in a server-only variable, named without `NEXT_PUBLIC_` and
+without the `VOLCANO_` prefix the frontend build drops: add
+`WEBHOOK_SERVICE_KEY` to `volcano/volcano.env` and `volcano/cloud.env`, and
 select it in the frontend's entry, or the route reads `undefined`.
 `volcano status` prints the local server's service key. For the cloud, create
 a narrower one with `volcano projects keys service create webhooks
@@ -286,7 +287,7 @@ version: 1
 frontends:
   - name: web
     variable_scope: scoped
-    variables: [NEXT_PUBLIC_VOLCANO_API_URL, NEXT_PUBLIC_VOLCANO_ANON_KEY, NEXT_PUBLIC_VOLCANO_DATABASE, VOLCANO_SERVICE_KEY]
+    variables: [NEXT_PUBLIC_VOLCANO_API_URL, NEXT_PUBLIC_VOLCANO_ANON_KEY, NEXT_PUBLIC_VOLCANO_DATABASE, WEBHOOK_SERVICE_KEY]
 ```
 ```ts
 // app/api/webhooks/publisher/route.ts
@@ -304,7 +305,7 @@ export async function POST(request: NextRequest) {
   // Server code passes the service key as anonKey; the SDK refuses it only in a browser.
   const volcano = new VolcanoAuth({
     apiUrl: process.env.NEXT_PUBLIC_VOLCANO_API_URL!,
-    anonKey: process.env.VOLCANO_SERVICE_KEY!,
+    anonKey: process.env.WEBHOOK_SERVICE_KEY!,
   });
   const sent = await volcano.durable.messages.send(
     { functionName: 'publish-post', executionId },
