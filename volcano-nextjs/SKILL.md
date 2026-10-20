@@ -274,9 +274,12 @@ Keep the key in a server-only variable (never `NEXT_PUBLIC_`): add
 `VOLCANO_SERVICE_KEY` to `volcano/volcano.env` and `volcano/cloud.env`, and
 select it in the frontend's entry, or the route reads `undefined`.
 `volcano status` prints the local server's service key. For the cloud, create
-one that can only send with `volcano projects keys service create webhooks
---permission functions.invoke --json`; it is a new credential, so confirm with
-the user first:
+a narrower one with `volcano projects keys service create webhooks
+--permission functions.invoke --json`. It can still invoke any of the
+project's functions, private ones included, and start and message any durable
+execution, so say that when you ask the user to confirm creating it. Give
+every function in the project a `variable_scope: scoped` list too: one
+without it receives every project variable, the service key included.
 ```yaml
 # volcano-config.yaml
 version: 1
@@ -310,8 +313,9 @@ export async function POST(request: NextRequest) {
     { idempotencyKey: event.id },
   );
   if (sent.error) {
-    const full = 'code' in sent.error && sent.error.code === 'too_many_queued_messages';
-    if (sent.status === null || [401, 403, 429].includes(sent.status) || sent.status >= 500 || full) {
+    // Only an ended execution or data it will never take is final.
+    const ended = 'code' in sent.error && sent.error.code === 'execution_not_running';
+    if (sent.status !== 400 && !ended) {
       return NextResponse.json({ error: sent.error.message }, { status: 503 });
     }
     console.error('publisher webhook dropped', event.id, sent.status, sent.error.message);
@@ -319,14 +323,14 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ received: true });
 }
 ```
-The event id as the idempotency key makes provider retries harmless. Return
-`503` only for what a retry can fix: a network error (`status` is `null`), a
-`401` or `403` (a wrong or revoked key, fixed by correcting the variable),
-`429`, a `5xx`, or a full queue (`409` `too_many_queued_messages`).
-Acknowledge and log the rest: `execution_not_running` means the workflow
-ended, and a `404` or `400` (an execution past retention, data over 64 KiB)
-fails the same way every time. A `404` for an execution that is running
-usually means the variable holds the anon key instead of the service key.
+The event id as the idempotency key makes provider retries harmless.
+Acknowledge and log only what no retry can fix: `409` `execution_not_running`
+(the workflow ended) and a `400` (data over 64 KiB or another invalid send).
+Return `503` for everything else so the provider retries: a network error
+(`status` is `null`), `429`, a `5xx`, a full queue, and a `401`, `403`, or
+`404`, which can each mean the variable holds the wrong key (a `404` for a
+running execution usually means the anon key). The provider stops on its own
+schedule, and a corrected variable lets its next retry deliver.
 Save `execution.id` when you start the workflow.
 
 ## API Routes — Pages Router
