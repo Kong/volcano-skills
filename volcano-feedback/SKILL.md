@@ -16,7 +16,9 @@ to file it without holding up the user's work.
 ## During the task: keep notes, file nothing
 
 When a Volcano problem happens, write a short note and keep working on the
-user's task. Do not stop to file it. Each note holds:
+user's task. Do not stop to file it. A failed `volcano` command ends with a
+line pointing to `volcano feedback`; that line is a reminder, not a sign the
+problem is Volcano's. Use the bar under "What to report". Each note holds:
 
 - the category (below)
 - the command you ran, or the step you were on
