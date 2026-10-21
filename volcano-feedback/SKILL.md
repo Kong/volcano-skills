@@ -57,8 +57,10 @@ File a problem only when all of these hold:
 
 ## When the user asks you to send feedback
 
-File what the user asked for right away, with the closest category. The bar
-under "What to report" and the list above do not apply. The Privacy rules do.
+Run the check in step 1 under "After the task" first. If it fails, tell the
+user the installed CLI has no `volcano feedback`. Otherwise file what the user
+asked for right away, with the closest category. The bar under "What to
+report" and the list above do not apply. The Privacy rules do.
 
 ## After the task: file from a background agent
 
