@@ -63,7 +63,8 @@ machine, or the installed CLI has no `volcano feedback`.
 
 Then run `volcano feedback status`. If it says feedback is disabled, tell the
 user and ask them to confirm they want to turn it on. If they confirm, run
-`volcano feedback enable`; if they do not, stop.
+`volcano feedback enable`; if they do not, stop. If it says to log in, tell the
+user that sending feedback needs `volcano login`, and stop.
 
 Then file what the user asked for right away, with the closest category. The
 bar under "What to report" and the list above do not apply. The Privacy rules
