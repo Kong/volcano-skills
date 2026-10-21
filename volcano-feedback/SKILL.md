@@ -55,6 +55,11 @@ File a problem only when all of these hold:
 - Style or naming preferences.
 - Feature ideas unrelated to the task you were doing.
 
+## When the user asks you to send feedback
+
+File what the user asked for right away, with the closest category. The bar
+under "What to report" and the list above do not apply. The Privacy rules do.
+
 ## After the task: file from a background agent
 
 Finish the user's task first. Then, when you have at least one note:
@@ -84,8 +89,10 @@ Prompt for the background agent:
 
 ```text
 File Volcano feedback for these problems from the task that just finished.
-Follow the volcano-feedback skill. Run one `volcano feedback` command per
-distinct problem. Report each feedback ID, or why it was not sent.
+Follow the "Filing a report", "Privacy", and "Results" sections of the
+volcano-feedback skill. Run one `volcano feedback` command per distinct
+problem yourself; do not start another agent or message the user. Report
+each feedback ID, or why it was not sent.
 
 <your notes>
 ```
@@ -99,7 +106,8 @@ Build the argument in two steps, in this order, for every value, including
 error text you copied:
 
 1. **Escape for JSON.** In each string value, write `\` as `\\`, `"` as `\"`,
-   and a line break as `\n`.
+   a line break as `\n`, and a tab as `\t`. Leave out terminal color codes and
+   other control characters.
 2. **Escape for the shell.** Inside single quotes the shell keeps every
    character as written, except `'`, which ends the quoted string. Replace
    every `'` in the JSON with `'\''`: the first `'` ends the quoted string,
@@ -171,7 +179,8 @@ goes out as written.
 |---|---|---|
 | `Feedback sent. ID: <id>` | Sent | Report the ID |
 | `Feedback not sent: ...`, exit 0 | Telemetry is off, or this is the first command since install | Stop. Do not retry or work around it. |
-| A validation error, exit 1 | A field is missing or too long | Fix the field and run again |
-| `send feedback: ...`, exit 1 | Network or server error | Retry once, then drop it |
+| `parse input: ...` | The JSON is invalid, or has an unknown key | Fix the JSON and run again |
+| A field is missing or too long | Validation failed, before or after the CLI's redaction | Fix the field and run again |
+| `send feedback: ...` or another error | Network, server, or config error | Retry once, then drop it |
 
 Never block or fail the user's task because of feedback.
