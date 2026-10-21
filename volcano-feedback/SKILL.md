@@ -86,8 +86,9 @@ Finish the user's task first. Then, when you have at least one note:
    Volcano feedback is off. Put this line before the `Next:` line, which
    stays last.
 4. When the background agent reports back after your final message, say
-   nothing unless a report failed to send. Then say so in one line.
-   `Feedback not sent` because feedback is off is not a failure.
+   nothing unless a report failed to send. Then say so in one line. Exit 0
+   without a `Feedback sent` line means feedback is off, which is not a
+   failure.
 
 Prompt for the background agent:
 
@@ -184,7 +185,7 @@ goes out as written.
 | Output | Meaning | Next step |
 |---|---|---|
 | `Feedback sent. ID: <id>` | Sent | Report the ID |
-| `Feedback not sent: ...`, exit 0 | Feedback is off, or this is the first command since install | Stop. Do not retry, and do not run `volcano feedback enable`. |
+| Exit 0 and no `Feedback sent` line | Feedback is off, or this is the first command since install | Stop. Do not retry, and do not run `volcano feedback enable`. |
 | `parse input: ...` | The JSON is invalid, or has an unknown key | Fix the JSON and run again |
 | A field is missing or too long | Validation failed, before or after the CLI's redaction | Fix the field and run again |
 | `send feedback: ...` or another error | Network, server, or config error | Retry once, then drop it |
