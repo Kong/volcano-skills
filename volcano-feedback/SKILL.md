@@ -177,9 +177,8 @@ Never include:
 - application data, such as database rows or function responses
 - customer, company, or product names from the user's project
 
-Redact secrets yourself. The CLI removes only a few Volcano token formats,
-bearer tokens, and email addresses; a `password=` value or a cloud provider key
-goes out as written.
+Redact secrets yourself. The CLI does not remove a `password=` value or a
+cloud provider key.
 
 ## Results
 
