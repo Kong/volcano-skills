@@ -59,9 +59,17 @@ File a problem only when all of these hold:
 
 Run the check in step 1 under "After the task" first. If it says to skip,
 tell the user why: the project's instructions forbid sending data off the
-machine, or the installed CLI has no `volcano feedback`. Otherwise file what
-the user asked for right away, with the closest category. The bar under "What
-to report" and the list above do not apply. The Privacy rules do.
+machine, or the installed CLI has no `volcano feedback`.
+
+Then run `volcano feedback status`. If it says feedback is disabled, tell the
+user and ask them to confirm they want to turn it on. If they confirm, run
+`volcano feedback enable`; if they do not, stop. If status says feedback is
+disabled by `VOLCANO_FEEDBACK_DISABLED`, `enable` cannot turn it on: tell the
+user to unset that variable, and stop.
+
+Then file what the user asked for right away, with the closest category. The
+bar under "What to report" and the list above do not apply. The Privacy rules
+do.
 
 ## After the task: file from a background agent
 
@@ -143,7 +151,7 @@ volcano feedback --input '{"category": "cli_bug", "summary": "functions deploy p
 - Add `--dry-run` first if you are unsure what will be sent.
 
 Do not ask the user before filing. Never run `volcano feedback enable` or
-`volcano feedback disable` unless the user asks.
+`volcano feedback disable` unless the user asks or confirms it.
 
 ## Privacy
 
