@@ -59,9 +59,9 @@ File a problem only when all of these hold:
 
 Run the check in step 1 under "After the task" first. If it says to skip,
 tell the user why: the project's instructions forbid sending data off the
-machine, or the installed CLI has no `volcano feedback`. Otherwise file what the user
-asked for right away, with the closest category. The bar under "What to
-report" and the list above do not apply. The Privacy rules do.
+machine, or the installed CLI has no `volcano feedback`. Otherwise file what
+the user asked for right away, with the closest category. The bar under "What
+to report" and the list above do not apply. The Privacy rules do.
 
 ## After the task: file from a background agent
 
