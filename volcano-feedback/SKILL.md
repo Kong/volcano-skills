@@ -94,35 +94,31 @@ distinct problem. Report each feedback ID, or why it was not sent.
 
 One report per distinct problem. Merge notes that share a cause.
 
-Pass the report as one JSON object to `--input`. How you pass it depends on
-where its text came from.
+Pass the report as one JSON object to `--input`, wrapped in single quotes.
+Build the argument in two steps, in this order, for every value, including
+error text you copied:
 
-**Text copied from output or a file goes through a file.** When any value
-holds text you copied, such as `actual` or an error quoted in `details`, write
-the object to a temp file outside the user's project with your file-writing
-tool, run `volcano feedback --input <file>`, and delete the file. Copied text
-can hold a `'` you miss, and inline that ends the shell string and runs the
-rest as shell. `--input -` reads the object from stdin.
+1. **Escape for JSON.** In each string value, write `\` as `\\`, `"` as `\"`,
+   and a line break as `\n`.
+2. **Escape for the shell.** Inside single quotes the shell keeps every
+   character as written, except `'`, which ends the quoted string. Replace
+   every `'` in the JSON with `'\''`: the first `'` ends the quoted string,
+   `\'` adds one literal `'`, and the last `'` starts a new quoted string. The
+   shell joins the pieces, so `volcano feedback` receives the original `'`.
 
-```bash
-volcano feedback --input /tmp/volcano-feedback.json
-```
+| Text | After step 1 | After step 2 |
+|---|---|---|
+| `didn't` | `didn't` | `didn'\''t` |
+| `say "hi"` | `say \"hi\"` | `say \"hi\"` |
+| `C:\app` | `C:\\app` | `C:\\app` |
+| two lines | `line 1\nline 2` | `line 1\nline 2` |
 
-`/tmp/volcano-feedback.json` holds:
-
-```json
-{"category": "docs_mismatch", "summary": "volcano-platform skill passes --json to functions list; the CLI rejects it", "details": "Checking a local deploy, I ran the command the volcano-platform skill shows to list functions. The CLI rejected the flag. volcano functions list --help shows no --json flag.", "commands": ["volcano functions list --json"], "expected": "JSON list of functions", "actual": "Error: unknown flag: --json", "workaround": "Parsed the table output instead."}
-```
-
-**A report in your own words goes inline**, wrapped in single quotes, with
-every value escaped so both the shell and JSON read it as written:
-
-- `'\''` for a single quote, such as `can'\''t`
-- `\"` for a double quote, `\\` for a backslash, and `\n` for a line break
-- placeholders without quotes, such as `--payload <payload>`
+Do not write `\'` for a single quote: neither JSON nor the shell reads it as
+one. Do not write `\u0027` either: tool calls can turn it back into `'` before
+the shell sees it.
 
 ```bash
-volcano feedback --input '{"category": "confusing_ux", "summary": "Took three tries to find the order of migrations and functions deploys", "details": "Deploying locally, I deployed functions before migrations and the functions failed. I didn'\''t find the order in the volcano-platform skill or in \"volcano migrations --help\". Deploying migrations first worked.", "commands": ["volcano functions deploy --all", "volcano migrations deploy --all -d <database>"], "workaround": "Deployed migrations first."}'
+volcano feedback --input '{"category": "cli_bug", "summary": "functions deploy prints an error but exits 0", "details": "Deploying locally, functions deploy printed an error about the build and exited 0, so the deploy looked successful. I didn'\''t notice until the function returned 404.", "commands": ["volcano functions deploy -f <function>"], "expected": "A non-zero exit code when the deploy fails", "actual": "Error: can'\''t find build output for \"<function>\"", "workaround": "Checked the output for Error: instead of the exit code."}'
 ```
 
 - `category`, `summary`, and `details` are required. Add `commands` (a list),
