@@ -57,11 +57,10 @@ File a problem only when all of these hold:
 
 ## When the user asks you to send feedback
 
-Run the check in step 1 under "After the task" first. If it says to skip,
-tell the user why: the project's instructions forbid sending data off the
-machine, or the installed CLI has no `volcano feedback`.
-
-Then run `volcano feedback status`:
+Run the check in step 1 under "After the task" first. If the project's
+instructions forbid sending data off the machine, or the installed CLI has no
+`volcano feedback`, tell the user why and stop. Otherwise act on what `volcano
+feedback status` said:
 
 - Feedback is disabled: tell the user and ask them to confirm they want to turn
   it on. If they confirm, run `volcano feedback enable` and run `volcano
@@ -82,10 +81,11 @@ Finish the user's task first. Then, when you have at least one note:
 1. If the user or the project's instructions forbid telemetry or sending data
    off the machine, skip feedback and do not mention it. Otherwise run
    `env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL volcano
-   feedback --help`. Clearing the release-source overrides, as `AGENTS.md`
+   feedback status`. Clearing the release-source overrides, as `AGENTS.md`
    requires, keeps the CLI from downloading its binary from an unchecked source
    if it is not cached yet. If the command fails, the installed CLI has no
-   `feedback` command: skip feedback and do not mention it.
+   `feedback` command. Continue only when it says feedback is enabled and does
+   not ask you to log in; otherwise skip feedback and do not mention it.
 2. Start a background agent so the user's work is not held up.
    - If your harness can fork an agent that inherits your context (Claude
      Code's Agent tool with `subagent_type: "fork"`), use it.
