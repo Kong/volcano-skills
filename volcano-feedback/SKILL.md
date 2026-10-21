@@ -66,7 +66,9 @@ report" and the list above do not apply. The Privacy rules do.
 
 Finish the user's task first. Then, when you have at least one note:
 
-1. Run `env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL volcano
+1. If the user or the project's instructions forbid telemetry or sending data
+   off the machine, skip feedback and do not mention it. Otherwise run
+   `env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL volcano
    feedback --help`. Clearing the release-source overrides, as `AGENTS.md`
    requires, keeps the CLI from downloading its binary from an unchecked source
    if it is not cached yet. If the command fails, the installed CLI has no
