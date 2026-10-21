@@ -1,6 +1,6 @@
 ---
 name: volcano-typescript
-description: "Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime, Durable, and durable approval types, Function invocation generics, OAuth providers, middleware types, and utility types."
+description: "Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime, Durable, durable approval, and durable message types, Function invocation generics, OAuth providers, middleware types, and utility types."
 ---
 # Volcano TypeScript Types Skill
 
@@ -404,6 +404,45 @@ const approval: DurableApproval | undefined = data?.data[0];
 Like `DurableExecution`, `DurableApproval` uses snake-case fields
 (`requested_at`, `expires_at`, `decision.decided_by`).
 
+`ctx.waitForMessage` takes `WaitForMessageOptions` and resolves with a
+`ReceivedMessage` or `null`; `ctx.publish` resolves with a `PublishedMessage`.
+`MessageSender` is the sender's `type` and `userId`. All four come from the
+durable entry point:
+
+```ts
+import type { PublishedMessage, ReceivedMessage } from '@volcano.dev/sdk/durable';
+
+const posted: ReceivedMessage | null = await ctx.waitForMessage('posted', { timeout: '1d' });
+// posted has id, name, data (unknown), sender, and sentAt.
+const progress: PublishedMessage = await ctx.publish('progress', { pct: 40 });
+// progress has id and seq.
+```
+
+Sending, listing, and subscribing use the main entry point's
+`DurableMessageTarget`, `DurableMessageSendOptions`,
+`DurableMessageListOptions`, `DurableMessageSubscribeOptions`, and
+`DurableMessageSubscription`. Results are `DurableMessage` and
+`DurableMessageList`, with snake-case fields (`execution_id`, `sent_at`,
+`delivered_at`, `sender.user_id`), and `DurableMessageDirection` is
+`'in' | 'out'`:
+
+```ts
+import type { DurableMessage, DurableMessageTarget } from '@volcano.dev/sdk';
+
+const target: DurableMessageTarget = {
+  functionName: 'publish-post',
+  executionId: execution.id,
+  clientToken: execution.client_token,
+};
+const { data } = await volcano.durable.messages.list(target, { direction: 'out' });
+// One page, oldest first: read on with `after` while `has_more`, or use
+// `subscribe`, to reach the newest.
+const lastOnPage: DurableMessage | undefined = data?.data.at(-1);
+```
+
+A start that creates an execution returns `client_token` on its
+`DurableExecution`; a repeated start under the same name leaves it unset.
+
 ## OAuth Types
 ```ts
 type OAuthProviderName = 'google' | 'github' | 'microsoft' | 'apple';
@@ -593,7 +632,7 @@ channel.onPostgresChanges('INSERT', 'public', 'posts', (change) => {
 | Storage | `StorageObject`, `StorageUploadResponse`, `StorageListResponse` | `storage.from(...)` operations |
 | Realtime | `PostgresChange`, `PresenceState`, `ConnectContext` | Channel callbacks |
 | Functions | `invoke<P, R>(...)` generic params | Both ends of an invocation |
-| Durable | `DurableHandler`, `DurableContext`, `DurableExecution`, `ApprovalDecision`, `DurableApproval` | Durable authoring, approvals, and execution clients |
+| Durable | `DurableHandler`, `DurableContext`, `DurableExecution`, `ApprovalDecision`, `DurableApproval`, `ReceivedMessage`, `PublishedMessage`, `DurableMessage`, `DurableMessageTarget` | Durable authoring, approvals, messages, and execution clients |
 | OAuth | `OAuthProviderName`, `OAuthProvider` | Provider name validation |
 | Sessions | `AuthSession`, `SessionsResponse` | Multi-device session UI |
 | Middleware | `ServerClient`, `GetUserResult` | Next.js middleware/route handlers |
