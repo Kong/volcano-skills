@@ -61,10 +61,15 @@ Run the check in step 1 under "After the task" first. If it says to skip,
 tell the user why: the project's instructions forbid sending data off the
 machine, or the installed CLI has no `volcano feedback`.
 
-Then run `volcano feedback status`. If it says feedback is disabled, tell the
-user and ask them to confirm they want to turn it on. If they confirm, run
-`volcano feedback enable`; if they do not, stop. If it says to log in, tell the
-user that sending feedback needs `volcano login`, and stop.
+Then run `volcano feedback status`:
+
+- Feedback is disabled: tell the user and ask them to confirm they want to turn
+  it on. If they confirm, run `volcano feedback enable` and run `volcano
+  feedback status` again; if they do not, stop.
+- It says to log in: start `volcano login` as "Authenticating" in `AGENTS.md`
+  describes. Run it in the background, show the user the code and the approval
+  URL as soon as they appear, and wait for it to exit 0. If the login fails or
+  the user does not approve, stop.
 
 Then file what the user asked for right away, with the closest category. The
 bar under "What to report" and the list above do not apply. The Privacy rules
