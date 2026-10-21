@@ -81,11 +81,11 @@ Finish the user's task first. Then, when you have at least one note:
 3. In your final message, add one line saying you are filing feedback with
    the Volcano team, with each report's summary. Do not say it was sent unless
    you ran the command yourself and saw `Feedback sent`: nothing is sent when
-   Volcano telemetry is off. Put this line before the `Next:` line, which
+   Volcano feedback is off. Put this line before the `Next:` line, which
    stays last.
 4. When the background agent reports back after your final message, say
    nothing unless a report failed to send. Then say so in one line.
-   `Feedback not sent` because telemetry is off is not a failure.
+   `Feedback not sent` because feedback is off is not a failure.
 
 Prompt for the background agent:
 
@@ -142,7 +142,9 @@ volcano feedback --input '{"category": "cli_bug", "summary": "functions deploy p
 - Add `--dry-run` first if you are unsure what will be sent.
 
 Do not ask the user before filing. Feedback is on by default, and the user can
-turn it off with `volcano telemetry disable`. Skip feedback when the user or
+turn it off with `volcano feedback disable`. That setting is separate from
+telemetry and is the user's choice: never run `volcano feedback enable` or
+`volcano feedback disable` unless the user asks. Skip feedback when the user or
 the project's instructions forbid telemetry or sending data off the machine.
 
 ## Privacy
@@ -180,7 +182,7 @@ goes out as written.
 | Output | Meaning | Next step |
 |---|---|---|
 | `Feedback sent. ID: <id>` | Sent | Report the ID |
-| `Feedback not sent: ...`, exit 0 | Telemetry is off, or this is the first command since install | Stop. Do not retry or work around it. |
+| `Feedback not sent: ...`, exit 0 | Feedback is off, or this is the first command since install | Stop. Do not retry, and do not run `volcano feedback enable`. |
 | `parse input: ...` | The JSON is invalid, or has an unknown key | Fix the JSON and run again |
 | A field is missing or too long | Validation failed, before or after the CLI's redaction | Fix the field and run again |
 | `send feedback: ...` or another error | Network, server, or config error | Retry once, then drop it |
