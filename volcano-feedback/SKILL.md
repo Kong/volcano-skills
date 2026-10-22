@@ -68,10 +68,16 @@ feedback status` said:
 - Any other `Feedback is disabled` line: tell the user and ask them to confirm
   they want to turn it on. If they confirm, run `volcano feedback enable` and
   run `volcano feedback status` again; if they do not, stop.
-- It says to log in, including for a project access token: run `volcano login`
-  in the background, show the user the code and the approval URL as soon as
-  they appear, and wait for it to exit 0. If the login fails or the user does
-  not approve, stop.
+- It says to log in with `volcano login`: run `volcano login` in the
+  background, show the user the code and the approval URL as soon as they
+  appear, and wait for it to exit 0. Then run `volcano feedback status` again.
+  If the login fails or the user does not approve, stop.
+- It says a project access token cannot send reports: tell the user feedback
+  needs their own account login. If `VOLCANO_TOKEN` is set, it keeps winning
+  over a login, so tell the user and stop; never unset it yourself. Otherwise,
+  say that `volcano login` replaces the saved project access token with their
+  account login for every later `volcano` command, and log in as above only if
+  they confirm.
 - It says the first-run notice cannot be saved: tell the user feedback cannot
   be sent until `~/.volcano/config.json` can be written, then stop.
 
