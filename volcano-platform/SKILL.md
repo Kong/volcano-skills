@@ -605,6 +605,8 @@ certificate. `--tls` needs CLI 0.50.0 or later; on an older CLI, declare the
 domain in the manifest and run `volcano cloud config deploy`:
 
 ```yaml
+# volcano-config.yaml
+version: 1
 frontends:
   - name: web
     custom_domain:
