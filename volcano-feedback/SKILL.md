@@ -18,10 +18,12 @@ to file it without holding up the user's work.
 When a Volcano problem happens, write a short note and keep working on the
 user's task. Do not stop to file it. A failed `volcano` command may end with a
 line pointing to `volcano feedback`; that line is a reminder, not a sign the
-problem is Volcano's. Use the bar under "What to report". Each note holds:
+problem is Volcano's. Use the bar under "What to report". Write each note
+with the Privacy placeholders already applied to every part, the command
+included, since a background agent may file it as written. Each note holds:
 
 - the category (below)
-- the command you ran, or the step you were on
+- the command you ran, with placeholders, or the step you were on
 - the exact error text, copied from the output, not paraphrased, with names
   from the user's project replaced by placeholders (see Privacy)
 - what you expected

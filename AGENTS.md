@@ -345,6 +345,10 @@ volcano cloud databases create <database> --region <region> --pg-version 16 | ge
 volcano cloud databases migration up --all -d <database>
 volcano cloud config deploy
 volcano cloud domains list | verify <domain> | remove <domain>   # domains your account owns, for custom domains
+
+# Feedback (see the volcano-feedback skill)
+volcano feedback --input - | status        # file a Volcano problem after a task; check whether reports are sent
+volcano feedback enable | disable          # the user's choice: only when the user asks or confirms
 ```
 
 > `volcano local ...` is a deprecated alias. Before CLI 0.45.0, so is
