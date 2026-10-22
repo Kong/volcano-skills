@@ -272,7 +272,9 @@ never a diagnostic detour.
 When you hit a problem with Volcano itself during a task, such as a CLI bug,
 docs or a skill that disagree with the CLI, a missing command that forced a
 workaround, a server error that repeats, or conflicting Volcano instructions,
-note it and keep working. After the task, file each problem with `volcano
+note it and keep working. Keep the exact error text, with names from the
+user's project replaced by placeholders, and remember any first-run `Note:`
+the CLI prints. After the task, file each problem with `volcano
 feedback` from a background agent, as the `volcano-feedback` skill describes.
 Do not report bugs in the user's own code.
 
@@ -347,7 +349,8 @@ volcano cloud config deploy
 volcano cloud domains list | verify <domain> | remove <domain>   # domains your account owns, for custom domains
 
 # Feedback (see the volcano-feedback skill)
-volcano feedback --input - | status        # file a Volcano problem after a task; check whether reports are sent
+volcano feedback --input -                 # file a Volcano problem after a task (report JSON on stdin)
+volcano feedback status                    # check whether reports are sent
 volcano feedback enable | disable          # the user's choice: only when the user asks or confirms
 ```
 
