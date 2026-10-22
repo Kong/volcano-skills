@@ -1,6 +1,6 @@
 ---
 name: volcano-typescript
-description: "Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime, Durable, durable approval, and durable message types, Function invocation generics, OAuth providers, middleware types, and utility types."
+description: "Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime, Durable, durable approval, durable message, and durable callback types, Function invocation generics, OAuth providers, middleware types, and utility types."
 ---
 # Volcano TypeScript Types Skill
 
@@ -442,6 +442,28 @@ const lastOnPage: DurableMessage | undefined = data?.data.at(-1);
 
 A start that creates an execution returns `client_token` on its
 `DurableExecution`; a repeated start under the same name leaves it unset.
+
+`ctx.waitForCallback` takes a `CallbackSubmitter`, `(token: string) => unknown`,
+and `WaitForCallbackOptions` (`timeout`, `heartbeatTimeout`). It resolves with
+`unknown`, the holder's JSON result, or `null` on timeout, so narrow it before
+use. A failed callback throws `CallbackFailedError`, whose `type` and `message`
+are what the holder sent. All three come from the durable entry point; the SDK
+has no client method for answering, since the holder posts the token itself:
+
+```ts
+import { CallbackFailedError, type WaitForCallbackOptions } from '@volcano.dev/sdk/durable';
+
+interface Charge { charge_id: string }
+
+const options: WaitForCallbackOptions = { timeout: '1h', heartbeatTimeout: '10m' };
+let charge: Charge | null;
+try {
+  charge = (await ctx.waitForCallback('payment', startPayment, options)) as Charge | null;
+} catch (error) {
+  if (error instanceof CallbackFailedError) return { declined: error.type };
+  throw error;
+}
+```
 
 ## OAuth Types
 ```ts
