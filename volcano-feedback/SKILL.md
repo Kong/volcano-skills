@@ -75,7 +75,8 @@ feedback status` said:
 - It says the first-run notice cannot be saved: tell the user feedback cannot
   be sent until `~/.volcano/config.json` can be written, then stop.
 
-Then file what the user asked for right away, with the closest category. The
+If `status` printed a first-run notice (a `Note:`), show it to the user. Then
+file what the user asked for right away, with the closest category. The
 bar under "What to report" and the list above do not apply. The Privacy rules
 do.
 
@@ -89,10 +90,12 @@ Finish the user's task first. Then, when you have at least one note:
    feedback status`. Clearing the release-source overrides keeps the CLI from
    downloading its binary from an unchecked source if it is not cached yet;
    clear them on every `volcano` command in this skill. If the command fails,
-   the installed CLI has no `feedback` command. Continue only when its output
-   starts with `Feedback is enabled.`; `Feedback is disabled ...` or
+   the installed CLI has no `feedback` command. Continue only when it prints a
+   line starting with `Feedback is enabled.`; `Feedback is disabled ...` or
    `Feedback is enabled, but ...` means no report would be sent, so skip
-   feedback and do not mention it.
+   feedback and do not mention it. The CLI shows its first-run notice once,
+   and this command may be where it appears: if the output also has a `Note:`
+   notice, remember it for step 3.
 2. Start a background agent so the user's work is not held up.
    - If your harness can fork an agent that inherits your context (Claude
      Code's Agent tool with `subagent_type: "fork"`), use it.
@@ -102,8 +105,10 @@ Finish the user's task first. Then, when you have at least one note:
      before your final message.
 3. In your final message, add one line saying you are filing feedback with
    the Volcano team, with each report's summary. Do not say it was sent unless
-   you ran the command yourself and saw `Feedback sent`. Put this line before
-   the `Next:` line, which stays last.
+   you ran the command yourself and saw `Feedback sent`. If step 1 showed a
+   first-run notice, the user has not seen it: add that feedback reports are
+   on and that `volcano feedback disable` turns them off. Put these lines
+   before the `Next:` line, which stays last.
 4. When the background agent reports back after your final message, say
    nothing unless a report failed to send. Then say so in one line.
 
