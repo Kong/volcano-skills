@@ -63,8 +63,10 @@ File a problem only when all of these hold:
 ## When the user asks you to send feedback
 
 Run the check in step 1 under "After the task" first. If the project's
-instructions forbid sending data off the machine, or the installed CLI has no
-`volcano feedback`, tell the user why and stop. Otherwise act on what `volcano
+instructions forbid sending data off the machine, tell the user and stop. If
+the status command failed, tell the user the error it printed and stop; if
+`volcano` itself is missing, set it up as `install-volcano` describes first.
+Otherwise act on what `volcano
 feedback status` said:
 
 - `Feedback is disabled by VOLCANO_FEEDBACK_DISABLED.`: tell the user that this
@@ -103,8 +105,9 @@ Finish the user's task first. Then, when you have at least one note:
    `env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL volcano
    feedback status`. Clearing the release-source overrides keeps the CLI from
    downloading its binary from an unchecked source if it is not cached yet;
-   clear them on every `volcano` command in this skill. If the command fails,
-   the installed CLI has no `feedback` command. Continue only when it prints a
+   clear them on every `volcano` command in this skill. If the command fails
+   (for example, an older CLI without `volcano feedback`), skip feedback and
+   do not mention it. Continue only when it prints a
    line starting with `Feedback is enabled.`; `Feedback is disabled ...` or
    `Feedback is enabled, but ...` means no report would be sent, so skip
    feedback and do not mention it.

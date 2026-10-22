@@ -120,5 +120,6 @@ Always available; invoke as needed:
 - `volcano-uiux` — shared guidance for user-facing interfaces.
 - `volcano-typescript` — canonical type definitions.
 - `volcano-error-handling` — reusable error-handling infrastructure.
+- `volcano-feedback` — report problems with Volcano itself after a task.
 
 ## Optional Fallback Reference
