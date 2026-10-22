@@ -639,8 +639,10 @@ volcano cloud frontends domain get web     # records to publish, status, serving
   published, the same command lists the certificate validation CNAME to add.
 - To move an active domain between BYOC and managed TLS without downtime,
   run `domain create` again for the same hostname with the other mode. The
-  current certificate serves until its replacement does; `Serving certificate`
-  reads `uploaded` until the managed one serves. If the manifest declares the
+  current certificate serves until its replacement does. A switch to managed
+  prints the `_acme-challenge` CNAME; relay it for the user to publish, since
+  issuance waits for it. `Serving certificate` reads `uploaded` until the
+  managed one serves. If the manifest declares the
   domain's `tls.mode`, change it there too; otherwise the next
   `config deploy` switches it back or, for `byoc` without certificate fields,
   fails.
