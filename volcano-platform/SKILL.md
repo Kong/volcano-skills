@@ -597,16 +597,34 @@ rollback step for a failed `config deploy` — neither exists or is needed:
 A frontend serves a custom domain only once the account has verified that
 hostname or a domain above it. Verify once per domain: every name below it is
 then covered, in managed or BYOC TLS, in any of the account's projects. Attach
-the hostname with `volcano cloud frontends domain create` (BYOC) or a manifest
-`frontends[].custom_domain` entry. Verified domains belong to the account, so
-`volcano cloud domains` needs a `volcano login` session; a project access token
-is refused.
+the hostname with `volcano cloud frontends domain create` or a manifest
+`frontends[].custom_domain` entry. Prefer managed TLS (`--tls managed`):
+Volcano issues and renews the certificate, within the plan's managed
+certificate limit. Use BYOC (`--cert` and `--key`) when the user supplies a
+certificate. `--tls` needs CLI 0.50.0 or later; on an older CLI, declare the
+domain in the manifest and run `volcano cloud config deploy`:
+
+```yaml
+# volcano-config.yaml
+version: 1
+frontends:
+  - name: web
+    custom_domain:
+      domain: app.example.com
+      tls:
+        mode: managed
+```
+
+Verified domains belong to the account, so `volcano cloud domains` needs a
+`volcano login` session; a project access token is refused.
 
 ```bash
 volcano cloud domains verify example.com   # fails and prints the TXT record to publish
 # the user publishes the printed _volcano.example.com TXT record with their DNS provider
 volcano cloud domains verify example.com   # succeeds once DNS serves the record
 volcano cloud domains list
+volcano cloud frontends domain create web --domain app.example.com --tls managed
+volcano cloud frontends domain get web     # records to publish, status, serving certificate
 ```
 
 - Only the user can publish DNS records. Relay the exact record the CLI prints;
@@ -614,10 +632,20 @@ volcano cloud domains list
 - An unverified BYOC attach (`domain create`, or `tls.mode: byoc` in
   `config deploy`) fails and prints the record to publish. Verify, then re-run
   the same command.
-- An unverified `tls.mode: managed` entry still deploys: Volcano holds the
+- An unverified managed attach (`domain create --tls managed`, or
+  `tls.mode: managed` in `config deploy`) still succeeds: Volcano holds the
   hostname and `volcano cloud frontends domain get <frontend>` lists the
   `_volcano` TXT record under "Verification records". Once the record is
   published, the same command lists the certificate validation CNAME to add.
+- To move an active domain between BYOC and managed TLS without downtime,
+  run `domain create` again for the same hostname with the other mode. The
+  current certificate serves until its replacement does. A switch to managed
+  prints the `_acme-challenge` CNAME; relay it for the user to publish, since
+  issuance waits for it. `Serving certificate` reads `uploaded` until the
+  managed one serves. If the manifest declares the
+  domain's `tls.mode`, change it there too; otherwise the next
+  `config deploy` switches it back or, for `byoc` without certificate fields,
+  fails.
 - Keep the TXT record published. A domain another account verified stays
   theirs until their record is gone from DNS. Local mode serves no custom
   domains, so `volcano domains` refuses.
