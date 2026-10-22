@@ -82,8 +82,10 @@ feedback status` said:
   appear, and wait for it to exit 0. Then run `volcano feedback status` again.
   If the login fails or the user does not approve, stop.
 - It says a project access token cannot send reports: tell the user feedback
-  needs their own account login. If `VOLCANO_TOKEN` is set, it keeps winning
-  over a login, so tell the user and stop; never unset it yourself. Otherwise,
+  needs their own account login. Check whether `VOLCANO_TOKEN` is set without
+  printing it: `[ -n "${VOLCANO_TOKEN:-}" ] && echo set || echo unset`. Never
+  print its value. If it is set, it keeps winning over a login, so tell the
+  user and stop; never unset it yourself. Otherwise,
   say that `volcano login` replaces the saved project access token with their
   account login for every later `volcano` command, and log in as above only if
   they confirm.
