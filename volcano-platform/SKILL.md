@@ -601,7 +601,8 @@ the hostname with `volcano cloud frontends domain create` or a manifest
 `frontends[].custom_domain` entry. Prefer managed TLS (`--tls managed`):
 Volcano issues and renews the certificate, within the plan's managed
 certificate limit. Use BYOC (`--cert` and `--key`) when the user supplies a
-certificate. Verified domains belong to the account,
+certificate. `--tls` needs CLI 0.50.0 or later; on an older CLI, declare
+`custom_domain` with `tls.mode: managed` and run `volcano cloud config deploy`. Verified domains belong to the account,
 so `volcano cloud domains` needs a `volcano login` session; a project access
 token is refused.
 
@@ -624,7 +625,6 @@ volcano cloud frontends domain get web     # records to publish, status, serving
   hostname and `volcano cloud frontends domain get <frontend>` lists the
   `_volcano` TXT record under "Verification records". Once the record is
   published, the same command lists the certificate validation CNAME to add.
-  The `domain create --tls` flag needs CLI 0.50 or later.
 - To move an active domain between BYOC and managed TLS without downtime,
   run `domain create` again for the same hostname with the other mode. The
   current certificate serves until its replacement does; `Serving certificate`
