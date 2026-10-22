@@ -27,6 +27,11 @@ problem is Volcano's. Use the bar under "What to report". Each note holds:
 - what you expected
 - what you tried, and the workaround that worked, if any
 
+The CLI prints a first-run notice (a `Note:` about usage data and feedback
+reports) once per machine, on whichever `volcano` command runs first, and it
+may be buried in tool output the user never sees. If any `volcano` command in
+the session printed one, remember it for step 3 under "After the task".
+
 ## What to report
 
 | Category | Use when | Example |
@@ -83,7 +88,8 @@ feedback status` said:
 - It says the first-run notice cannot be saved: tell the user feedback cannot
   be sent until `~/.volcano/config.json` can be written, then stop.
 
-If `status` printed a first-run notice (a `Note:`), show it to the user. Then
+If `status`, or any earlier `volcano` command in the session, printed a
+first-run notice (a `Note:`), show it to the user. Then
 file what the user asked for right away, with the closest category. The
 bar under "What to report" and the "What not to report" list do not apply. The Privacy rules
 do.
@@ -101,9 +107,7 @@ Finish the user's task first. Then, when you have at least one note:
    the installed CLI has no `feedback` command. Continue only when it prints a
    line starting with `Feedback is enabled.`; `Feedback is disabled ...` or
    `Feedback is enabled, but ...` means no report would be sent, so skip
-   feedback and do not mention it. The CLI shows its first-run notice once,
-   and this command may be where it appears: if the output also has a `Note:`
-   notice, remember it for step 3.
+   feedback and do not mention it.
 2. Start a background agent so the user's work is not held up.
    - If your harness can fork an agent that inherits your context (Claude
      Code's Agent tool with `subagent_type: "fork"`), use it.
@@ -113,9 +117,10 @@ Finish the user's task first. Then, when you have at least one note:
      before your final message.
 3. In your final message, add one line saying you are filing feedback with
    the Volcano team, with each report's summary. Do not say it was sent unless
-   you ran the command yourself and saw `Feedback sent`. If step 1 showed a
-   first-run notice, the user has not seen it: add that feedback reports are
-   on and that `volcano feedback disable` turns them off. Put these lines
+   you ran the command yourself and saw `Feedback sent`. If any `volcano`
+   command in the session, step 1 included, printed a first-run notice, the
+   user has not seen it: add that feedback reports are on and that `volcano
+   feedback disable` turns them off. Put these lines
    before the `Next:` line, which stays last.
 4. When the background agent reports back after your final message, say
    nothing unless a report failed to send. Then say so in one line.
