@@ -16,7 +16,7 @@ to file it without holding up the user's work.
 ## During the task: keep notes, file nothing
 
 When a Volcano problem happens, write a short note and keep working on the
-user's task. Do not stop to file it. A failed `volcano` command ends with a
+user's task. Do not stop to file it. A failed `volcano` command may end with a
 line pointing to `volcano feedback`; that line is a reminder, not a sign the
 problem is Volcano's. Use the bar under "What to report". Each note holds:
 
@@ -62,13 +62,18 @@ instructions forbid sending data off the machine, or the installed CLI has no
 `volcano feedback`, tell the user why and stop. Otherwise act on what `volcano
 feedback status` said:
 
-- Feedback is disabled: tell the user and ask them to confirm they want to turn
-  it on. If they confirm, run `volcano feedback enable` and run `volcano
-  feedback status` again; if they do not, stop.
-- It says to log in: start `volcano login` as "Authenticating" in `AGENTS.md`
-  describes. Run it in the background, show the user the code and the approval
-  URL as soon as they appear, and wait for it to exit 0. If the login fails or
-  the user does not approve, stop.
+- `Feedback is disabled by VOLCANO_FEEDBACK_DISABLED.`: tell the user that this
+  environment variable turns feedback off and that they can unset it to send
+  feedback, then stop. Never unset it or work around it yourself.
+- Any other `Feedback is disabled` line: tell the user and ask them to confirm
+  they want to turn it on. If they confirm, run `volcano feedback enable` and
+  run `volcano feedback status` again; if they do not, stop.
+- It says to log in, including for a project access token: run `volcano login`
+  in the background, show the user the code and the approval URL as soon as
+  they appear, and wait for it to exit 0. If the login fails or the user does
+  not approve, stop.
+- It says the first-run notice cannot be saved: tell the user feedback cannot
+  be sent until `~/.volcano/config.json` can be written, then stop.
 
 Then file what the user asked for right away, with the closest category. The
 bar under "What to report" and the list above do not apply. The Privacy rules
@@ -81,11 +86,13 @@ Finish the user's task first. Then, when you have at least one note:
 1. If the user or the project's instructions forbid telemetry or sending data
    off the machine, skip feedback and do not mention it. Otherwise run
    `env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL volcano
-   feedback status`. Clearing the release-source overrides, as `AGENTS.md`
-   requires, keeps the CLI from downloading its binary from an unchecked source
-   if it is not cached yet. If the command fails, the installed CLI has no
-   `feedback` command. Continue only when it says feedback is enabled and does
-   not ask you to log in; otherwise skip feedback and do not mention it.
+   feedback status`. Clearing the release-source overrides keeps the CLI from
+   downloading its binary from an unchecked source if it is not cached yet;
+   clear them on every `volcano` command in this skill. If the command fails,
+   the installed CLI has no `feedback` command. Continue only when its output
+   starts with `Feedback is enabled.`; `Feedback is disabled ...` or
+   `Feedback is enabled, but ...` means no report would be sent, so skip
+   feedback and do not mention it.
 2. Start a background agent so the user's work is not held up.
    - If your harness can fork an agent that inherits your context (Claude
      Code's Agent tool with `subagent_type: "fork"`), use it.
@@ -106,8 +113,9 @@ Prompt for the background agent:
 File Volcano feedback for these problems from the task that just finished.
 Follow the "Filing a report", "Privacy", and "Results" sections of the
 volcano-feedback skill. Run one `volcano feedback` command per distinct
-problem yourself; do not start another agent or message the user. Report
-each feedback ID, or why it was not sent.
+problem yourself, prefixed with `env -u VOLCANO_GITHUB_RELEASES_URL -u
+VOLCANO_CLI_RELEASES_URL`; do not start another agent or message the user.
+Report each feedback ID, or why it was not sent.
 
 <your notes>
 ```
@@ -116,40 +124,38 @@ each feedback ID, or why it was not sent.
 
 One report per distinct problem. Merge notes that share a cause.
 
-Pass the report as one JSON object to `--input`, wrapped in single quotes.
-Build the argument in two steps, in this order, for every value, including
-error text you copied:
+Write the report as one JSON object on one line and pass it on stdin with
+`--input -` and a quoted heredoc. The quoted delimiter makes the shell pass
+every character as written, so copied error text with `'`, `$`, backticks, or
+`;` cannot run as shell.
 
-1. **Escape for JSON.** In each string value, write `\` as `\\`, `"` as `\"`,
-   a line break as `\n`, and a tab as `\t`. Leave out terminal color codes and
-   other control characters.
-2. **Escape for the shell.** Inside single quotes the shell keeps every
-   character as written, except `'`, which ends the quoted string. Replace
-   every `'` in the JSON with `'\''`: the first `'` ends the quoted string,
-   `\'` adds one literal `'`, and the last `'` starts a new quoted string. The
-   shell joins the pieces, so `volcano feedback` receives the original `'`.
+Escape each string value for JSON: write `\` as `\\`, `"` as `\"`, a line
+break as `\n`, and a tab as `\t`. Leave out terminal color codes and other
+control characters. Nothing else needs escaping.
 
-| Text | After step 1 | After step 2 |
-|---|---|---|
-| `didn't` | `didn't` | `didn'\''t` |
-| `say "hi"` | `say \"hi\"` | `say \"hi\"` |
-| `C:\app` | `C:\\app` | `C:\\app` |
-| two lines | `line 1\nline 2` | `line 1\nline 2` |
-
-Do not write `\'` for a single quote: neither JSON nor the shell reads it as
-one. Do not write `\u0027` either: tool calls can turn it back into `'` before
-the shell sees it.
+| Text | In the JSON |
+|---|---|
+| `didn't` | `didn't` |
+| `say "hi"` | `say \"hi\"` |
+| `C:\app` | `C:\\app` |
+| two lines | `line 1\nline 2` |
 
 ```bash
-volcano feedback --input '{"category": "cli_bug", "summary": "functions deploy prints an error but exits 0", "details": "Deploying locally, functions deploy printed an error about the build and exited 0, so the deploy looked successful. I didn'\''t notice until the function returned 404.", "commands": ["volcano functions deploy -f <function>"], "expected": "A non-zero exit code when the deploy fails", "actual": "Error: can'\''t find build output for \"<function>\"", "workaround": "Checked the output for Error: instead of the exit code."}'
+env -u VOLCANO_GITHUB_RELEASES_URL -u VOLCANO_CLI_RELEASES_URL volcano feedback --input - <<'VOLCANO_FEEDBACK_EOF'
+{"category": "cli_bug", "summary": "functions deploy prints an error but exits 0", "details": "Deploying locally, functions deploy printed an error about the build and exited 0, so the deploy looked successful. I didn't notice until the function returned 404.", "commands": ["volcano functions deploy -f <function>"], "expected": "A non-zero exit code when the deploy fails", "actual": "Error: can't find build output for \"<function>\"", "workaround": "Checked the output for Error: instead of the exit code."}
+VOLCANO_FEEDBACK_EOF
 ```
+
+Keep the heredoc exactly as shown: `'VOLCANO_FEEDBACK_EOF'` in quotes on the
+first line, and `VOLCANO_FEEDBACK_EOF` alone on the last line.
 
 - `category`, `summary`, and `details` are required. Add `commands` (a list),
   `expected`, `actual`, and `workaround` whenever you have them.
 - `details` says what you were doing and what happened, in order. Write it so
   someone who did not see your session can follow it.
 - `actual` is the exact error text, with placeholders as described in Privacy.
-- An unknown key is an error. Each key also has a flag (`--category`,
+- Keys are case-sensitive; an unknown or repeated key is an error. Each key
+  also has a flag (`--category`,
   `--summary`, `--details`, `--command` repeated per command, `--expected`,
   `--actual`, `--workaround`), but do not mix flags with `--input`.
 - Add `--dry-run` first if you are unsure what will be sent.
@@ -173,8 +179,10 @@ placeholder:
 
 For example, `Error: function "acme-billing" not found` becomes
 `Error: function "<function>" not found`, and `--token pt-...` becomes
-`--token <secret>`. The Volcano team can match a report
-to the commands that failed without these names.
+`--token <secret>`. While usage telemetry is on, the Volcano team can match
+a report to the commands that failed without these names. With telemetry off,
+a report carries no device or project ID and cannot be matched, so describe
+the command and error fully, still with placeholders.
 
 Never include:
 
@@ -191,8 +199,11 @@ cloud provider key.
 | Output | Meaning | Next step |
 |---|---|---|
 | `Feedback sent. ID: <id>` | Sent | Report the ID |
-| `parse input: ...` | The JSON is invalid, or has an unknown key | Fix the JSON and run again |
-| A field is missing or too long | Validation failed, before or after the CLI's redaction | Fix the field and run again |
-| `send feedback: ...` or another error | Network, server, or config error | Retry once, then drop it |
+| No output, exit 0 | Not sent: feedback is off or the login cannot send reports | Drop it; do not retry |
+| `parse input: ...` or `read input: ...` | The JSON is invalid, is not one object, or has an unknown or repeated key | Fix the JSON and run again |
+| A field is missing or too long, or `category must be one of ...` | Validation failed, before or after the CLI's redaction | Fix the field and run again |
+| `if any flags in the group [input ...]` | Flags were mixed with `--input` | Use only `--input` and run again |
+| `send feedback: ...` with HTTP 401, 403, or 404 | The login cannot send reports, or the server does not take them yet | Drop it; do not retry |
+| Any other `send feedback: ...` error | Network error, rate limit, or server error | Retry once, then drop it |
 
 Never block or fail the user's task because of feedback.
