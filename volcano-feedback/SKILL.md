@@ -66,7 +66,9 @@ feedback status` said:
   environment variable turns feedback off and that they can unset it to send
   feedback, then stop. Never unset it or work around it yourself.
 - Any other `Feedback is disabled` line: tell the user and ask them to confirm
-  they want to turn it on. If they confirm, run `volcano feedback enable` and
+  they want to turn it on. Say that the setting stays on, so agents will also
+  file reports after later Volcano tasks without asking, until they run
+  `volcano feedback disable`. If they confirm, run `volcano feedback enable` and
   run `volcano feedback status` again; if they do not, stop.
 - It says to log in with `volcano login`: run `volcano login` in the
   background, show the user the code and the approval URL as soon as they
@@ -83,7 +85,7 @@ feedback status` said:
 
 If `status` printed a first-run notice (a `Note:`), show it to the user. Then
 file what the user asked for right away, with the closest category. The
-bar under "What to report" and the list above do not apply. The Privacy rules
+bar under "What to report" and the "What not to report" list do not apply. The Privacy rules
 do.
 
 ## After the task: file from a background agent
