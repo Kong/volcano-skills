@@ -182,7 +182,8 @@ first line, and `VOLCANO_FEEDBACK_EOF` alone on the last line.
 - Keys are case-sensitive; an unknown or repeated key is an error. Each key
   also has a flag (`--category`,
   `--summary`, `--details`, `--command` repeated per command, `--expected`,
-  `--actual`, `--workaround`), but do not mix flags with `--input`.
+  `--actual`, `--workaround`), but do not mix these report flags with
+  `--input`.
 - Add `--dry-run` first if you are unsure what will be sent.
 
 Do not ask the user before filing. Never run `volcano feedback enable` or
@@ -224,11 +225,12 @@ cloud provider key.
 | Output | Meaning | Next step |
 |---|---|---|
 | `Feedback sent. ID: <id>` | Sent | Report the ID |
-| No output, exit 0 | Not sent: feedback is off or the login cannot send reports | Drop it; do not retry |
+| No output, or only the first-run `Note:`, exit 0 | Not sent: feedback is off or the login cannot send reports | Drop it; do not retry |
 | `parse input: ...` or `read input: ...` | The JSON is invalid, is not one object, or has an unknown or repeated key | Fix the JSON and run again |
 | A field is missing or too long, or `category must be one of ...` | Validation failed, before or after the CLI's redaction | Fix the field and run again |
 | `if any flags in the group [input ...]` | Flags were mixed with `--input` | Use only `--input` and run again |
 | `send feedback: ...` with HTTP 401, 403, or 404 | The login cannot send reports, or the server does not take them yet | Drop it; do not retry |
-| Any other `send feedback: ...` error | Network error, rate limit, or server error | Retry once, then drop it |
+| `send feedback: HTTP 5xx: ...` or `send feedback: cannot reach the Volcano API ...` | Server error, or the report did not reach the server | Retry once, then drop it |
+| Any other `send feedback: ...` error, such as another HTTP 4xx (including 429) or a timeout | The server refused the report, or may already have it | Drop it; do not retry |
 
 Never block or fail the user's task because of feedback.
