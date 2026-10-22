@@ -32,7 +32,8 @@ included, since a background agent may file it as written. Each note holds:
 The CLI prints a first-run notice (a `Note:` about usage data and feedback
 reports) once per machine, on whichever `volcano` command runs first, and it
 may be buried in tool output the user never sees. If any `volcano` command in
-the session printed one, remember it for step 3 under "After the task".
+the session printed one, remember it for your final message (see "After the
+task").
 
 ## What to report
 
@@ -102,7 +103,12 @@ do.
 
 ## After the task: file from a background agent
 
-Finish the user's task first. Then, when you have at least one note:
+Finish the user's task first. If any `volcano` command in the session printed
+a first-run notice (a `Note:`), show it to the user in your final message,
+whether or not you have notes: it is printed only once per machine, and the
+user may not have seen it in tool output.
+
+Then, when you have at least one note:
 
 1. If the user or the project's instructions forbid telemetry or sending data
    off the machine, skip feedback and do not mention it. Otherwise run
@@ -124,11 +130,9 @@ Finish the user's task first. Then, when you have at least one note:
      before your final message.
 3. In your final message, add one line saying you are filing feedback with
    the Volcano team, with each report's summary. Do not say it was sent unless
-   you ran the command yourself and saw `Feedback sent`. If any `volcano`
-   command in the session, step 1 included, printed a first-run notice, the
-   user has not seen it: add that feedback reports are on and that `volcano
-   feedback disable` turns them off. Put these lines
-   before the `Next:` line, which stays last.
+   you ran the command yourself and saw `Feedback sent`. If step 1 printed a
+   first-run notice, show it too, as above. Put these lines before the
+   `Next:` line, which stays last.
 4. When the background agent reports back after your final message, say
    nothing unless a report failed to send. Then say so in one line.
 
@@ -230,7 +234,7 @@ cloud provider key.
 | A field is missing or too long, or `category must be one of ...` | Validation failed, before or after the CLI's redaction | Fix the field and run again |
 | `if any flags in the group [input ...]` | Flags were mixed with `--input` | Use only `--input` and run again |
 | `send feedback: ...` with HTTP 401, 403, or 404 | The login cannot send reports, or the server does not take them yet | Drop it; do not retry |
-| `send feedback: HTTP 5xx: ...` or `send feedback: cannot reach the Volcano API ...` | Server error, or the report did not reach the server | Retry once, then drop it |
+| `send feedback: ...` with HTTP 5xx, or `send feedback: cannot reach the Volcano API ...` | Server error, or the report did not reach the server | Retry once, then drop it |
 | Any other `send feedback: ...` error, such as another HTTP 4xx (including 429) or a timeout | The server refused the report, or may already have it | Drop it; do not retry |
 
 Never block or fail the user's task because of feedback.

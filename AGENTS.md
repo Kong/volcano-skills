@@ -273,8 +273,10 @@ When you hit a problem with Volcano itself during a task, such as a CLI bug,
 docs or a skill that disagree with the CLI, a missing command that forced a
 workaround, a server error that repeats, or conflicting Volcano instructions,
 note it and keep working. Keep the exact error text, with names from the
-user's project replaced by placeholders, and remember any first-run `Note:`
-the CLI prints. After the task, file each problem with `volcano
+user's project replaced by placeholders. Whenever a `volcano` command prints a
+first-run notice (a `Note:` about usage data and feedback reports), show it to
+the user in your final message, even when you have nothing to report: it is
+printed only once per machine. After the task, file each problem with `volcano
 feedback` from a background agent, as the `volcano-feedback` skill describes.
 Do not report bugs in the user's own code.
 
