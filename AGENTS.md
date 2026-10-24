@@ -267,6 +267,19 @@ which remain legitimate. For diagnosing a problem, the human's device-code appro
 during `volcano login`/`volcano signup` is the only browser step in this workflow —
 never a diagnostic detour.
 
+## Reporting Volcano problems
+
+When you hit a problem with Volcano itself during a task, such as a CLI bug,
+docs or a skill that disagree with the CLI, a missing command that forced a
+workaround, a server error that repeats, or conflicting Volcano instructions,
+note it and keep working. Keep the exact error text, with names from the
+user's project replaced by placeholders. Whenever a `volcano` command prints a
+first-run notice (a `Note:` about usage data and feedback reports), show it to
+the user in your final message, even when you have nothing to report: it is
+printed only once per machine. After the task, file each problem with `volcano
+feedback` from a background agent, as the `volcano-feedback` skill describes.
+Do not report bugs in the user's own code.
+
 ## Safety model
 
 **Automatic when relevant to the user's requested scope (no confirmation needed):**
@@ -274,6 +287,7 @@ never a diagnostic detour.
 - Scaffold: `volcano init`, `volcano storage bucket create <name>` (local only — creating a bucket needed for what was built is local scaffolding like `volcano init`; cloud bucket creation follows the cloud-deploy confirmation below)
 - List/get: `volcano functions list|get`, `volcano variables list|get`, `volcano databases list|get`, `volcano storage bucket list|get`
 - Logs: `volcano functions logs <name> --type build|runtime`
+- Feedback: filing a report with `volcano feedback` after a task, for Volcano problems you hit (see "Reporting Volcano problems"). `volcano feedback enable` and `volcano feedback disable` are the user's choice: run them only when the user asks or confirms
 - Durable messages (CLI 0.47.0 or later): `volcano [cloud] durable messages list|waits`, and `volcano durable messages send` against local executions while testing
 - Local dev: `volcano start|stop|restart|status` — automatic by default after building (see "Build vs. run/test/deploy"), and whenever the user asks to run/test/preview locally
 - Local deploy: `volcano deploy [--with-migrations]`, or one piece with `volcano functions deploy`, `volcano durable deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app` — automatic by default after building, and whenever the user asks to run/test/preview locally. `volcano frontends deploy` is automatic only on CLI 0.45.0 or later; on older CLIs it deploys to the cloud project, so it is confirm-first there.
@@ -335,6 +349,11 @@ volcano cloud databases create <database> --region <region> --pg-version 16 | ge
 volcano cloud databases migration up --all -d <database>
 volcano cloud config deploy
 volcano cloud domains list | verify <domain> | remove <domain>   # domains your account owns, for custom domains
+
+# Feedback (see the volcano-feedback skill)
+volcano feedback --input -                 # file a Volcano problem after a task (report JSON on stdin)
+volcano feedback status                    # check whether reports are sent
+volcano feedback enable | disable          # the user's choice: only when the user asks or confirms
 ```
 
 > `volcano local ...` is a deprecated alias. Before CLI 0.45.0, so is

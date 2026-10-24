@@ -22,6 +22,11 @@
       "path": "/skills/volcano-error-handling/SKILL.md"
     },
     {
+      "name": "volcano-feedback",
+      "description": "Use after a Volcano task in which you hit a problem with Volcano itself, such as a CLI bug, docs or skills that disagree with the CLI, a missing command that forced a workaround, a server error that repeats, or conflicting Volcano instructions, and when the user asks to send Volcano feedback. Files each problem with volcano feedback from a background agent.",
+      "path": "/skills/volcano-feedback/SKILL.md"
+    },
+    {
       "name": "volcano-functions",
       "description": "Use for Volcano server-side Functions and privileged or secret-bearing logic, including function invocation and visibility, functions served under a frontend path, generators such as QR codes or PDFs, outbound third-party APIs, orchestration, scheduled processing, and file or image processing.",
       "path": "/skills/volcano-functions/SKILL.md"

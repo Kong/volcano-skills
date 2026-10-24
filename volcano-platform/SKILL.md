@@ -956,6 +956,9 @@ asserts — consult the ones the build touched: `volcano-functions`, `volcano-du
 
 Cloud is out of scope here — never auto-deploy to cloud (see `AGENTS.md` safety model).
 
+If you hit a Volcano problem along the way (a CLI bug, docs that disagree with
+the CLI, a missing command), file it after the task with `volcano-feedback`.
+
 ## Forbidden Patterns
 - Do NOT create an `src/api/index.ts` route dispatcher or `openapi.yaml` — Volcano Functions deploy individually from `volcano/functions/`, not through a single entry point.
 - Do NOT expect `VOLCANO_API_URL`, `VOLCANO_ANON_KEY`, or `VOLCANO_DATABASE` to be auto-injected — define them as project variables via `volcano variables deploy` (local) or `volcano cloud variables deploy -f volcano/cloud.env` (cloud).
@@ -993,3 +996,4 @@ This skill defines the platform deploy contract. For domain-specific guidance:
 - `volcano-uiux` — shared guidance for user-facing interfaces.
 - `volcano-typescript` — canonical TypeScript type definitions.
 - `volcano-error-handling` — reusable error-handling infrastructure.
+- `volcano-feedback` — report problems with Volcano itself after a task.
