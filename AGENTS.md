@@ -279,7 +279,7 @@ never a diagnostic detour.
 - Local deploy: `volcano deploy [--with-migrations]`, or one piece with `volcano functions deploy`, `volcano durable deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app` — automatic by default after building, and whenever the user asks to run/test/preview locally. `volcano frontends deploy` is automatic only on CLI 0.45.0 or later; on older CLIs it deploys to the cloud project, so it is confirm-first there.
 
 **Confirm-first:**
-- Cloud deploys: `volcano cloud deploy`, `volcano cloud functions deploy`, `volcano cloud frontends deploy`, `volcano cloud config deploy`, `volcano cloud variables deploy`
+- Cloud deploys: `volcano cloud deploy`, `volcano cloud functions deploy`, `volcano cloud frontends deploy` (including `--from`, which deploys another frontend's build), `volcano cloud config deploy`, `volcano cloud variables deploy`
 - Cloud durable messages (CLI 0.47.0 or later): `volcano cloud durable messages send`, and the MCP `send_durable_message` tool (each resumes a real execution; a send cannot be taken back)
 - Cloud service keys: `volcano projects keys service create` (a new credential that bypasses row-level security)
 - Cloud project creation: `volcano projects create` (a cloud resource; ask first, including when it's the project-context step of a cloud deploy)
@@ -330,6 +330,7 @@ volcano cloud durable messages list | waits <function> <execution-id>   # CLI 0.
 volcano cloud durable messages send <function> <execution-id> <message-name> --data <json>   # confirm first
 volcano projects keys service create <name> --permission <permission> --json   # new credential; confirm first
 volcano cloud frontends deploy --name <name> --path <dir> | list | logs
+volcano cloud frontends deploy <target> --from <frontend>[@<deployment-id>]   # CLI 0.51.0+: deploy another frontend's build
 volcano cloud variables deploy -f volcano/cloud.env
 volcano cloud databases create <database> --region <region> --pg-version 16 | get <database>
 volcano cloud databases migration up --all -d <database>
