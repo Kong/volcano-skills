@@ -158,6 +158,15 @@
       ]
     },
     {
+      "id": "durable-wait-for-callback",
+      "prompt": "Build a checkout workflow that hands a payment provider a callback token and waits until it calls back with the charge using Volcano",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-durable", "signals": ["callback", "workflow"] }
+      ]
+    },
+    {
       "id": "durable-live-progress",
       "prompt": "Show live workflow progress in the browser while a long Volcano export runs",
       "expected": [
