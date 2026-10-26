@@ -529,8 +529,8 @@ functions:
 - Omitted sections/fields are left untouched (patch semantics). An **empty
   declared list** for a fully-synced collection — `variables`,
   `buckets[].policies`, `auth.providers.oauth`, `auth.email.templates`,
-  `functions[].schedulers`, `frontends[].function_routes` — deletes everything
-  currently in it. These are
+  `functions[].schedulers`, `frontends[].function_routes`,
+  `frontends[].frontend_routes` — deletes everything currently in it. These are
   destructive by design; declaring the section at all means it's the source
   of truth.
 - Each bucket policy `operation` must be `SELECT`, `INSERT`, `UPDATE`, or
@@ -577,6 +577,48 @@ frontends:
 - The longest matching prefix wins, and a frontend holds at most 64 routes.
 - Anyone who can load the frontend can call a routed function. See
   `volcano-functions` for the cookie-session pattern it is meant for.
+
+### Frontend routes
+
+`frontends[].frontend_routes` serves a path of a frontend from another
+frontend of the same project, so one hostname runs several apps. With `docs`
+mounted at `/docs` on `site`, every hostname of `site`, custom domains
+included, keeps serving `site` except `/docs` and everything under it, which
+`docs` serves. The list syncs like `function_routes`: declared means complete,
+`frontend_routes: []` deletes them all, and an omitted key leaves them alone.
+
+```yaml
+# volcano-config.yaml
+version: 1
+frontends:
+  - name: site                      # owns the hostname; both must already be deployed
+    frontend_routes:
+      - frontend: docs
+        path_prefix: /docs          # starts with /, no trailing /
+  - name: docs
+```
+
+- The path reaches the mounted frontend unchanged: `/docs/intro` arrives as
+  `/docs/intro`. Build that app with its pages under the prefix; see
+  `volcano-nextjs`. There is no `strip_prefix`.
+- Function and Frontend routes on one frontend share one set of paths: two
+  routes can't use the same prefix, one can sit under another, and the
+  longest matching prefix wins whatever its kind. The 64-route limit counts
+  both kinds together.
+- A frontend can be mounted at several prefixes but can't mount itself.
+  Mount every app from the frontend that owns the hostname: a mounted
+  frontend's own routes don't apply to requests it gets through a route.
+- A frontend that another frontend mounts can't be deleted (`409`). Remove
+  the routes that mount it first.
+- Manage routes with
+  `volcano cloud frontends routes create site --path /docs --frontend docs`,
+  or locally with `volcano frontends routes create ...`; `routes list`,
+  `update`, and `delete` cover both kinds of route. An older CLI rejects the
+  `frontend_routes` key and has no `--frontend` flag; check
+  `volcano cloud frontends routes create --help`.
+- Where `GET /capabilities` lists `frontend_routes` as `unavailable`, creating
+  or changing a route is refused with `feature_unavailable`. Local mode always
+  accepts them.
 
 **There is no state file.** Don't invent one, and don't build a manual
 rollback step for a failed `config deploy` — neither exists or is needed:
