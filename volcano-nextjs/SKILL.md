@@ -661,6 +661,15 @@ export default function AuthCallbackPage() {
 - The SDK rejects service keys (`sk-...`) in browser environments.
 - Use `isBrowser()` / `isServer()` from middleware helpers when branching.
 
+## Serving an App Under Another Frontend's Path
+A Frontend route (see `volcano-platform`) mounts one Next.js frontend at a path of another, such as `docs` at `/docs` on `site`. Each app keeps its own build and deploy; Volcano forwards the path unchanged.
+- **Pages live under the prefix.** `/docs/intro` reaches `docs` as `/docs/intro`. Use matching page folders (`app/docs/...`), which also works when the app is mounted at several prefixes, or `basePath: '/docs'` in `next.config.js` when it is mounted at one prefix only. `next/image` works under a `basePath`.
+- **Link between apps with a plain `<a href="/docs">`.** `<Link>` navigates only within one app; use it as usual inside each app.
+- **Public files and API routes go under the prefix too**, such as `public/docs/logo.svg` or `app/docs/api/search/route.ts`. Other root paths reach the main frontend. Root `/_next/static`, `/_next/image`, and `/_next/data` requests already reach the app that owns them.
+- **Remote images a mounted app optimizes** through the root `/_next/image` are checked against the main frontend's `images.remotePatterns`; allow them there too, or set `unoptimized`.
+- **Don't share a build ID across mounted apps.** Volcano sets a distinct one per frontend in the cloud, but local mode keeps yours, so don't set `generateBuildId` to one value, such as a single commit SHA, for apps you mount together.
+- **Check the app on its own hostname first.** It keeps working after the route is added.
+
 ## Best Practices
 - **Single client instance** via `getVolcano()`. Don't `new VolcanoAuth(...)` in components.
 - **Loading state** is a first-class case — don't render protected UI before `useAuth().loading === false`.
