@@ -455,14 +455,22 @@ import { CallbackFailedError, type WaitForCallbackOptions } from '@volcano.dev/s
 
 interface Charge { charge_id: string }
 
+function isCharge(value: unknown): value is Charge {
+  return typeof value === 'object' && value !== null
+    && typeof (value as { charge_id?: unknown }).charge_id === 'string';
+}
+
 const options: WaitForCallbackOptions = { timeout: '1h', heartbeatTimeout: '10m' };
-let charge: Charge | null;
+let result: unknown;
 try {
-  charge = (await ctx.waitForCallback('payment', startPayment, options)) as Charge | null;
+  result = await ctx.waitForCallback('payment', startPayment, options);
 } catch (error) {
   if (error instanceof CallbackFailedError) return { declined: error.type };
   throw error;
 }
+if (result === null) return { abandoned: true };
+if (!isCharge(result)) throw new Error('payment callback result has no charge_id');
+const charge: Charge = result;
 ```
 
 ## OAuth Types

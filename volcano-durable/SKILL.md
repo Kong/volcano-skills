@@ -494,6 +494,8 @@ exports.handler = durable(async (input, ctx) => {
     throw error;
   }
   if (payment === null) return { status: 'abandoned' };
+  // Whoever holds the token chooses the result, so check its shape.
+  if (typeof payment?.charge_id !== 'string') throw new Error('payment result has no charge_id');
 
   return ctx.step('fulfil', () => fulfil(input.order_id, payment.charge_id));
 });
@@ -516,6 +518,8 @@ def handler(event, ctx):
         return {"status": "declined", "reason": error.type}
     if payment is None:
         return {"status": "abandoned"}
+    if not isinstance(payment, dict) or not isinstance(payment.get("charge_id"), str):
+        raise ValueError("payment result has no charge_id")
     return ctx.step("fulfil", lambda scope: fulfil(event["order_id"], payment["charge_id"]))
 ```
 
