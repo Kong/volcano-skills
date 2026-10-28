@@ -582,10 +582,13 @@ same source, so log the token only behind a variable set in
 }
 ```
 
-In Python, check `os.environ.get("LOG_CALLBACK_TOKENS") == "1"`. Add
-`LOG_CALLBACK_TOKENS=1` to `volcano/volcano.env`, redeploy locally, read the
-token with `volcano durable logs <name> --type runtime`, and answer it with
-the commands above.
+In Python, check `os.getenv("LOG_CALLBACK_TOKENS") == "1"`. Keep the
+reference in one of those direct forms: Volcano detects it, so a function with
+`variable_scope: scoped` receives the variable without listing it. Do not add
+it to `variables`, where a name the cloud project does not set fails the
+deploy. Add `LOG_CALLBACK_TOKENS=1` to `volcano/volcano.env`, redeploy
+locally, read the token with `volcano durable logs <name> --type runtime`, and
+answer it with the commands above.
 
 ## Start and manage executions from an application
 
