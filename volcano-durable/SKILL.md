@@ -468,7 +468,10 @@ Use `waitForCallback` when a system you do not run code in does the work and
 can call back when it is done: a payment provider, a render queue, a partner's
 API. The workflow hands it a `vcb_` token, and the token is the only credential
 the answer needs. Use `waitForMessage` instead when your own code answers with
-a credential it already holds. Needs `@volcano.dev/sdk` 2.2 or
+a credential it already holds. A provider that only sends its own signed
+webhooks cannot post to the callback routes itself: put the token in the
+provider's metadata and answer from a webhook receiver that verifies the
+signature (see `volcano-functions`). Needs `@volcano.dev/sdk` 2.2 or
 `volcano-sdk-python` 0.16; the `volcano [cloud] durable callbacks` commands
 need CLI 0.55.0 or later.
 
