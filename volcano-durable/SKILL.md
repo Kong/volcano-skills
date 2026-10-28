@@ -571,10 +571,21 @@ read it from stdin. `succeed` takes `--result` or `--result-file`, and every
 command takes `--json`. MCP has no callback tools: the token is the credential,
 and the agent never holds one.
 
-To test locally, play the external system yourself. Log the token in the
-submitter, in local code only, read it with
-`volcano durable logs <name> --type runtime`, and answer it with the commands
-above.
+To test locally, play the external system yourself. Local and cloud deploy the
+same source, so log the token only behind a variable set in
+`volcano/volcano.env` and never in `volcano/cloud.env`:
+
+```js
+(token) => {
+  if (process.env.LOG_CALLBACK_TOKENS === '1') console.log(`callback-token ${token}`);
+  return payments.start({ orderId: input.order_id, callbackToken: token });
+}
+```
+
+In Python, check `os.environ.get("LOG_CALLBACK_TOKENS") == "1"`. Add
+`LOG_CALLBACK_TOKENS=1` to `volcano/volcano.env`, redeploy locally, read the
+token with `volcano durable logs <name> --type runtime`, and answer it with
+the commands above.
 
 ## Start and manage executions from an application
 
@@ -789,9 +800,10 @@ start.
 - Message data is stored with the execution and listed to everyone who can
   reach it. Do not put secrets or credentials in it.
 - A callback token is a credential: whoever holds it can answer the wait. Hand
-  it only to the system doing the work. Do not log it in code that deploys to
-  cloud, return it, publish it, put it in approval details, or put it in a URL
-  other systems record.
+  it only to the system doing the work. Log it only behind the
+  `LOG_CALLBACK_TOKENS` gate in Callbacks, and never set that variable in
+  `volcano/cloud.env`. Do not return it, publish it, put it in approval
+  details, or put it in a URL other systems record.
 - Answer local callbacks freely while testing. Confirm before
   `volcano cloud durable callbacks succeed` or `fail`: each resumes a real
   execution, and an answer cannot be taken back.
@@ -854,7 +866,9 @@ cloud state.
 - If it waits on a message, send it with `volcano durable messages send` and
   check what it published with `messages list --direction out`.
 - If it waits on a callback, answer the token the submitter logged locally
-  with `volcano durable callbacks succeed` or `fail`.
+  with `volcano durable callbacks succeed` or `fail`. Before any cloud deploy,
+  confirm every token log sits behind `LOG_CALLBACK_TOKENS` and
+  `volcano/cloud.env` does not set it.
 - Poll it to a terminal status and check its result.
 - Read runtime logs if the result is not `succeeded`.
 - After approved cloud deployment, repeat the execution check with
