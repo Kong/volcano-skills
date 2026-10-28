@@ -809,7 +809,8 @@ start.
   details, or put it in a URL other systems record.
 - Answer local callbacks freely while testing. Confirm before
   `volcano cloud durable callbacks succeed` or `fail`: each resumes a real
-  execution, and an answer cannot be taken back.
+  execution, and an answer cannot be taken back. Confirm before a cloud
+  `heartbeat` too: it keeps a real wait open past its heartbeat timeout.
 - Bound `logs --follow` and `messages list --follow` with a timeout in
   agent-driven diagnostics. `messages list --follow` reads until the execution
   ends, which can be a day or more for one that waits.

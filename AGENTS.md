@@ -296,7 +296,7 @@ Do not report bugs in the user's own code.
 **Confirm-first:**
 - Cloud deploys: `volcano cloud deploy`, `volcano cloud functions deploy`, `volcano cloud frontends deploy`, `volcano cloud config deploy`, `volcano cloud variables deploy`
 - Cloud durable messages (CLI 0.47.0 or later): `volcano cloud durable messages send`, and the MCP `send_durable_message` tool (each resumes a real execution; a send cannot be taken back)
-- Cloud durable callbacks (CLI 0.55.0 or later): `volcano cloud durable callbacks succeed|fail` (each resumes a real execution; an answer cannot be taken back)
+- Cloud durable callbacks (CLI 0.55.0 or later): `volcano cloud durable callbacks succeed|fail|heartbeat` (`succeed` and `fail` each resume a real execution, and an answer cannot be taken back; `heartbeat` keeps a real wait open past its heartbeat timeout)
 - Cloud service keys: `volcano projects keys service create` (a new credential that bypasses row-level security)
 - Cloud project creation: `volcano projects create` (a cloud resource; ask first, including when it's the project-context step of a cloud deploy)
 - Cloud database changes: `volcano cloud databases create`, `volcano cloud databases migration up` (migrations are not tracked, so it re-applies every file)
@@ -345,7 +345,7 @@ volcano cloud deploy --env-file volcano/cloud.env [--with-migrations -d <databas
 volcano cloud functions deploy --all
 volcano cloud durable messages list | waits <function> <execution-id>   # CLI 0.47.0+
 volcano cloud durable messages send <function> <execution-id> <message-name> --data <json>   # confirm first
-volcano cloud durable callbacks succeed <token> --result <json> | fail <token> --type <type>   # CLI 0.55.0+; no login needed; confirm first
+volcano cloud durable callbacks succeed <token> --result <json> | fail <token> --type <type> | heartbeat <token>   # CLI 0.55.0+; no login needed; confirm first
 volcano projects keys service create <name> --permission <permission> --json   # new credential; confirm first
 volcano cloud frontends deploy --name <name> --path <dir> | list | logs
 volcano cloud variables deploy -f volcano/cloud.env

@@ -654,7 +654,7 @@ channel.onPostgresChanges('INSERT', 'public', 'posts', (change) => {
 | Storage | `StorageObject`, `StorageUploadResponse`, `StorageListResponse` | `storage.from(...)` operations |
 | Realtime | `PostgresChange`, `PresenceState`, `ConnectContext` | Channel callbacks |
 | Functions | `invoke<P, R>(...)` generic params | Both ends of an invocation |
-| Durable | `DurableHandler`, `DurableContext`, `DurableExecution`, `ApprovalDecision`, `DurableApproval`, `ReceivedMessage`, `PublishedMessage`, `DurableMessage`, `DurableMessageTarget` | Durable authoring, approvals, messages, and execution clients |
+| Durable | `DurableHandler`, `DurableContext`, `DurableExecution`, `ApprovalDecision`, `DurableApproval`, `ReceivedMessage`, `PublishedMessage`, `DurableMessage`, `DurableMessageTarget`, `CallbackSubmitter`, `WaitForCallbackOptions`, `CallbackFailedError` | Durable authoring, approvals, messages, callbacks, and execution clients |
 | OAuth | `OAuthProviderName`, `OAuthProvider` | Provider name validation |
 | Sessions | `AuthSession`, `SessionsResponse` | Multi-device session UI |
 | Middleware | `ServerClient`, `GetUserResult` | Next.js middleware/route handlers |
