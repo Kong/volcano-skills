@@ -1,6 +1,6 @@
 ---
 name: volcano-functions
-description: Use for Volcano server-side Functions and privileged or secret-bearing logic, including function invocation and visibility, functions served under a frontend path, generators such as QR codes or PDFs, outbound third-party APIs, orchestration, scheduled processing, and file or image processing.
+description: Use for Volcano server-side Functions and privileged or secret-bearing logic, including function invocation and visibility, streamed responses and server-sent events, functions served under a frontend path, generators such as QR codes or PDFs, outbound third-party APIs, orchestration, scheduled processing, and file or image processing.
 ---
 # Volcano Functions Skill
 
@@ -148,6 +148,101 @@ frontends:
   deploys the frontend and applies its routes.
 - `volcano docs search "function routes"` finds the full session example,
   including sign-in, sign-out, and the CSRF check.
+
+### Stream a response
+An HTTP-mode Node.js function can send its response while it runs:
+server-sent events, model tokens, progress lines. Export
+`config = { supportsResponseStreaming: true }` from the handler module and
+return a `Response` whose body is a stream, or the usual response object with
+an async iterable `body`:
+
+```yaml
+# volcano-config.yaml
+version: 1
+functions:
+  - name: events
+    visibility: public
+    invocation_mode: http       # streaming needs HTTP mode
+    http_auth_mode: none
+```
+
+```js
+// functions/events.js
+exports.config = { supportsResponseStreaming: true };
+
+exports.handler = async () => {
+  async function* events() {
+    for (let tick = 1; tick <= 5; tick++) {
+      yield `data: ${JSON.stringify({ tick })}\n\n`;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    yield 'event: done\ndata: {}\n\n';
+  }
+  return new Response(ReadableStream.from(events()).pipeThrough(new TextEncoderStream()), {
+    headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' },
+  });
+};
+```
+
+- Without the `config` export, returning a stream fails the invocation with a
+  `500`, and the function's logs name the export. A callback-style handler,
+  `(event, context, callback)`, cannot opt in. A handler that returns an
+  ordinary response answers normally.
+- Status, headers, and cookies go out before the first chunk; set them all in
+  the returned response.
+- The whole stream counts toward the function's time limit (30 s on HOBBY,
+  180 s on SUPERAGENT). At the limit the connection closes mid-response, so
+  end with a final event like `done` that lets a client tell a finished
+  stream from a cut one.
+- With `http_auth_mode: none`, anyone who finds the URL or route runs the
+  function. Before streaming anything that costs per call, such as model
+  tokens, authenticate the caller and check `Sec-Fetch-Site` as a routed
+  function does (see the function routes section above).
+- Python and Ruby functions stay buffered: Volcano sends their whole response
+  when the function returns. Pick Node.js for anything that must stream.
+- RPC mode stays buffered too. `volcano.functions.invoke(...)` and
+  `volcano functions invoke` return one complete JSON result, and a stream
+  returned to an RPC call fails with
+  `a streamed response needs the function's invocation_mode set to http`.
+  Read a stream over plain HTTP from the function's `invoke_url` or a frontend
+  function route.
+- On the function's own URL, streaming depends on the
+  `functions.response_streaming` capability in `GET /capabilities`
+  (`curl "$VOLCANO_API_URL/capabilities"`). Where it is `unavailable`, the URL
+  still answers, with the same status, headers, and body, but sends the whole
+  response once the function finishes, and a response over 6 MiB, headers
+  included, fails the invocation. Frontend function routes and
+  `volcano start` stream either way, so serve browser-facing events through a
+  frontend function route.
+
+Consume the stream with `curl -N`, which prints each event as it arrives
+instead of buffering the output:
+```sh
+curl -N "$INVOKE_URL/events"
+```
+From Node.js, read the body as it arrives:
+```js
+const response = await fetch(`${process.env.INVOKE_URL}/events`);
+const decoder = new TextDecoder();
+for await (const chunk of response.body) {
+  process.stdout.write(decoder.decode(chunk, { stream: true }));
+}
+```
+A browser reads the same events with `EventSource` behind a frontend function
+route, where no `Authorization` header is needed. `EventSource` reconnects
+whenever a stream ends, which runs the function again, so close it on the final
+event and on an error, which is how a stream cut at the time limit arrives:
+
+```js
+const source = new EventSource('/api/events');
+source.onmessage = (event) => render(JSON.parse(event.data));
+source.addEventListener('done', () => source.close());
+source.onerror = () => source.close();
+```
+
+In `http_auth_mode: volcano`, send the `Authorization` header as for any
+HTTP-mode call, which `EventSource` cannot do; use `fetch` there. `volcano docs
+search "stream a response"` finds the full guide.
 
 ## Handler Templates
 

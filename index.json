@@ -28,7 +28,7 @@
     },
     {
       "name": "volcano-functions",
-      "description": "Use for Volcano server-side Functions and privileged or secret-bearing logic, including function invocation and visibility, functions served under a frontend path, generators such as QR codes or PDFs, outbound third-party APIs, orchestration, scheduled processing, and file or image processing.",
+      "description": "Use for Volcano server-side Functions and privileged or secret-bearing logic, including function invocation and visibility, streamed responses and server-sent events, functions served under a frontend path, generators such as QR codes or PDFs, outbound third-party APIs, orchestration, scheduled processing, and file or image processing.",
       "path": "/skills/volcano-functions/SKILL.md"
     },
     {

@@ -213,6 +213,15 @@
       ]
     },
     {
+      "id": "streamed-function-response",
+      "prompt": "Stream model tokens from a Volcano function to the browser as server-sent events",
+      "expected": [
+        { "skill": "volcano-sdk", "signals": ["Volcano"] },
+        { "skill": "volcano-platform", "signals": ["Volcano"] },
+        { "skill": "volcano-functions", "signals": ["server-sent events", "function"] }
+      ]
+    },
+    {
       "id": "manifest-function-routes",
       "prompt": "Add function_routes for my Volcano frontend to volcano-config.yaml",
       "expected": [
