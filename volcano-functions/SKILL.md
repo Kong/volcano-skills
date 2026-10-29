@@ -206,7 +206,8 @@ exports.handler = async () => {
   `functions.response_streaming` capability in `GET /capabilities`
   (`curl "$VOLCANO_API_URL/capabilities"`). Where it is `unavailable`, the URL
   still answers, with the same status, headers, and body, but sends the whole
-  response once the function finishes. Frontend function routes and
+  response once the function finishes, and a response over 6 MiB, headers
+  included, fails the invocation. Frontend function routes and
   `volcano start` stream either way, so serve browser-facing events through a
   frontend function route.
 
