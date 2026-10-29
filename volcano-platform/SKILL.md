@@ -846,6 +846,10 @@ to upload and `--app-root` the app inside it.
 
 Cloud deploys need the user's explicit go-ahead (see `AGENTS.md`).
 
+Deploying uploads local source, so it is a CLI action; the Volcano MCP server
+has no deploy tool. An agent on MCP checks what a deploy produced with
+`list_deployments` and `list_frontends`.
+
 ### Deploy one build to several frontends (cloud, CLI 0.51.0+)
 
 When one app runs as several frontends of a project (per region, brand, or
@@ -860,8 +864,9 @@ volcano cloud frontends deploy web-eu --from web@<deployment-id>   # one particu
 
 Without `@`, the CLI takes the newest `active` or `degraded` deployment of the
 source. Use the CLI. Code that already holds the project owner's platform user
-token can call the API instead, with the target frontend's ID, which
-`volcano cloud frontends get <name>` prints:
+token can call the API instead. The project ID is `project_id` in a linked
+directory's `.volcano/project.json` (or from `volcano projects list`), and
+`volcano cloud frontends get <name>` prints the target frontend's ID:
 
 ```sh
 curl -X POST "https://api.volcano.dev/projects/$PROJECT_ID/frontends/$TARGET_FRONTEND_ID/deployments" \
@@ -896,9 +901,6 @@ curl -X POST "https://api.volcano.dev/projects/$PROJECT_ID/frontends/$TARGET_FRO
 
 Deploying a build to another frontend is a cloud deploy: get the user's
 go-ahead first, and wait for the target as for any frontend deploy.
-
-Deploying is a CLI or API action; the Volcano MCP server has no deploy tool. An agent on MCP checks what a deploy produced with
-`list_deployments` and `list_frontends`.
 
 ## Verify a local deploy (smoke test)
 
