@@ -178,7 +178,7 @@ exports.handler = async () => {
     }
     yield 'event: done\ndata: {}\n\n';
   }
-  return new Response(ReadableStream.from(events()), {
+  return new Response(ReadableStream.from(events()).pipeThrough(new TextEncoderStream()), {
     headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' },
   });
 };
@@ -224,11 +224,19 @@ for await (const chunk of response.body) {
   process.stdout.write(decoder.decode(chunk, { stream: true }));
 }
 ```
-A browser reads the same events with `new EventSource('/api/events')` behind a
-frontend function route, where no `Authorization` header is needed. In
-`http_auth_mode: volcano`, send the `Authorization` header as for any HTTP-mode
-call, which `EventSource` cannot do; use `fetch` there. `volcano docs search
-"stream a response"` finds the full guide.
+A browser reads the same events with `EventSource` behind a frontend function
+route, where no `Authorization` header is needed. Close it on the final event:
+`EventSource` reconnects after a stream ends, which runs the function again.
+
+```js
+const source = new EventSource('/api/events');
+source.onmessage = (event) => render(JSON.parse(event.data));
+source.addEventListener('done', () => source.close());
+```
+
+In `http_auth_mode: volcano`, send the `Authorization` header as for any
+HTTP-mode call, which `EventSource` cannot do; use `fetch` there. `volcano docs
+search "stream a response"` finds the full guide.
 
 ## Handler Templates
 
