@@ -225,13 +225,15 @@ for await (const chunk of response.body) {
 }
 ```
 A browser reads the same events with `EventSource` behind a frontend function
-route, where no `Authorization` header is needed. Close it on the final event:
-`EventSource` reconnects after a stream ends, which runs the function again.
+route, where no `Authorization` header is needed. `EventSource` reconnects
+whenever a stream ends, which runs the function again, so close it on the final
+event and on an error, which is how a stream cut at the time limit arrives:
 
 ```js
 const source = new EventSource('/api/events');
 source.onmessage = (event) => render(JSON.parse(event.data));
 source.addEventListener('done', () => source.close());
+source.onerror = () => source.close();
 ```
 
 In `http_auth_mode: volcano`, send the `Authorization` header as for any
