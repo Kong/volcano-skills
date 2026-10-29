@@ -884,6 +884,9 @@ curl -X POST "https://api.volcano.dev/projects/$PROJECT_ID/frontends/$TARGET_FRO
 - **The target's copy is independent.** A later redeploy of the target
   compiles its copied source, so changes to the source frontend never reach
   it until you deploy the source's build again.
+- **Not for Git-managed projects.** A project whose source is managed by Git
+  deploys from a push to its production branch, so deploying a build answers
+  `409`, as a direct deploy does.
 - **Cloud only.** Local development builds each frontend from its own source,
   so `volcano frontends deploy --from` fails and names the cloud command.
 
