@@ -850,6 +850,55 @@ Deploying uploads local source, so it is a CLI action; the Volcano MCP server
 has no deploy tool. An agent on MCP checks what a deploy produced with
 `list_deployments` and `list_frontends`.
 
+### Frontend previews (check a build before it serves)
+
+A preview is a separate copy of a frontend, built from a local directory and
+served at its own URL with the frontend's project variables. Promoting it points
+the frontend's own domain at it without rebuilding, and a rollback undoes that.
+Use it when the user wants to check a change before it goes live. The commands
+exist only on CLIs that have them: run `volcano frontends preview --help` first,
+and on an older CLI deploy the frontend directly as above.
+
+```sh
+volcano cloud frontends preview create web --name redesign --path . --ttl 72h
+volcano cloud frontends preview get web redesign      # status, and its URL once ready
+volcano cloud frontends preview deploy web redesign --path .   # a newer build, same URL
+volcano cloud frontends preview promote web redesign  # web's domain now serves it
+volcano cloud frontends serving web                   # what web serves, and what a rollback returns to
+volcano cloud frontends rollback web                  # back to what web served before
+volcano cloud frontends rollback web --to-production  # back to web's own build
+```
+
+Locally, the same commands without `cloud` run against the local server.
+`--path` is the directory to upload, as for `frontends deploy`; the preview
+builds the app at the frontend's own app root. Wait until `preview get` shows
+it ready, give the user its URL to check, and promote only when they say so:
+on the cloud, `create` and `deploy` are cloud deploys, and `promote` and
+`rollback` change what real users see, so each needs the user's go-ahead (see
+`AGENTS.md`). A preview's URL is unlisted, not private: anyone who has it can
+open it, so do not put data on it that only signed-in users may see.
+
+Refusals and what to do:
+
+- `feature_unavailable` (`404`): previews are not enabled in this environment.
+  Say so and deploy the frontend directly; do not retry. A rollback that would
+  make a preview serve again is refused the same way, and
+  `rollback --to-production` still works.
+- `configuration_changed` (`409`): the frontend's variables changed since the
+  preview was built. Run `preview deploy` again, then promote.
+- `stale_revision` (`409`): another promotion or rollback happened first. Run
+  `frontends serving` to see what serves now, and confirm with the user before
+  running the command again; the CLI reads the current revision each time.
+- `frontend_served_by_candidate` (`409`): a deploy of the frontend itself is
+  refused while a preview serves it. Run `frontends rollback <frontend>
+  --to-production` first, with the user's go-ahead.
+- `candidate_in_use` (`409`): the preview the frontend serves cannot be
+  deleted. Roll back first. A preview kept only for a rollback can be deleted,
+  which gives up that rollback.
+
+A frontend has at most 20 live previews, `--ttl` is at most `720h`, and a
+preview without one is kept until deleted. Deleting is confirm-first.
+
 ## Verify a local deploy (smoke test)
 
 Deploying is not the finish line — exercise each function and assert on the

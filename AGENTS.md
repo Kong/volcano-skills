@@ -291,10 +291,12 @@ Do not report bugs in the user's own code.
 - Durable messages (CLI 0.47.0 or later): `volcano [cloud] durable messages list|waits`, and `volcano durable messages send` against local executions while testing
 - Durable callbacks (CLI 0.55.0 or later): `volcano durable callbacks succeed|fail|heartbeat` against local executions while testing
 - Local dev: `volcano start|stop|restart|status` — automatic by default after building (see "Build vs. run/test/deploy"), and whenever the user asks to run/test/preview locally
+- Local frontend previews (when `volcano frontends preview --help` exists): `volcano frontends preview create|deploy|list|get`, `volcano frontends serving`, and `volcano frontends preview promote` / `volcano frontends rollback` against the local server while testing (`preview delete` stays confirm-first, as every delete does)
 - Local deploy: `volcano deploy [--with-migrations]`, or one piece with `volcano functions deploy`, `volcano durable deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app` — automatic by default after building, and whenever the user asks to run/test/preview locally. `volcano frontends deploy` is automatic only on CLI 0.45.0 or later; on older CLIs it deploys to the cloud project, so it is confirm-first there.
 
 **Confirm-first:**
 - Cloud deploys: `volcano cloud deploy`, `volcano cloud functions deploy`, `volcano cloud frontends deploy`, `volcano cloud config deploy`, `volcano cloud variables deploy`
+- Cloud frontend previews: `volcano cloud frontends preview create|deploy` (a cloud deploy), and `volcano cloud frontends preview promote` / `volcano cloud frontends rollback` (each changes what the frontend's own domain serves to real users)
 - Cloud durable messages (CLI 0.47.0 or later): `volcano cloud durable messages send`, and the MCP `send_durable_message` tool (each resumes a real execution; a send cannot be taken back)
 - Cloud durable callbacks (CLI 0.55.0 or later): `volcano cloud durable callbacks succeed|fail|heartbeat` (`succeed` and `fail` each resume a real execution, and an answer cannot be taken back; `heartbeat` keeps a real wait open past its heartbeat timeout)
 - Cloud service keys: `volcano projects keys service create` (a new credential that bypasses row-level security)
@@ -334,6 +336,8 @@ volcano durable messages list | waits <function> <execution-id>   # CLI 0.47.0+
 volcano durable messages send <function> <execution-id> <message-name> --data <json>
 volcano durable callbacks succeed <token> --result <json> | fail <token> --type <type> | heartbeat <token>   # CLI 0.55.0+
 volcano frontends deploy --name <name> --path <dir> | list | get | logs | routes   # CLI 0.45.0+; older CLIs deploy to the cloud
+volcano frontends preview create <frontend> --name <name> --path <dir> [--ttl 72h] | deploy <frontend> <preview> --path <dir> | list <frontend> | get <frontend> <preview> | promote <frontend> <preview> | delete <frontend> <preview>
+volcano frontends serving <frontend> | rollback <frontend> [--to-production]   # previews: only when `volcano frontends preview --help` exists
 volcano variables deploy | list | get
 volcano config deploy
 volcano databases list|get
@@ -348,6 +352,8 @@ volcano cloud durable messages send <function> <execution-id> <message-name> --d
 volcano cloud durable callbacks succeed <token> --result <json> | fail <token> --type <type> | heartbeat <token>   # CLI 0.55.0+; no login needed; confirm first
 volcano projects keys service create <name> --permission <permission> --json   # new credential; confirm first
 volcano cloud frontends deploy --name <name> --path <dir> | list | logs
+volcano cloud frontends preview create <frontend> --name <name> --path <dir> [--ttl 72h] | get <frontend> <preview> | promote <frontend> <preview>   # confirm first; see volcano-platform "Frontend previews"
+volcano cloud frontends serving <frontend> | rollback <frontend> [--to-production]   # rollback: confirm first
 volcano cloud variables deploy -f volcano/cloud.env
 volcano cloud databases create <database> --region <region> --pg-version 16 | get <database>
 volcano cloud databases migration up --all -d <database>
