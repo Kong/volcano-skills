@@ -194,6 +194,10 @@ exports.handler = async () => {
   180 s on SUPERAGENT). At the limit the connection closes mid-response, so
   end with a final event like `done` that lets a client tell a finished
   stream from a cut one.
+- With `http_auth_mode: none`, anyone who finds the URL or route runs the
+  function. Before streaming anything that costs per call, such as model
+  tokens, authenticate the caller and check `Sec-Fetch-Site` as a routed
+  function does (see the function routes section above).
 - Python and Ruby functions stay buffered: Volcano sends their whole response
   when the function returns. Pick Node.js for anything that must stream.
 - RPC mode stays buffered too. `volcano.functions.invoke(...)` and
