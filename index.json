@@ -33,7 +33,7 @@
     },
     {
       "name": "volcano-durable",
-      "description": "Use for Volcano durable functions, long-running or resumable workflows, checkpointed steps, waits, human approvals, messages sent to a running workflow, live workflow progress, polling, durable executions, idempotent starts, and durable function schedulers.",
+      "description": "Use for Volcano durable functions, long-running or resumable workflows, checkpointed steps, waits, human approvals, messages sent to a running workflow, callbacks an external system answers with a token, live workflow progress, polling, durable executions, idempotent starts, and durable function schedulers.",
       "path": "/skills/volcano-durable/SKILL.md"
     },
     {
@@ -78,7 +78,7 @@
     },
     {
       "name": "volcano-typescript",
-      "description": "Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime, Durable, durable approval, and durable message types, Function invocation generics, OAuth providers, middleware types, and utility types.",
+      "description": "Canonical TypeScript type definitions for the Volcano SDK: User, Session, AuthResponse, QueryBuilder, StorageObject, Realtime, Durable, durable approval, durable message, and durable callback types, Function invocation generics, OAuth providers, middleware types, and utility types.",
       "path": "/skills/volcano-typescript/SKILL.md"
     }
   ]

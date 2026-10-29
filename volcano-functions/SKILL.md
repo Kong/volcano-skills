@@ -250,7 +250,8 @@ public HTTP-mode function that skips Volcano auth, verify the provider's
 signature, and send with the service key from a project variable. Add
 `PUBLISHER_WEBHOOK_SECRET`, `VOLCANO_API_URL`, and `VOLCANO_SERVICE_KEY` to
 `volcano/volcano.env` and `volcano/cloud.env`, and select them in the
-function's entry, or the receiver reads `undefined`. `volcano status` prints
+function's entry so a deploy without them fails instead of the receiver
+reading `undefined`. `volcano status` prints
 the local server's service key. For the cloud, create a narrower one with
 `volcano projects keys service create webhooks --permission functions.invoke
 --json`. It can still invoke any of the project's functions, private ones

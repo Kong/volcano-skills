@@ -1,6 +1,6 @@
 ---
 name: volcano-durable
-description: Use for Volcano durable functions, long-running or resumable workflows, checkpointed steps, waits, human approvals, messages sent to a running workflow, live workflow progress, polling, durable executions, idempotent starts, and durable function schedulers.
+description: Use for Volcano durable functions, long-running or resumable workflows, checkpointed steps, waits, human approvals, messages sent to a running workflow, callbacks an external system answers with a token, live workflow progress, polling, durable executions, idempotent starts, and durable function schedulers.
 ---
 # Volcano Durable Functions Skill
 
@@ -8,8 +8,8 @@ description: Use for Volcano durable functions, long-running or resumable workfl
 
 Use a durable function when work must survive restarts, wait without holding a
 request open, or resume from completed steps. Examples include order pipelines,
-agent runs, approval flows, workflows that wait on a webhook, reconciliation
-jobs, and slow batch work.
+agent runs, approval flows, workflows that wait on a webhook or a partner's
+API, reconciliation jobs, and slow batch work.
 
 Always pair this skill with:
 - `volcano-sdk` for the application entrypoint and domain routing.
@@ -129,14 +129,15 @@ Python durable operations are synchronous. A step function receives its scope.
 | `ctx.waitForApproval(name, options)` | Suspend until a person approves or denies, or the approval expires. Python takes keywords, not an options object: `ctx.wait_for_approval(name, *, title, description=None, details=None, timeout=None)`. |
 | `ctx.waitForMessage(name, options?)` | Suspend until a message with that name arrives, or `options.timeout` passes and it resolves with `null`. Python: `ctx.wait_for_message(name, *, timeout=None)`, returning `None` on timeout. |
 | `ctx.publish(name, data?)` | Record a message that applications list or receive live. Resolves with `{ id, seq }`. Python: `ctx.publish(name, data=None)`. |
+| `ctx.waitForCallback(name, submitter, options?)` | Hand a `vcb_` token to another system and suspend until it succeeds or fails the wait, or `options.timeout` or `options.heartbeatTimeout` passes and it resolves with `null`. Python: `ctx.wait_for_callback(name, submitter, *, timeout=None, heartbeat_timeout=None)`, returning `None` on timeout. |
 | `ctx.map(name?, items, fn, options?)` | Run one checkpointed child context per item. Set `concurrency` when required. |
 | `ctx.parallel(name?, branches, options?)` | Run independent checkpointed branches. |
 | `ctx.child(name?, fn)` | Group operations in a child context. |
 | `ctx.log` | Log with execution identifiers attached. |
 
 Each step attempt, wait, poll check, child, map item, parallel branch, and
-publish uses a durable operation. Each approval and each message wait uses
-three. `durable get` shows the function's execution timeout and
+publish uses a durable operation. Each approval, message wait, and callback
+uses three. `durable get` shows the function's execution timeout and
 result retention. Read the plan limits documentation for operation allowance,
 operations per execution, and concurrency limits.
 
@@ -265,6 +266,7 @@ commands need CLI 0.47.0 or later.
 |---|---|
 | A person who must decide | `ctx.waitForApproval` |
 | Code, a webhook, or a user action in the app | `ctx.waitForMessage` |
+| A system that holds no Volcano credential and can return a value when done | `ctx.waitForCallback` |
 | State your code can read on its own | `ctx.waitUntil` |
 
 A message never decides an approval. Do not replace an approval with a message
@@ -459,6 +461,141 @@ refused to a `read_only` project access token. Pass `functionId` as the function
 execution's hyphenated UUID. A page too large for the tool result sets
 `data_omitted: true` and `data: null` on its largest messages but keeps every
 `seq` and `has_more`, so keep paging with `after`.
+
+## Callbacks
+
+Use `waitForCallback` when a system you do not run code in does the work and
+can call back when it is done: a payment provider, a render queue, a partner's
+API. The workflow hands it a `vcb_` token, and the token is the only credential
+the answer needs. Use `waitForMessage` instead when your own code answers with
+a credential it already holds. A provider that only sends its own signed
+webhooks cannot post to the callback routes itself: put the token in the
+provider's metadata and answer from a webhook receiver that verifies the
+signature (see `volcano-functions`). Needs `@volcano.dev/sdk` 2.2 or
+`volcano-sdk-python` 0.16; the `volcano [cloud] durable callbacks` commands
+need CLI 0.55.0 or later.
+
+```js
+const { CallbackFailedError, durable } = require('@volcano.dev/sdk/durable');
+
+exports.handler = durable(async (input, ctx) => {
+  let payment;
+  try {
+    payment = await ctx.waitForCallback(
+      'payment',
+      // The token is the provider's idempotency key, so a rerun hand-off is safe.
+      (token) => payments.start({ orderId: input.order_id, callbackToken: token }),
+      { timeout: '1h', heartbeatTimeout: '10m' },
+    );
+  } catch (error) {
+    if (error instanceof CallbackFailedError) {
+      return { status: 'declined', reason: error.type };
+    }
+    throw error;
+  }
+  if (payment === null) return { status: 'abandoned' };
+  // Whoever holds the token chooses the result, so check its shape.
+  if (typeof payment?.charge_id !== 'string') throw new Error('payment result has no charge_id');
+
+  return ctx.step('fulfil', () => fulfil(input.order_id, payment.charge_id));
+});
+```
+
+```python
+from volcano_sdk.durable_authoring import CallbackFailedError, durable
+
+
+@durable
+def handler(event, ctx):
+    try:
+        payment = ctx.wait_for_callback(
+            "payment",
+            lambda token: payments.start(order_id=event["order_id"], callback_token=token),
+            timeout="1h",
+            heartbeat_timeout="10m",
+        )
+    except CallbackFailedError as error:
+        return {"status": "declined", "reason": error.type}
+    if payment is None:
+        return {"status": "abandoned"}
+    if not isinstance(payment, dict) or not isinstance(payment.get("charge_id"), str):
+        raise ValueError("payment result has no charge_id")
+    return ctx.step("fulfil", lambda scope: fulfil(event["order_id"], payment["charge_id"]))
+```
+
+- It resolves with the `result` the holder sent, or with `null` (`None`) once
+  `timeout` or `heartbeatTimeout` passes. A result is never `null`, so branch
+  on it. Without `timeout` the wait lasts as long as the execution; without
+  `heartbeatTimeout` no heartbeats are needed.
+- A failure throws `CallbackFailedError`, from `@volcano.dev/sdk/durable` or
+  `volcano_sdk.durable_authoring`, carrying the holder's `type` and `message`.
+  Catch it to branch on `type`; uncaught, it fails the execution.
+- The submitter runs in a checkpointed step after the wait opens, so the
+  timeouts are already running. A replay does not run it again, but an attempt
+  interrupted before the step is recorded can, with the same token. Make the
+  hand-off idempotent, such as by passing the token as the job's idempotency
+  key. A JavaScript submitter may return a promise, which is awaited. A Python
+  submitter must be synchronous: an `async def` submitter raises `TypeError`.
+  A submitter that throws raises `CallbackSubmitterError`.
+- Names follow the approval rule. Callbacks work inside `ctx.parallel`,
+  `ctx.map`, and child contexts. An execution holds at most 1,000 open tokens
+  and is issued at most 3,600 an hour.
+- Callback timeouts run in real time locally, even when plain waits resolve at
+  once.
+
+### Answer a callback
+
+The holder sends the token to the project's API URL, with no other
+authentication:
+
+| Route | Body | Effect |
+|---|---|---|
+| `POST /durable-callbacks/succeed` | `{"token": "vcb_…", "result": <json>}` | The wait resolves with `result`: any JSON but `null`, up to 64 KiB. |
+| `POST /durable-callbacks/fail` | `{"token": "vcb_…", "error": {"type": "CardDeclined", "message": "…"}}` | The wait throws `CallbackFailedError`. `message` is optional. |
+| `POST /durable-callbacks/heartbeat` | `{"token": "vcb_…"}` | Restarts `heartbeatTimeout`. Never extends `timeout`. |
+
+- `200` means the execution has the outcome. `202` with `delivering` means
+  Volcano recorded it and will finish delivering it; do not send it again.
+- A token takes one answer. Every later request gets `409`
+  `callback_completed`, including a retry of the answer that went through, so
+  a holder retrying after a lost response can treat it as done.
+- `410` with `callback_expired` or `execution_ended` means nothing will take an
+  answer; stop. `404` `callback_not_found` means no wait has the token.
+- Answers and heartbeats share 3,600 an hour per token and 36,000 an hour per
+  project, then `429`. Heartbeat only as often as `heartbeatTimeout` needs. A
+  heartbeat `503` leaves the wait unchanged; retry it with backoff.
+
+From the CLI, with no login or project:
+
+```sh
+volcano durable callbacks heartbeat <token>
+volcano durable callbacks succeed <token> --result '{"charge_id":"ch_1"}'
+volcano durable callbacks fail <token> --type CardDeclined --message "Insufficient funds"
+```
+
+Insert `cloud` after `volcano` for cloud. Pass `-` in place of the token to
+read it from stdin. `succeed` takes `--result` or `--result-file`, and every
+command takes `--json`. MCP has no callback tools: the token is the credential,
+and the agent never holds one.
+
+To test locally, play the external system yourself. Local and cloud deploy the
+same source, so log the token only behind a variable set in
+`volcano/volcano.env` and never in `volcano/cloud.env`:
+
+```js
+(token) => {
+  if (process.env.LOG_CALLBACK_TOKENS === '1') console.log(`callback-token ${token}`);
+  return payments.start({ orderId: input.order_id, callbackToken: token });
+}
+```
+
+In Python, check `os.getenv("LOG_CALLBACK_TOKENS") == "1"`. Keep the
+reference in one of those direct forms: Volcano detects it, so a function with
+`variable_scope: scoped` receives the variable without listing it. Do not add
+it to `variables`, where a name the cloud project does not set fails the
+deploy. Add `LOG_CALLBACK_TOKENS=1` to `volcano/volcano.env`, redeploy
+locally, read the token with `volcano durable logs <name> --type runtime`, and
+answer it with the commands above.
 
 ## Start and manage executions from an application
 
@@ -672,6 +809,15 @@ start.
   as open as `public`.
 - Message data is stored with the execution and listed to everyone who can
   reach it. Do not put secrets or credentials in it.
+- A callback token is a credential: whoever holds it can answer the wait. Hand
+  it only to the system doing the work. Log it only behind the
+  `LOG_CALLBACK_TOKENS` gate in Callbacks, and never set that variable in
+  `volcano/cloud.env`. Do not return it, publish it, put it in approval
+  details, or put it in a URL other systems record.
+- Answer local callbacks freely while testing. Confirm before
+  `volcano cloud durable callbacks succeed` or `fail`: each resumes a real
+  execution, and an answer cannot be taken back. Confirm before a cloud
+  `heartbeat` too: it keeps a real wait open past its heartbeat timeout.
 - Bound `logs --follow` and `messages list --follow` with a timeout in
   agent-driven diagnostics. `messages list --follow` reads until the execution
   ends, which can be a day or more for one that waits.
@@ -689,9 +835,10 @@ cloud state.
 5. A start during provisioning returns `409`; wait for `active`.
 6. A `429` means a concurrency or durable allowance limit blocked the start.
 7. A scheduler `403` can mean the project plan does not include schedulers.
-8. An execution that stays `running` may be waiting on an approval or a
-   message. Check `durable approvals list --execution <execution-id>` and
-   `durable messages waits <name> <execution-id>`.
+8. An execution that stays `running` may be waiting on an approval, a
+   message, or a callback. Check `durable approvals list --execution <execution-id>`
+   and `durable messages waits <name> <execution-id>`. A callback waits until
+   its holder answers or a timeout passes.
 9. An approve or deny `403` means the credential is not a person's. A `409`
    means the approval was already decided, expired, or cancelled.
 10. A message stuck at `queued` has a name no wait uses yet; compare it with
@@ -711,7 +858,13 @@ cloud state.
 13. `VOLCANO_PLATFORM_API_URL` is reserved. The platform sets it on durable
     functions; a project variable with that name is rejected. A function last
     deployed before approvals existed needs one redeploy before
-    `waitForMessage` or `publish` work.
+    `waitForMessage`, `publish`, or `waitForCallback` work.
+14. `waitForCallback` raising `CallbackSubmitterError` means the submitter
+    threw, or the token could not be issued: an invalid name, 1,000 open tokens
+    (`too_many_callback_tokens`), or an ended execution. Transient failures
+    are retried for about 30 seconds first.
+15. A callback answer `409` `callback_completed` means the token was already
+    answered; `410` means the wait timed out or its execution ended.
 
 ## Verification
 
@@ -723,6 +876,10 @@ cloud state.
 - If it waits on an approval, give the user its ID and ask them to decide.
 - If it waits on a message, send it with `volcano durable messages send` and
   check what it published with `messages list --direction out`.
+- If it waits on a callback, answer the token the submitter logged locally
+  with `volcano durable callbacks succeed` or `fail`. Before any cloud deploy,
+  confirm every token log sits behind `LOG_CALLBACK_TOKENS` and
+  `volcano/cloud.env` does not set it.
 - Poll it to a terminal status and check its result.
 - Read runtime logs if the result is not `succeeded`.
 - After approved cloud deployment, repeat the execution check with
@@ -733,6 +890,7 @@ cloud state.
 - Hosting contract: `volcano-hosting/docs/public/functions/durable-functions.md`
 - Approvals: `volcano-hosting/docs/public/functions/durable-approvals.md`
 - Messages: `volcano-hosting/docs/public/functions/durable-messages.md`
+- Callbacks: `volcano-hosting/docs/public/functions/durable-callbacks.md`
 - Local guide: `volcano-hosting/docs/public/guides/durable-functions-locally.md`
 - CLI contract: `volcano-cli/docs/durable-functions.md`
 - Command source: `volcano-cli/internal/cmd/durable/`

@@ -289,12 +289,14 @@ Do not report bugs in the user's own code.
 - Logs: `volcano functions logs <name> --type build|runtime`
 - Feedback: filing a report with `volcano feedback` after a task, for Volcano problems you hit (see "Reporting Volcano problems"). `volcano feedback enable` and `volcano feedback disable` are the user's choice: run them only when the user asks or confirms
 - Durable messages (CLI 0.47.0 or later): `volcano [cloud] durable messages list|waits`, and `volcano durable messages send` against local executions while testing
+- Durable callbacks (CLI 0.55.0 or later): `volcano durable callbacks succeed|fail|heartbeat` against local executions while testing
 - Local dev: `volcano start|stop|restart|status` — automatic by default after building (see "Build vs. run/test/deploy"), and whenever the user asks to run/test/preview locally
 - Local deploy: `volcano deploy [--with-migrations]`, or one piece with `volcano functions deploy`, `volcano durable deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app` — automatic by default after building, and whenever the user asks to run/test/preview locally. `volcano frontends deploy` is automatic only on CLI 0.45.0 or later; on older CLIs it deploys to the cloud project, so it is confirm-first there.
 
 **Confirm-first:**
 - Cloud deploys: `volcano cloud deploy`, `volcano cloud functions deploy`, `volcano cloud frontends deploy`, `volcano cloud config deploy`, `volcano cloud variables deploy`
 - Cloud durable messages (CLI 0.47.0 or later): `volcano cloud durable messages send`, and the MCP `send_durable_message` tool (each resumes a real execution; a send cannot be taken back)
+- Cloud durable callbacks (CLI 0.55.0 or later): `volcano cloud durable callbacks succeed|fail|heartbeat` (`succeed` and `fail` each resume a real execution, and an answer cannot be taken back; `heartbeat` keeps a real wait open past its heartbeat timeout)
 - Cloud service keys: `volcano projects keys service create` (a new credential that bypasses row-level security)
 - Cloud project creation: `volcano projects create` (a cloud resource; ask first, including when it's the project-context step of a cloud deploy)
 - Cloud database changes: `volcano cloud databases create`, `volcano cloud databases migration up` (migrations are not tracked, so it re-applies every file)
@@ -330,6 +332,7 @@ volcano functions deploy --all | deploy -f <name> | list | get | logs
 volcano durable deploy --all
 volcano durable messages list | waits <function> <execution-id>   # CLI 0.47.0+
 volcano durable messages send <function> <execution-id> <message-name> --data <json>
+volcano durable callbacks succeed <token> --result <json> | fail <token> --type <type> | heartbeat <token>   # CLI 0.55.0+
 volcano frontends deploy --name <name> --path <dir> | list | get | logs | routes   # CLI 0.45.0+; older CLIs deploy to the cloud
 volcano variables deploy | list | get
 volcano config deploy
@@ -342,6 +345,7 @@ volcano cloud deploy --env-file volcano/cloud.env [--with-migrations -d <databas
 volcano cloud functions deploy --all
 volcano cloud durable messages list | waits <function> <execution-id>   # CLI 0.47.0+
 volcano cloud durable messages send <function> <execution-id> <message-name> --data <json>   # confirm first
+volcano cloud durable callbacks succeed <token> --result <json> | fail <token> --type <type> | heartbeat <token>   # CLI 0.55.0+; no login needed; confirm first
 volcano projects keys service create <name> --permission <permission> --json   # new credential; confirm first
 volcano cloud frontends deploy --name <name> --path <dir> | list | logs
 volcano cloud variables deploy -f volcano/cloud.env
