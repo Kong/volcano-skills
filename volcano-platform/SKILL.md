@@ -859,11 +859,13 @@ volcano cloud frontends deploy web-eu --from web@<deployment-id>   # one particu
 ```
 
 Without `@`, the CLI takes the newest `active` or `degraded` deployment of the
-source. The API takes the source deployment's ID on the target frontend:
+source. Use the CLI. Code that already holds the project owner's platform user
+token can call the API instead, with the target frontend's ID, which
+`volcano cloud frontends get <name>` prints:
 
 ```sh
 curl -X POST "https://api.volcano.dev/projects/$PROJECT_ID/frontends/$TARGET_FRONTEND_ID/deployments" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $VOLCANO_PLATFORM_TOKEN" -H "Content-Type: application/json" \
   -d '{"source_deployment_id":"<deployment-id>"}'
 ```
 
@@ -883,7 +885,9 @@ curl -X POST "https://api.volcano.dev/projects/$PROJECT_ID/frontends/$TARGET_FRO
   again. Volcano keeps only the build each frontend currently serves.
 - **The target's copy is independent.** A later redeploy of the target
   compiles its copied source, so changes to the source frontend never reach
-  it until you deploy the source's build again.
+  it until you deploy the source's build again. That includes the redeploy
+  Volcano runs itself when you add a region to the project: afterwards, deploy
+  the source's build to each target again to share it once more.
 - **Not for Git-managed projects.** A project whose source is managed by Git
   deploys from a push to its production branch, so deploying a build answers
   `409`, as a direct deploy does.
@@ -893,8 +897,7 @@ curl -X POST "https://api.volcano.dev/projects/$PROJECT_ID/frontends/$TARGET_FRO
 Deploying a build to another frontend is a cloud deploy: get the user's
 go-ahead first, and wait for the target as for any frontend deploy.
 
-Deploying uploads local source, so it is a CLI action; the Volcano MCP server
-has no deploy tool. An agent on MCP checks what a deploy produced with
+Deploying is a CLI or API action; the Volcano MCP server has no deploy tool. An agent on MCP checks what a deploy produced with
 `list_deployments` and `list_frontends`.
 
 ## Verify a local deploy (smoke test)
