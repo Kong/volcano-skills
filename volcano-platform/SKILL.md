@@ -850,6 +850,58 @@ Deploying uploads local source, so it is a CLI action; the Volcano MCP server
 has no deploy tool. An agent on MCP checks what a deploy produced with
 `list_deployments` and `list_frontends`.
 
+### Deploy one build to several frontends (cloud, CLI 0.51.0+)
+
+When one app runs as several frontends of a project (per region, brand, or
+staging and production), deploy the build a frontend already serves to the
+others instead of rebuilding each. Nothing is uploaded or compiled, so the
+target serves exactly the build that was tested:
+
+```sh
+volcano cloud frontends deploy web-eu --from web
+volcano cloud frontends deploy web-eu --from web@<deployment-id>   # one particular deployment
+```
+
+Without `@`, the CLI takes the newest `active` or `degraded` deployment of the
+source. Use the CLI. Code that already holds the project owner's platform user
+token can call the API instead. The project ID is `project_id` in a linked
+directory's `.volcano/project.json` (or from `volcano projects list`), and
+`volcano cloud frontends get <name>` prints the target frontend's ID:
+
+```sh
+curl -X POST "https://api.volcano.dev/projects/$PROJECT_ID/frontends/$TARGET_FRONTEND_ID/deployments" \
+  -H "Authorization: Bearer $VOLCANO_PLATFORM_TOKEN" -H "Content-Type: application/json" \
+  -d '{"source_deployment_id":"<deployment-id>"}'
+```
+
+- **Both frontends must exist in the same project.** Create the target with a
+  first deploy of its own. `--from` takes no `--name`, `--path`,
+  `--framework`, `--app-root`, or variable flags: the target keeps its
+  settings, and the build must match them.
+- **The framework, app root, and build-time variables must match.** The
+  variables the target would build with must equal what the source build
+  read, by name and value. A mismatch is `409 build_variables_differ` and names
+  the variables: give the target the same variable selection, or redeploy the
+  source if a value changed since its build. A deployment that waited in the
+  queue while a variable changed fails with an `error_message` starting
+  `build_variables_differ:`, and the target keeps serving its previous build.
+- **`409 source_build_unavailable`** means Volcano no longer keeps that build,
+  or it predates kept builds. Redeploy the source once, then deploy its build
+  again. Volcano keeps only the build each frontend currently serves.
+- **The target's copy is independent.** A later redeploy of the target
+  compiles its copied source, so changes to the source frontend never reach
+  it until you deploy the source's build again. That includes the redeploy
+  Volcano runs itself when you add a region to the project: afterwards, deploy
+  the source's build to each target again to share it once more.
+- **Not for Git-managed projects.** A project whose source is managed by Git
+  deploys from a push to its production branch, so deploying a build answers
+  `409`, as a direct deploy does.
+- **Cloud only.** Local development builds each frontend from its own source,
+  so `volcano frontends deploy --from` fails and names the cloud command.
+
+Deploying a build to another frontend is a cloud deploy: get the user's
+go-ahead first, and wait for the target as for any frontend deploy.
+
 ## Verify a local deploy (smoke test)
 
 Deploying is not the finish line — exercise each function and assert on the
