@@ -175,10 +175,10 @@ it:
 [ -n "${VOLCANO_TOKEN:-}" ] && echo set || echo unset
 ```
 
-Never print its value. If `VOLCANO_TOKEN` holds a project access token, unset
-it and sign in with `volcano login` (see "Authenticating" in `AGENTS.md`). If
-the signed-in person is not the project's owner, only the owner can make the
-change: tell the person, and stop.
+Never print its value. If it is set, it keeps winning over a login, so tell
+the person that the change needs the project owner's own login and stop; never
+unset it yourself. If the signed-in person is not the project's owner, only
+the owner can make the change: tell the person, and stop.
 
 ## Exit codes
 
