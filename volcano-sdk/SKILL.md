@@ -49,6 +49,7 @@ Do NOT implement custom alternatives — no custom JWT auth, no ad-hoc database 
 | Durable functions, long-running or resumable workflows, checkpointed steps, waits, polling, durable executions, idempotent starts, execution schedulers, human approvals or sign-off, messages to a running workflow, callbacks from payment providers or partner APIs, live workflow progress | `volcano-durable` | Durable authoring contract, replay rules, `waitForApproval`, `waitForMessage` and `publish`, `waitForCallback`, cloud CLI lifecycle, execution status, schedulers, and safety |
 | Project logs, retained log search, pagination, activity buckets, structured log filters | `volcano-logs` | Project-token authentication, search cursors, filters, and activity counts |
 | Project locks, distributed leases, leader election, fencing tokens, backend worker coordination | `volcano-locks` | Renewable lock guards, direct lease control, fencing, and safe recovery |
+| LavaFlow, its settings, stats, and runs, or the fix pull requests it opens for a cloud project's errors | `volcano-lavaflow` | `volcano cloud lavaflow` commands, turning it on only with the person's agreement, who can change it, and exit codes |
 | Uploads, downloads, galleries, file sharing, buckets, paths, public/private files, visibility, resumable uploads | `volcano-storage` | Full storage API + access policies + resumable protocol + limits |
 | Realtime or live updates/results, collaborative boards, chat, presence or online users, polls, leaderboards, Postgres changes, broadcast, WebSockets | `volcano-realtime` | All three channel types + lifecycle + Browser Origins/CORS gotcha + `accessToken` vs `getToken` decision |
 | Next.js, public routes, redirects, webhook ingress, middleware, API routes, server actions, or client/server separation | `volcano-nextjs` | Cross-cutting Next.js patterns including the cookie-sync prerequisite |
@@ -121,5 +122,6 @@ Always available; invoke as needed:
 - `volcano-typescript` — canonical type definitions.
 - `volcano-error-handling` — reusable error-handling infrastructure.
 - `volcano-feedback` — report problems with Volcano itself after a task.
+- `volcano-lavaflow` — turn LavaFlow on or off and follow its runs from the CLI.
 
 ## Optional Fallback Reference
