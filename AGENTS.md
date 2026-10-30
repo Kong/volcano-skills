@@ -261,9 +261,9 @@ through this order before rewriting code or asking the user to check something m
 CLI, API, or SDK problem.** The website has no visibility into your local Docker
 services, deployed code, or terminal output, and you cannot usefully drive a browser
 session to debug from here. Configure the project through the CLI and
-`volcano-config.yaml`, not the website. The human's device-code approval during
-`volcano login`/`volcano signup` is the only browser step in this workflow — never
-a diagnostic detour.
+`volcano-config.yaml`, not the website. For diagnosing a problem, the human's
+device-code approval during `volcano login`/`volcano signup` is the only browser
+step in this workflow — never a diagnostic detour.
 
 ## Reporting Volcano problems
 

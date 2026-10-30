@@ -68,7 +68,15 @@ auth:
       - http://localhost:3000
 ```
 
-Apply it with `volcano cloud config deploy` for a cloud project, or `volcano config deploy` for the local stack. The list replaces the stored one, so run `config pull` first and add to the origins it returns.
+The list replaces the stored one, so pull, edit and deploy against the same target:
+
+```bash
+volcano cloud config pull -f cloud-config.yaml
+# add the origin under auth.cors.allowed_origins in cloud-config.yaml
+volcano cloud config deploy -f cloud-config.yaml
+```
+
+For the local stack, use `volcano config pull` and `volcano config deploy` the same way. Never deploy a manifest pulled from the local stack to the cloud project: its origin list would replace the cloud project's. `config pull` does not overwrite an existing file unless you pass `--force`.
 
 Server-side Node.js connections usually do not send an `Origin` header and are not blocked by browser CORS checks.
 
