@@ -290,6 +290,7 @@ Do not report bugs in the user's own code.
 - Feedback: filing a report with `volcano feedback` after a task, for Volcano problems you hit (see "Reporting Volcano problems"). `volcano feedback enable` and `volcano feedback disable` are the user's choice: run them only when the user asks or confirms
 - Durable messages (CLI 0.47.0 or later): `volcano [cloud] durable messages list|waits`, and `volcano durable messages send` against local executions while testing
 - Durable callbacks (CLI 0.55.0 or later): `volcano durable callbacks succeed|fail|heartbeat` against local executions while testing
+- LavaFlow reads: `volcano cloud lavaflow status|settings|stats|resources|list|show` (see the `volcano-lavaflow` skill)
 - Local dev: `volcano start|stop|restart|status` — automatic by default after building (see "Build vs. run/test/deploy"), and whenever the user asks to run/test/preview locally
 - Local deploy: `volcano deploy [--with-migrations]`, or one piece with `volcano functions deploy`, `volcano durable deploy`, `volcano variables deploy`, `volcano config deploy`, `volcano migrations deploy --all -d app` — automatic by default after building, and whenever the user asks to run/test/preview locally. `volcano frontends deploy` is automatic only on CLI 0.45.0 or later; on older CLIs it deploys to the cloud project, so it is confirm-first there.
 
@@ -297,6 +298,7 @@ Do not report bugs in the user's own code.
 - Cloud deploys: `volcano cloud deploy`, `volcano cloud functions deploy`, `volcano cloud frontends deploy` (including `--from`, which deploys another frontend's build), `volcano cloud config deploy`, `volcano cloud variables deploy`
 - Cloud durable messages (CLI 0.47.0 or later): `volcano cloud durable messages send`, and the MCP `send_durable_message` tool (each resumes a real execution; a send cannot be taken back)
 - Cloud durable callbacks (CLI 0.55.0 or later): `volcano cloud durable callbacks succeed|fail|heartbeat` (`succeed` and `fail` each resume a real execution, and an answer cannot be taken back; `heartbeat` keeps a real wait open past its heartbeat timeout)
+- LavaFlow changes: `volcano cloud lavaflow enable|disable|settings set` (`enable` first prints "LavaFlow sends this resource's logs and source code to an AI service that Volcano operates."; pass `enable --yes` only after the person agrees to turn LavaFlow on)
 - Cloud service keys: `volcano projects keys service create` (a new credential that bypasses row-level security)
 - Cloud project creation: `volcano projects create` (a cloud resource; ask first, including when it's the project-context step of a cloud deploy)
 - Cloud database changes: `volcano cloud databases create`, `volcano cloud databases migration up` (migrations are not tracked, so it re-applies every file)
@@ -354,6 +356,11 @@ volcano cloud databases create <database> --region <region> --pg-version 16 | ge
 volcano cloud databases migration up --all -d <database>
 volcano cloud config deploy
 volcano cloud domains list | verify <domain> | remove <domain>   # domains your account owns, for custom domains
+
+# LavaFlow (cloud only; see the volcano-lavaflow skill; every command takes --json)
+volcano cloud lavaflow status | settings | stats [--days <n>] | resources [--days <n>]
+volcano cloud lavaflow list [--status <status>] [--resource <id>] [--limit <n>] | show <run-id>
+volcano cloud lavaflow enable --yes | disable | settings set ...   # project owner's login; confirm first
 
 # Feedback (see the volcano-feedback skill)
 volcano feedback --input -                 # file a Volcano problem after a task (report JSON on stdin)
