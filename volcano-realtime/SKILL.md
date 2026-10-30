@@ -58,7 +58,17 @@ await realtime.connect();
 
 Browser WebSocket connections include an `Origin` header. When CORS is enabled for your project, that origin must be listed in the project's auth CORS allowed origins or the WebSocket upgrade is rejected **before** authentication completes — connect fails silently from the client's point of view.
 
-For local development, add your app origin (e.g. `http://localhost:3000`) to the project's auth CORS allowed origins in the Volcano dashboard.
+For local development, add your app origin (e.g. `http://localhost:3000`) to the project's auth CORS allowed origins in `volcano-config.yaml`:
+
+```yaml
+auth:
+  cors:
+    allowed_origins:
+      - https://app.example.com
+      - http://localhost:3000
+```
+
+Apply it with `volcano cloud config deploy` for a cloud project, or `volcano config deploy` for the local stack. The list replaces the stored one, so run `config pull` first and add to the origins it returns.
 
 Server-side Node.js connections usually do not send an `Origin` header and are not blocked by browser CORS checks.
 
