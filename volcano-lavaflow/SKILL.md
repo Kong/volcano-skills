@@ -170,9 +170,11 @@ volcano cloud lavaflow show 7f3c2a1e-0b4d-4e6f-9a8b-1c2d3e4f5a6b
   counted.
 - `resources` takes `--days` too. A sudden jump in a resource's issues is
   flagged with a reason.
-- `list` filters with `--status` (`queued`, `diagnosing` while a run is
-  running, `pr_open`, `completed`, `failed`, or `cancelled`) and
-  `--resource <id>`. `--limit` takes 1 to 100; the default is 25. It prints
+- `list` filters with `--status` (`queued`, `diagnosing`, `fixing`,
+  `reviewing`, `pr_open`, `completed`, `failed`, or `cancelled`) and
+  `--resource <id>`. `diagnosing`, `fixing` and `reviewing` are the stages
+  of a running run; the text output labels them `Running: ...`, and `--json`
+  gives the status as is. `--limit` takes 1 to 100; the default is 25. It prints
   the command for the next page; run that to continue. With `--json`, no
   command is printed: pass `next_cursor` to `--cursor`, with the same
   `--limit`, `--status` and `--resource`.
