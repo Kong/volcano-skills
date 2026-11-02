@@ -38,7 +38,7 @@
     },
     {
       "name": "volcano-lavaflow",
-      "description": "Use for LavaFlow on a Volcano cloud project, including turning it on or off, its autonomy, custom context and system prompt settings, its stats and per-resource issue counts, and its runs, diagnoses, and fix pull requests. Covers the volcano cloud lavaflow commands, who can change LavaFlow, and its exit codes.",
+      "description": "Use for LavaFlow on a Volcano cloud project, including turning it on or off, its autonomy, custom context and system prompt settings, its stats and per-resource issue counts, and its runs, diagnoses, and fix pull requests. Covers the volcano cloud lavaflow commands, who can use LavaFlow, and its exit codes.",
       "path": "/skills/volcano-lavaflow/SKILL.md"
     },
     {
