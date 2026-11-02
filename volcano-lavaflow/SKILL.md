@@ -184,19 +184,23 @@ volcano cloud lavaflow show 7f3c2a1e-0b4d-4e6f-9a8b-1c2d3e4f5a6b
 
 ## Who can use LavaFlow
 
-LavaFlow belongs to the project's owner. Anyone else gets a refusal from every
-`lavaflow` command, reads included, with exit 5. A project access token can
-run the read commands. `enable`, `disable`, and `settings set` need the
-owner's own signed-in session from `volcano login`; a project access token is
-refused for them before anything is sent.
+LavaFlow belongs to the project's owner. For anyone else, every `lavaflow`
+command, reads included, says `project not found`, as for a project that
+doesn't exist, and exits 4. A project access token can run the read commands
+for its own project. `enable`, `disable`, and `settings set` need the owner's
+own signed-in session from `volcano login`; a project access token is refused
+for them before anything is sent, with exit 5.
 
-Turning LavaFlow on and changing its settings need a plan that includes
-LavaFlow. Without one, `enable` and `settings set` exit 4 with `LavaFlow isn't available for this project: it isn't open to the owner's account, or the owner's plan doesn't include it`.
-For a project with LavaFlow records, the reads and `disable` still work. Tell
-the person, and stop.
+LavaFlow needs a plan that includes it. For a project without LavaFlow
+records, every command exits 5 with `LavaFlow needs a plan that includes it,
+and the project owner's plan doesn't` when the owner's plan doesn't include
+LavaFlow. For a project with LavaFlow records, the reads and `disable` still
+work, and `enable` exits 4 with `LavaFlow can't be turned on for this
+project: it isn't open to the owner's account, or the owner's plan doesn't
+include it`. Tell the person, and stop.
 
-If a change is refused with exit 5, tell the person what the command printed,
-and stop. For a project access token, that text already names the next step:
+When a command refuses with exit 4 or 5, tell the person what it printed, and
+stop. For a project access token, that text already names the next step:
 unset `VOLCANO_TOKEN` and sign in with `volcano login`, or, for a saved token,
 sign in with `volcano login`. Never unset `VOLCANO_TOKEN` or sign in yourself.
 
@@ -207,21 +211,24 @@ printing it:
 [ -n "${VOLCANO_TOKEN:-}" ] && echo set || echo unset
 ```
 
-Never print its value. If it is set, it wins over a login, and the change
-needs the project owner's own session. If it is unset and the command says
-only the project's owner can change LavaFlow, the signed-in person isn't the
-owner: only the owner can make the change.
+Never print its value. If it is set, it wins over a login, and a change needs
+the project owner's own session. If a command says `project not found`, check
+that the selected project is the one the person means; if it is, the signed-in
+person isn't its owner, and only the owner can use LavaFlow for it.
+
+If the command says Volcano couldn't read the owner's plan, tell the person to
+try again later. Don't retry it yourself.
 
 ## Exit codes
 
 | Exit | Meaning | Next step |
 |---|---|---|
-| 4 | LavaFlow isn't available (`LavaFlow isn't available for this project: it isn't open to the owner's account, or the owner's plan doesn't include it`, or `LavaFlow isn't available on this Volcano API`), or a run or project wasn't found. A plan that doesn't include LavaFlow is this case, for `enable` and `settings set` | Tell the person what the command printed. Check the run ID or the selected project. Do not retry |
-| 5 | Refused: someone who isn't the project's owner, or a project access token for a change | See "Who can use LavaFlow". Do not retry |
+| 4 | LavaFlow isn't available yet (`LavaFlow isn't available for this project yet`, `LavaFlow can't be turned on for this project: ...`, or `LavaFlow isn't available on this Volcano API`), or a project or run wasn't found (`project not found` for someone who isn't the owner) | Tell the person what the command printed. Check the run ID or the selected project. Do not retry |
+| 5 | Refused: the owner's plan doesn't include LavaFlow, the plan couldn't be read, or a project access token for a change | See "Who can use LavaFlow". Do not retry |
 
 When LavaFlow isn't available for the project but the project already has
-LavaFlow records, the read commands and `disable` still work; `enable` and
-`settings set` exit 4.
+LavaFlow records, the read commands and `disable` still work; `enable` exits
+4 before it asks, and `settings set` exits 4 or 5 with the reason.
 
 Never retry exit 4 or 5 in a loop.
 
