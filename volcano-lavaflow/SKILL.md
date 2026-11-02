@@ -196,10 +196,13 @@ for its own project. `enable`, `disable`, and `settings set` need the owner's
 own signed-in session from `volcano login`; a project access token is refused
 for them before anything is sent, with exit 5.
 
-LavaFlow needs a plan that includes it. For a project without LavaFlow
-records, every command exits 5 with `LavaFlow needs a plan that includes it,
-and the project owner's plan doesn't` when the owner's plan doesn't include
-LavaFlow. For a project with LavaFlow records, the reads and `disable` still
+LavaFlow needs to be open to the project and a plan that includes it. For a
+project without LavaFlow records, Volcano checks whether LavaFlow is open to
+the project first: if it isn't, every command exits 4 with `LavaFlow isn't
+available for this project yet`. If it is open but the owner's plan doesn't
+include LavaFlow, every command exits 5 with `LavaFlow needs a plan that
+includes it, and the project owner's plan doesn't`. For a project with
+LavaFlow records, the reads and `disable` still
 work, and `enable` exits 4 with `LavaFlow can't be turned on for this
 project: it isn't open to the owner's account, or the owner's plan doesn't
 include it`, also when the plan couldn't be read. Tell the person, and stop.
