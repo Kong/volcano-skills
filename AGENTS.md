@@ -298,7 +298,7 @@ Do not report bugs in the user's own code.
 - Cloud deploys: `volcano cloud deploy`, `volcano cloud functions deploy`, `volcano cloud frontends deploy` (including `--from`, which deploys another frontend's build), `volcano cloud config deploy`, `volcano cloud variables deploy`
 - Cloud durable messages (CLI 0.47.0 or later): `volcano cloud durable messages send`, and the MCP `send_durable_message` tool (each resumes a real execution; a send cannot be taken back)
 - Cloud durable callbacks (CLI 0.55.0 or later): `volcano cloud durable callbacks succeed|fail|heartbeat` (`succeed` and `fail` each resume a real execution, and an answer cannot be taken back; `heartbeat` keeps a real wait open past its heartbeat timeout)
-- LavaFlow changes: `volcano cloud lavaflow enable|disable|settings set` (`enable` first prints "LavaFlow sends this resource's logs and source code to an AI service that Volcano operates."; pass `enable --yes` only after the person agrees to turn LavaFlow on)
+- LavaFlow changes: `volcano cloud lavaflow enable|disable|settings set` (`enable` turns LavaFlow on for the whole project and sends its logs and source code to an AI service that Volcano operates; pass `enable --yes` only after the person says yes, as the `volcano-lavaflow` skill describes)
 - Cloud service keys: `volcano projects keys service create` (a new credential that bypasses row-level security)
 - Cloud project creation: `volcano projects create` (a cloud resource; ask first, including when it's the project-context step of a cloud deploy)
 - Cloud database changes: `volcano cloud databases create`, `volcano cloud databases migration up` (migrations are not tracked, so it re-applies every file)
