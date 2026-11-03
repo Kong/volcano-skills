@@ -1049,3 +1049,4 @@ This skill defines the platform deploy contract. For domain-specific guidance:
 - `volcano-typescript` — canonical TypeScript type definitions.
 - `volcano-error-handling` — reusable error-handling infrastructure.
 - `volcano-feedback` — report problems with Volcano itself after a task.
+- `volcano-lavaflow` — turn LavaFlow on or off and follow its runs from the CLI.
