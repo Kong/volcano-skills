@@ -31,7 +31,11 @@ LavaFlow has no local form to look for.
 
 ## Start with the status
 
-Run this before anything else, and before any change:
+`volcano cloud lavaflow` needs Volcano CLI 0.61.0 or later; check the version
+`volcano --version` printed. On an older CLI, `volcano cloud lavaflow` is an
+unknown command. Suggest that the person upgrade the Volcano CLI, and stop.
+
+Then run this before any other LavaFlow command, and before any change:
 
 ```sh
 volcano cloud lavaflow status --json
@@ -39,9 +43,6 @@ volcano cloud lavaflow status --json
 
 It says whether LavaFlow is on, its autonomy, its repository, whether a
 custom context and a system prompt are set, and whether you can change it.
-
-On an older CLI, `volcano cloud lavaflow` is an unknown command. Suggest that
-the person upgrade the Volcano CLI, and stop.
 
 Every `volcano cloud lavaflow` command takes `--json`, which prints the API's
 own fields. Parse the `--json` output; do not parse the text output.
@@ -227,12 +228,18 @@ person isn't its owner, and only the owner can use LavaFlow for it.
 If a command says `LavaFlow couldn't read the project owner's plan; try again
 later` (exit 5), tell the person to try again later. Don't retry it yourself.
 
+If `enable`, `disable` or `settings set` says `LavaFlow's settings weren't
+changed: a read-only access token or account can't change them, and otherwise
+the project owner's plan couldn't be read; try again later` (exit 5), often
+followed by `Volcano said: "..."`, tell the person what it printed, and stop.
+Don't retry it yourself.
+
 ## Exit codes
 
 | Exit | Meaning | Next step |
 |---|---|---|
 | 4 | LavaFlow isn't available yet (`LavaFlow isn't available for this project yet`, `LavaFlow can't be turned on for this project: ...`, or `LavaFlow isn't available on this Volcano API`), or a project or run wasn't found (`project not found` for someone who isn't the owner) | Tell the person what the command printed. Check the run ID or the selected project. Do not retry |
-| 5 | Refused: the owner's plan doesn't include LavaFlow, the plan couldn't be read (`LavaFlow couldn't read the project owner's plan; try again later`), or a project access token for a change | See "Who can use LavaFlow". Do not retry |
+| 5 | Refused: the owner's plan doesn't include LavaFlow, the plan couldn't be read (`LavaFlow couldn't read the project owner's plan; try again later`), a change wasn't made (`LavaFlow's settings weren't changed: ...`), or a project access token for a change | See "Who can use LavaFlow". Do not retry |
 
 When LavaFlow isn't available for the project but the project already has
 LavaFlow records, the read commands and `disable` still work; `enable` exits
