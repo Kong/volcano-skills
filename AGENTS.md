@@ -260,12 +260,10 @@ through this order before rewriting code or asking the user to check something m
 **Never open volcano.dev (or any Volcano web page) in a browser to diagnose a local
 CLI, API, or SDK problem.** The website has no visibility into your local Docker
 services, deployed code, or terminal output, and you cannot usefully drive a browser
-session to debug from here. This rule is about diagnosis specifically — it does not
-cover the handful of one-time dashboard configuration steps documented elsewhere with
-no CLI equivalent yet (for example `volcano-realtime`'s CORS allowed-origins setup),
-which remain legitimate. For diagnosing a problem, the human's device-code approval
-during `volcano login`/`volcano signup` is the only browser step in this workflow —
-never a diagnostic detour.
+session to debug from here. Configure the project through the CLI and
+`volcano-config.yaml`, not the website. For diagnosing a problem, the human's
+device-code approval during `volcano login`/`volcano signup` is the only browser
+step in this workflow — never a diagnostic detour.
 
 ## Reporting Volcano problems
 
