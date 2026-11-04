@@ -74,6 +74,12 @@ every change. Turning merging on is not yours to run at all; see
 
 1. Run `volcano cloud lavaflow status --json`. If LavaFlow is already on,
    stop. If it says you cannot change it, see "Who can use LavaFlow".
+   If its `settings.autonomy` is `merge`, `enable` keeps it, so turning
+   LavaFlow on would also start merging. Don't run `enable`. Tell the
+   person, and give them `volcano cloud lavaflow enable` to run in their own
+   terminal. If they want LavaFlow on without merging, ask before running
+   `volcano cloud lavaflow settings set --autonomy open_pr`, then continue
+   from step 2.
 2. Tell the person, in these words, and ask whether to turn LavaFlow on:
    - LavaFlow uses AI to diagnose this project's errors from their logs and
      deployed source, and opens fix pull requests in your connected
