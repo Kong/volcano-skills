@@ -42,6 +42,11 @@
       "path": "/skills/volcano-lavaflow/SKILL.md"
     },
     {
+      "name": "volcano-share",
+      "description": "Use for sharing a Volcano project so anyone can fork their own copy, and for forking a shared project from a share link (volcano.dev/deploy/...), including Deploy with Volcano buttons, share status, releases, switching a share off, and re-sharing copies. Covers volcano share, volcano fork, and volcano projects create --from.",
+      "path": "/skills/volcano-share/SKILL.md"
+    },
+    {
       "name": "volcano-logs",
       "description": "Use for Volcano project logs, retained log search, log pagination, activity buckets, structured log filters, and server-side log readers using project access tokens.",
       "path": "/skills/volcano-logs/SKILL.md"
