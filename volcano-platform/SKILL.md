@@ -947,11 +947,15 @@ const anonKey = 'ak-0000000000000000000000000000000000000000'; // from `volcano 
 
 async function tokenFor(email) {
   const auth = new VolcanoAuth({ apiUrl, anonKey });
+  // At least 15 characters (the platform minimum), with an uppercase letter, a
+  // number, and a special character in case the project requires them.
+  const password = 'Smoke-Test-Password-1!';
   // Local dev has no email confirmation, so signInWhenAllowed returns a live
   // session directly; fall back to signIn if it doesn't.
-  let { session } = await auth.signUp({ email, password: 'Smoke-Test-1!', signInWhenAllowed: true });
-  if (!session) ({ session } = await auth.signIn({ email, password: 'Smoke-Test-1!' }));
-  if (!session?.access_token) throw new Error(`no session for ${email}`);
+  let { session, error } = await auth.signUp({ email, password, signInWhenAllowed: true });
+  if (error) throw new Error(`signUp failed for ${email}: ${error.message}`);
+  if (!session) ({ session, error } = await auth.signIn({ email, password }));
+  if (!session?.access_token) throw new Error(`no session for ${email}: ${error?.message ?? 'signIn returned no session'}`);
   return session.access_token;
 }
 
@@ -964,6 +968,11 @@ if (error || status < 200 || status >= 300) process.exit(1);
 
 Easy wrong guesses to avoid (all verified against the SDK):
 - The methods are `auth.signUp` / `auth.signIn` — there is no `signInWithPassword`.
+- Passwords must be at least 15 characters; a project can raise the minimum but
+  not lower it (see the `volcano-auth` skill). A rejected sign-up comes back in
+  `error` (e.g. `password must be at least 15 characters`), so check it before
+  falling back to `signIn`, or the real cause turns into
+  `invalid email or password`.
 - Auth responses are `{ user, session, error }` at the **top level**; the token
   is `session.access_token`, not `data.session.access_token`.
 - `functions.invoke(name, payload)` returns `{ data, status, headers, version,
