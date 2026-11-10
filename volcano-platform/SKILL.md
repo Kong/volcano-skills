@@ -896,8 +896,10 @@ Refusals and what to do:
   deleted. Roll back first. A preview kept only for a rollback can be deleted,
   which gives up that rollback.
 
-A frontend has at most 20 live previews, `--ttl` is at most `720h`, and a
-preview without one is kept until deleted. Deleting is confirm-first.
+The account that owns the project holds at most 20 live previews on HOBBY and
+1000 on SUPERAGENT, across all of its projects and frontends; a preview counts
+until its deletion completes. `--ttl` is at most `720h`, and a preview without
+one is kept until deleted. Deleting is confirm-first.
 
 ## Verify a local deploy (smoke test)
 
