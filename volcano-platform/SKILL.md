@@ -947,10 +947,16 @@ const anonKey = 'ak-0000000000000000000000000000000000000000'; // from `volcano 
 
 async function tokenFor(email) {
   const auth = new VolcanoAuth({ apiUrl, anonKey });
-  // Local dev has no email confirmation, so signInWhenAllowed returns a live
-  // session directly; fall back to signIn if it doesn't.
-  let { session } = await auth.signUp({ email, password: 'Smoke-Test-1!', signInWhenAllowed: true });
-  if (!session) ({ session } = await auth.signIn({ email, password: 'Smoke-Test-1!' }));
+  // 15+ characters (the platform minimum; lengthen it if the project sets a
+  // higher min_password_length), with an uppercase letter, a number, and a
+  // special character in case the project requires them.
+  const password = 'Smoke-Test-Password-1!';
+  // Local dev has no email confirmation, so signInWhenAllowed signs the user
+  // in and returns a live session. `error` can come from either step.
+  const { session, error, confirmationRequired, message } =
+    await auth.signUp({ email, password, signInWhenAllowed: true });
+  if (error) throw new Error(`sign-up or sign-in failed for ${email}: ${error.message}`);
+  if (confirmationRequired) throw new Error(`${email} must confirm its email first: ${message}`);
   if (!session?.access_token) throw new Error(`no session for ${email}`);
   return session.access_token;
 }
@@ -964,6 +970,11 @@ if (error || status < 200 || status >= 300) process.exit(1);
 
 Easy wrong guesses to avoid (all verified against the SDK):
 - The methods are `auth.signUp` / `auth.signIn` — there is no `signInWithPassword`.
+- Check `signUp`'s `error` first: it carries the platform's reason, e.g.
+  `password must be at least 15 characters` (password rules are in the
+  `volcano-auth` skill). With `signInWhenAllowed`, it also carries a failed
+  sign-in. `signUp` also returns `confirmationRequired` and `message`; when
+  confirmation is required there is no session until the email is confirmed.
 - Auth responses are `{ user, session, error }` at the **top level**; the token
   is `session.access_token`, not `data.session.access_token`.
 - `functions.invoke(name, payload)` returns `{ data, status, headers, version,
