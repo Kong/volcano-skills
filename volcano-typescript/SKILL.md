@@ -22,6 +22,7 @@ import type {
   User,
   Session,
   AuthResponse,
+  SignUpResponse,
   UserResponse,
   SessionResponse,
   VolcanoAuthConfig,
@@ -82,8 +83,16 @@ interface SessionResponse {
   session: Session | null;
   error: Error | null;
 }
+
+interface SignUpResponse {
+  user: User | null;       // null unless signInWhenAllowed signed the user in
+  session: Session | null; // same
+  confirmationRequired: boolean;
+  message: string | null;
+  error: Error | null;
+}
 ```
-Returned from `signUp`, `signIn`, `getUser`, `refreshSession`, etc. Always check `error` before consuming `user`/`session` — they are `null` when `error` is set.
+Returned from `signIn`, `getUser`, `refreshSession`, etc.; `signUp` returns `SignUpResponse`. Always check `error` before consuming `user`/`session` — they are `null` when `error` is set.
 
 ## Database Types
 
@@ -657,7 +666,7 @@ channel.onPostgresChanges('INSERT', 'public', 'posts', (change) => {
 
 | Domain | Most useful type | Where it appears |
 |---|---|---|
-| Auth | `User`, `Session`, `AuthResponse` | `signIn`/`signUp`/`getUser` returns |
+| Auth | `User`, `Session`, `AuthResponse`, `SignUpResponse` | `signIn`/`getUser` returns; `signUp` returns `SignUpResponse` |
 | Database | `QueryResult<T>`, `FilterValue` | `from<T>(...).select(...)` chain |
 | Storage | `StorageObject`, `StorageUploadResponse`, `StorageListResponse` | `storage.from(...)` operations |
 | Realtime | `PostgresChange`, `PresenceState`, `ConnectContext` | Channel callbacks |

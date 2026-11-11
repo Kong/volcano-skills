@@ -96,18 +96,22 @@ Service keys (prefix `sk-`) are server-only; using one in `anonKey` from a brows
 
 ### Sign Up
 ```ts
-const { user, session, error } = await volcano.auth.signUp({
+const { confirmationRequired, message, error } = await volcano.auth.signUp({
   email: 'alice@example.com',
   password: 'secure-password-123',
-  metadata: { full_name: 'Alice', avatar_url: '...' }, // optional
+  metadata: { full_name: 'Alice', avatar_url: '...' }, // optional; read it after sign-in on user.user_metadata
 });
 if (error) {
-  if (error.message.includes('already exists')) /* email taken */;
-  else if (error.message.includes('password must')) /* strengthen — real messages: "password must be at least 15 characters", "...contain at least one uppercase letter", etc. */;
-  else if (error.message.includes('invalid email')) /* validate */;
+  if (error.message.includes('password must')) /* strengthen — real messages: "password must be at least 15 characters", "...contain at least one uppercase letter", etc. */;
+  else if (error.message.includes('invalid email format')) /* validate */;
+  else /* show error.message — e.g. signups disabled, email domain not allowed */;
   return;
 }
-// metadata is stored on user.user_metadata
+// Sign-up returns no user or session. Show `message`, then send the user to sign
+// in (after they confirm their email when `confirmationRequired` is true). A
+// registered email gets the same response, so sign-up never says an email is taken.
+// With `signInWhenAllowed: true` the SDK signs in right away when no confirmation
+// is needed; `error` can then be a sign-in error such as `invalid email or password`.
 ```
 
 ### Sign In
@@ -115,7 +119,7 @@ if (error) {
 const { user, session, error } = await volcano.auth.signIn({ email, password });
 if (error) {
   if (error.message.includes('invalid email or password')) /* wrong creds */;
-  else if (error.message.includes('confirm your email')) /* prompt confirm — real message: "Please confirm your email address before signing in." */;
+  else if (error.message.includes('email confirmation required')) /* prompt confirm — real message: "email confirmation required - please check your email for confirmation link" */;
   else if (error.message.includes('rate limit')) /* rate-limited — real message: "rate limit exceeded, try again later" */;
   return;
 }
@@ -392,10 +396,9 @@ await volcano.auth.deleteAllOtherSessions();
 ## Common Errors
 | Message contains | Real example message | Meaning | Action |
 |---|---|---|---|
-| `already exists` | `user with this email already exists` | Email taken on sign up | Prompt sign in |
 | `password must` | `password must be at least 15 characters` / `password must contain at least one uppercase letter` / `...one number` / `...one special character (!@#$%^&*)` | Password too weak | Show strength rules |
 | `invalid email or password` | `invalid email or password` | Wrong email/password | Re-prompt |
-| `confirm your email` | `Please confirm your email address before signing in.` (sign-in gate) or `email confirmation required - please check your email for confirmation link` (signup) | Verification pending | Show resend UI |
+| `email confirmation required` | `email confirmation required - please check your email for confirmation link` (sign-in to an unconfirmed account; sign-up returns no error, only `confirmationRequired: true`) | Verification pending | Show resend UI |
 | `rate limit` | `rate limit exceeded, try again later` | Rate-limited | Back off and inform user |
 | `No active session` | `No active session` | User not logged in | Send to login |
 | `Session expired` | `Session expired` | Refresh failed | Force sign in |
