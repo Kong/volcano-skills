@@ -99,6 +99,7 @@ Note: `volcano-config.yaml` comes with `volcano init javascript` (with or withou
 - **One function per file:** `hello.js` → function named `hello`.
 - **One function per directory:** `api/index.js` → function named `api` (the directory name).
 - Entries starting with `_` are **skipped** as function candidates but bundled as shared code when imported.
+- TypeScript (CLI 0.76.0+): `hello.ts`/`.mts`/`.cts` → `hello`; `api/index.ts` → `api` when the directory has no JavaScript, Python or Ruby entry. Volcano compiles it at build time; `.tsx`, `*.d.ts` and nested entries like `api/src/index.ts` are not found.
 - Supported runtimes: `nodejs22.x` (minimum), `nodejs24.x` (default). Also Python and Ruby.
 
 There is **no router, no OpenAPI dispatcher, no single entry point**. Each file is an independent function with its own URL.
@@ -232,6 +233,8 @@ exports.handler = async (event) => {
 The scanner skips `package.json`/`node_modules` as function candidates (they are not handlers), so this file sits alongside your `.js` handlers without becoming its own function. `hello.js` above needs no manifest because it imports nothing.
 
 ### Model B — Build-into-functions (TypeScript)
+
+With CLI 0.76.0 or later you can skip this model: put `.ts` handlers straight in `volcano/functions/` and Volcano compiles them (see the `volcano-functions` skill, "TypeScript handlers"). Use Model B when you need a compiler feature the build skips, such as decorator metadata, or an older CLI.
 
 Author TypeScript in `src/functions/<name>.ts`, bundle each to `volcano/functions/<name>.js` with esbuild, then deploy. This lets you use TypeScript, `src/lib/` shared code, and npm dependencies that esbuild bundles.
 

@@ -200,7 +200,7 @@ When the work genuinely requires one of these, treat **direct Postgres access** 
 `DATABASE_URL` is auto-injected into every function's environment, but it already carries `application_name=volcano_full_access` — full admin access that **bypasses RLS**. To scope a connection to the calling user (and get RLS enforcement), you MUST rewrite `application_name` to `volcano_user_access:{user_id}` before connecting:
 
 ```js
-// functions/get-posts-with-authors.js
+// volcano/functions/get-posts-with-authors.js
 const { Pool } = require('pg');
 
 // One pool per auth user — the RLS identity is fixed at connection
