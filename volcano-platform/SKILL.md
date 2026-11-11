@@ -234,7 +234,7 @@ The scanner skips `package.json`/`node_modules` as function candidates (they are
 
 ### Model B — Build-into-functions (TypeScript)
 
-With CLI 0.76.0 or later you can skip this model: put `.ts` handlers straight in `volcano/functions/` and Volcano compiles them (see the `volcano-functions` skill, "TypeScript handlers"). Use Model B when you need a compiler feature the build skips, such as decorator metadata, or an older CLI.
+With CLI 0.76.0 or later you can skip this model: put `.ts` handlers straight in `volcano/functions/` and Volcano compiles them (see the `volcano-functions` skill, "TypeScript handlers"). Use Model B with an older CLI, or when you want to run the build yourself.
 
 Author TypeScript in `src/functions/<name>.ts`, bundle each to `volcano/functions/<name>.js` with esbuild, then deploy. This lets you use TypeScript, `src/lib/` shared code, and npm dependencies that esbuild bundles.
 
