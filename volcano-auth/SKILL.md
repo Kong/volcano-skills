@@ -96,20 +96,22 @@ Service keys (prefix `sk-`) are server-only; using one in `anonKey` from a brows
 
 ### Sign Up
 ```ts
-const { user, session, error } = await volcano.auth.signUp({
+const { confirmationRequired, message, error } = await volcano.auth.signUp({
   email: 'alice@example.com',
   password: 'secure-password-123',
-  metadata: { full_name: 'Alice', avatar_url: '...' }, // optional
+  metadata: { full_name: 'Alice', avatar_url: '...' }, // optional; read it after sign-in on user.user_metadata
 });
 if (error) {
   if (error.message.includes('password must')) /* strengthen — real messages: "password must be at least 15 characters", "...contain at least one uppercase letter", etc. */;
-  else if (error.message.includes('invalid email')) /* validate */;
+  else if (error.message.includes('invalid email format')) /* validate */;
+  else /* show error.message — e.g. signups disabled, email domain not allowed */;
   return;
 }
-// metadata is stored on user.user_metadata
-// A registered email gets the same success response as a new one (no error, no
-// second account), so sign-up never says an email is taken. Don't match on
-// `already exists`: sign-up never returns it.
+// Sign-up returns no user or session. Show `message`, then send the user to sign
+// in (after they confirm their email when `confirmationRequired` is true). A
+// registered email gets the same response, so sign-up never says an email is taken.
+// With `signInWhenAllowed: true` the SDK signs in right away when no confirmation
+// is needed; `error` can then be a sign-in error such as `invalid email or password`.
 ```
 
 ### Sign In
