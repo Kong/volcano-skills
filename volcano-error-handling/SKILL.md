@@ -303,7 +303,7 @@ Each domain skill includes domain-specific error messages. This skill is the cro
 
 | Domain | Skill | Common error messages |
 |---|---|---|
-| Auth | `volcano-auth` | `invalid email or password`, `confirm your email`, `already exists`, `password must`, `rate limit` |
+| Auth | `volcano-auth` | `invalid email or password`, `confirm your email`, `password must`, `rate limit` |
 | Database | `volcano-database` | `column does not exist`, `permission denied`, `No active session`, `Database name not set`, `violates unique constraint` |
 | Functions | `volcano-functions` | `Function not found`, `timeout`, `rate limit`, `Internal server error` (or business-logic `data.error`) |
 | Logs | `volcano-logs` | project-token authentication, invalid cursor, invalid resource or query filters |

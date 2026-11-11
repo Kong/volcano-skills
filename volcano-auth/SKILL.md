@@ -102,12 +102,14 @@ const { user, session, error } = await volcano.auth.signUp({
   metadata: { full_name: 'Alice', avatar_url: '...' }, // optional
 });
 if (error) {
-  if (error.message.includes('already exists')) /* email taken */;
-  else if (error.message.includes('password must')) /* strengthen — real messages: "password must be at least 15 characters", "...contain at least one uppercase letter", etc. */;
+  if (error.message.includes('password must')) /* strengthen — real messages: "password must be at least 15 characters", "...contain at least one uppercase letter", etc. */;
   else if (error.message.includes('invalid email')) /* validate */;
   return;
 }
 // metadata is stored on user.user_metadata
+// A registered email gets the same success response as a new one (no error, no
+// second account), so sign-up never says an email is taken. Don't match on
+// `already exists`: sign-up never returns it.
 ```
 
 ### Sign In
@@ -392,7 +394,6 @@ await volcano.auth.deleteAllOtherSessions();
 ## Common Errors
 | Message contains | Real example message | Meaning | Action |
 |---|---|---|---|
-| `already exists` | `user with this email already exists` | Email taken on sign up | Prompt sign in |
 | `password must` | `password must be at least 15 characters` / `password must contain at least one uppercase letter` / `...one number` / `...one special character (!@#$%^&*)` | Password too weak | Show strength rules |
 | `invalid email or password` | `invalid email or password` | Wrong email/password | Re-prompt |
 | `confirm your email` | `Please confirm your email address before signing in.` (sign-in gate) or `email confirmation required - please check your email for confirmation link` (signup) | Verification pending | Show resend UI |
