@@ -234,7 +234,7 @@ The scanner skips `package.json`/`node_modules` as function candidates (they are
 
 ### Model B — Build-into-functions (TypeScript)
 
-With CLI 0.76.0 or later you can skip this model: put `.ts` handlers straight in `volcano/functions/` and Volcano compiles them (see the `volcano-functions` skill, "TypeScript handlers"). Use Model B with an older CLI, or when you want to run the build yourself. To switch an existing Model B project, delete the built `volcano/functions/<name>.js` files and the `build:functions` step (a `.js` with the same name deploys instead of the `.ts`), and declare npm dependencies in `volcano/functions/package.json` as Model A does, since Volcano installs them rather than bundling them.
+With CLI 0.76.0 or later you can skip this model: put `.ts` handlers straight in `volcano/functions/` and Volcano compiles them (see the `volcano-functions` skill, "TypeScript handlers"). Use Model B with an older CLI, or when you want to run the build yourself. To switch an existing Model B project, delete the built `volcano/functions/<name>.js` files and the `build:functions` step (a `.js` with the same name deploys instead of the `.ts`), move `src/lib/` modules into `volcano/functions/_shared/` and fix their imports (the CLI uploads only `volcano/functions/`), and declare npm dependencies in `volcano/functions/package.json` as Model A does, since Volcano installs them rather than bundling them.
 
 Author TypeScript in `src/functions/<name>.ts`, bundle each to `volcano/functions/<name>.js` with esbuild, then deploy. This lets you use TypeScript, `src/lib/` shared code, and npm dependencies that esbuild bundles.
 
@@ -1024,7 +1024,7 @@ the CLI, a missing command), file it after the task with `volcano-feedback`.
 - Do NOT assume `__volcano_auth` is always present — it is injected only when the payload is an object and the request carries a valid token.
 - Do NOT expect `volcano deploy` or `volcano functions deploy` to run your own build (Model B) — its built `.js` files must exist under `volcano/functions/` on disk before deploy. TypeScript handlers placed directly in `volcano/functions/` need no build of yours with CLI 0.76.0+; Volcano compiles them.
 - Do NOT put more than one SQL statement in a migration file, and do NOT wrap one in `BEGIN; ... COMMIT;` — `volcano migrations deploy` executes each file as a single statement and rejects multi-statement bodies (`ERROR: Multiple statements are not supported`). Split a multi-step schema change into several sequentially-numbered single-statement files instead.
-- Do NOT `require`/`import` an npm package (including `@volcano.dev/sdk`) from a native-JS (Model A) function without declaring it in a `package.json` — the packager never uploads `node_modules`, so an undeclared dependency fails at runtime with `Cannot find package`. Declare every imported package in a manifest so the runtime installs it.
+- Do NOT `require`/`import` an npm package (including `@volcano.dev/sdk`) from a native-JS (Model A) or TypeScript handler in `volcano/functions/` without declaring it in a `package.json` — the packager never uploads `node_modules`, so an undeclared dependency fails at runtime with `Cannot find package`. Declare every imported package in a manifest so the runtime installs it.
 
 ## Verification Checklist
 - Each deployed function was smoke-tested, not just deployed — `volcano functions invoke <name>` (runs as the local user) for a basic check, and the SDK recipe for multi-user/RLS isolation (see "Verify a local deploy").
@@ -1038,7 +1038,7 @@ the CLI, a missing command), file it after the task with `volcano-feedback`.
 - Environment variables are deployed via `volcano deploy` or `volcano variables deploy` (local), or `volcano cloud deploy --env-file volcano/cloud.env` or `volcano cloud variables deploy -f volcano/cloud.env` (cloud) — not assumed auto-injected.
 - `VOLCANO_DATABASE` is used (not `VOLCANO_DB_NAME`).
 - If using the build model: `npm run build:functions` produces `.js` files under `volcano/functions/` before deploy.
-- Any npm package a native-JS function imports (e.g. `@volcano.dev/sdk`) is declared in a `volcano/functions/package.json` — an undeclared import fails at runtime with `Cannot find package`.
+- Any npm package a native-JS or TypeScript handler in `volcano/functions/` imports (e.g. `@volcano.dev/sdk`) is declared in a `volcano/functions/package.json` — an undeclared import fails at runtime with `Cannot find package`.
 - No `src/api/`, `openapi.yaml`, `dist/index.js`, or `dev-server.mjs` in the project.
 
 ## Companion Skills
