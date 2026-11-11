@@ -254,7 +254,7 @@ Each handler lives directly under `volcano/functions/`: a file (`hello.js` deplo
 Volcano compiles TypeScript when it builds the function, so you deploy `.ts` source with no build step of your own. This needs `volcano` CLI 0.76.0 or later (`volcano --version`); older CLIs skip `.ts` files without deploying them.
 - The CLI finds `volcano/functions/<name>.ts` (or `.mts`, `.cts`) and `volcano/functions/<name>/index.ts` (or `index.mts`, `index.cts`).
 - It does not find `.tsx` files, declaration files (`*.d.ts`), or a handler nested deeper, such as `volcano/functions/<name>/src/index.ts`.
-- Types are stripped, not checked: a type error doesn't fail the deploy. Run `tsc --noEmit` yourself before deploying, with `typescript` and `@types/node` installed and a `tsconfig.json` whose `include` covers `volcano/functions/**/*.ts`.
+- Types are stripped, not checked: a type error doesn't fail the deploy. Run `tsc --noEmit` yourself before deploying, with `typescript` and `@types/node` installed and a `tsconfig.json` whose `include` covers `volcano/functions/**/*` (so `.mts` and `.cts` handlers are checked too).
 - A JavaScript, Python or Ruby handler with the same name deploys instead of the TypeScript one.
 
 ### Basic handler
