@@ -255,6 +255,7 @@ Volcano compiles TypeScript when it builds the function, so you deploy `.ts` sou
 - The CLI finds `volcano/functions/<name>.ts` (or `.mts`, `.cts`) and `volcano/functions/<name>/index.ts` (or `index.mts`, `index.cts`).
 - It does not find `.tsx` files, declaration files (`*.d.ts`), or a handler nested deeper, such as `volcano/functions/<name>/src/index.ts`.
 - Types are stripped, not checked: a type error doesn't fail the deploy. Run `tsc --noEmit` yourself before deploying, with `typescript` and `@types/node` installed and a `tsconfig.json` whose `include` covers `volcano/functions/**/*` (so `.mts` and `.cts` handlers are checked too).
+- Declare every npm package a handler imports, such as `@volcano.dev/sdk`, in `volcano/functions/package.json` (or the function directory's own `package.json`). Volcano installs it at build time; an undeclared import fails at runtime with `Cannot find package`.
 - A JavaScript, Python or Ruby handler with the same name deploys instead of the TypeScript one.
 
 ### Basic handler
