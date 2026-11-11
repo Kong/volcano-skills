@@ -117,7 +117,7 @@ if (error) {
 const { user, session, error } = await volcano.auth.signIn({ email, password });
 if (error) {
   if (error.message.includes('invalid email or password')) /* wrong creds */;
-  else if (error.message.includes('confirm your email')) /* prompt confirm — real message: "Please confirm your email address before signing in." */;
+  else if (error.message.includes('email confirmation required')) /* prompt confirm — real message: "email confirmation required - please check your email for confirmation link" */;
   else if (error.message.includes('rate limit')) /* rate-limited — real message: "rate limit exceeded, try again later" */;
   return;
 }
@@ -396,7 +396,7 @@ await volcano.auth.deleteAllOtherSessions();
 |---|---|---|---|
 | `password must` | `password must be at least 15 characters` / `password must contain at least one uppercase letter` / `...one number` / `...one special character (!@#$%^&*)` | Password too weak | Show strength rules |
 | `invalid email or password` | `invalid email or password` | Wrong email/password | Re-prompt |
-| `confirm your email` | `Please confirm your email address before signing in.` (sign-in gate) or `email confirmation required - please check your email for confirmation link` (signup) | Verification pending | Show resend UI |
+| `email confirmation required` | `email confirmation required - please check your email for confirmation link` (sign-in to an unconfirmed account; sign-up returns no error, only `confirmationRequired: true`) | Verification pending | Show resend UI |
 | `rate limit` | `rate limit exceeded, try again later` | Rate-limited | Back off and inform user |
 | `No active session` | `No active session` | User not logged in | Send to login |
 | `Session expired` | `Session expired` | Refresh failed | Force sign in |
