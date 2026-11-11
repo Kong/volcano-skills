@@ -74,7 +74,7 @@ Note: `volcano-config.yaml` comes with `volcano init javascript` (with or withou
 │   ├── cloud.env                   # cloud project's env vars (you create it; check it's gitignored)
 │   ├── volcano.env.example         # env var documentation (committed)
 │   └── .gitignore
-├── package.json                    # optional — needed only for the build model
+├── package.json                    # optional — for the build model, or typescript and @types/node to type-check handlers
 ├── tsconfig.json                   # optional — for the build model, or to type-check TypeScript handlers
 └── src/                            # optional — authoring source for the build model
     ├── functions/
