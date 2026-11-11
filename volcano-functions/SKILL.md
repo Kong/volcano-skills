@@ -167,7 +167,7 @@ functions:
 ```
 
 ```js
-// functions/events.js
+// volcano/functions/events.js
 exports.config = { supportsResponseStreaming: true };
 
 exports.handler = async () => {
@@ -248,9 +248,19 @@ search "stream a response"` finds the full guide.
 
 Volcano Functions return a standard response shape: handlers return `{ statusCode, body, headers? }` where `body` is a string. Use `JSON.stringify(...)` to encode JSON responses. **Use `statusCode: 200` for all successful responses (not `201`/`202`) — `volcano functions invoke` treats any non-200 status as a failed invocation, so a `201 Created` reads as a failure to the CLI and to callers checking status; put the created resource in the `body` with `200`.**
 
+Each handler lives directly under `volcano/functions/`: a file (`hello.js` deploys as `hello`) or a directory with an entry file (`checkout/index.js` deploys as `checkout`). Names starting with `_` hold shared code.
+
+### TypeScript handlers
+Volcano compiles TypeScript when it builds the function, so you deploy `.ts` source with no build step of your own. This needs `volcano` CLI 0.76.0 or later (`volcano --version`); older CLIs skip `.ts` files without deploying them.
+- The CLI finds `volcano/functions/<name>.ts` (or `.mts`, `.cts`) and `volcano/functions/<name>/index.ts` (or `index.mts`, `index.cts`).
+- It does not find `.tsx` files, declaration files (`*.d.ts`), or a handler nested deeper, such as `volcano/functions/<name>/src/index.ts`.
+- Types are stripped, not checked: a type error doesn't fail the deploy. Run `tsc --noEmit` yourself before deploying, with `typescript` and `@types/node` installed and a `tsconfig.json` whose `include` covers `volcano/functions/**/*` (so `.mts` and `.cts` handlers are checked too).
+- Declare every npm package a handler imports, such as `@volcano.dev/sdk`, in `volcano/functions/package.json` (or the function directory's own `package.json`). Volcano installs it at build time; an undeclared import fails at runtime with `Cannot find package`.
+- A JavaScript, Python or Ruby handler with the same name deploys instead of the TypeScript one.
+
 ### Basic handler
 ```js
-// functions/hello.js
+// volcano/functions/hello.js
 exports.handler = async (event) => {
   const name = event.name || 'World';
   return {
@@ -262,10 +272,10 @@ exports.handler = async (event) => {
 
 ### Authenticated handler with Volcano Database
 ```ts
-// functions/get-my-posts.ts
+// volcano/functions/_shared/client.ts — shared code, bundled into each function that imports it
 import { VolcanoAuth } from '@volcano.dev/sdk';
 
-function createClient(auth?: { access_token?: string }): VolcanoAuth {
+export function createClient(auth?: { access_token?: string }): VolcanoAuth {
   const volcano = new VolcanoAuth({
     apiUrl: process.env.VOLCANO_API_URL!,
     anonKey: process.env.VOLCANO_ANON_KEY!,
@@ -274,6 +284,11 @@ function createClient(auth?: { access_token?: string }): VolcanoAuth {
   volcano.database(process.env.VOLCANO_DATABASE!);
   return volcano;
 }
+```
+
+```ts
+// volcano/functions/get-my-posts.ts
+import { createClient } from './_shared/client';
 
 export const handler = async (event: { __volcano_auth?: { access_token?: string } }) => {
   const auth = event.__volcano_auth;
@@ -296,7 +311,9 @@ export const handler = async (event: { __volcano_auth?: { access_token?: string 
 
 ### Server-side mutation
 ```ts
-// functions/publish-post.ts
+// volcano/functions/publish-post.ts
+import { createClient } from './_shared/client';
+
 export const handler = async (event: {
   postId?: string;
   __volcano_auth?: { access_token?: string };
@@ -317,7 +334,7 @@ export const handler = async (event: {
 
 ### Calling external APIs with secrets
 ```js
-// functions/send-slack-notification.js
+// volcano/functions/send-slack-notification.js
 exports.handler = async (event) => {
   const auth = event.__volcano_auth;
   if (!auth) return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
@@ -364,7 +381,7 @@ functions:
     variables: [PUBLISHER_WEBHOOK_SECRET, VOLCANO_API_URL, VOLCANO_SERVICE_KEY]
 ```
 ```js
-// functions/publisher-webhook.js
+// volcano/functions/publisher-webhook.js
 const crypto = require('node:crypto');
 const { VolcanoAuth } = require('@volcano.dev/sdk');
 
