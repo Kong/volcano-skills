@@ -251,12 +251,34 @@ Volcano Functions return a standard response shape: handlers return `{ statusCod
 Each handler lives directly under `volcano/functions/`: a file (`hello.js` deploys as `hello`) or a directory with an entry file (`checkout/index.js` deploys as `checkout`). Names starting with `_` hold shared code.
 
 ### TypeScript handlers
-Volcano compiles TypeScript when it builds the function, so you deploy `.ts` source with no build step of your own. This needs `volcano` CLI 0.76.0 or later (`volcano --version`); older CLIs skip `.ts` files without deploying them.
-- The CLI finds `volcano/functions/<name>.ts` (or `.mts`, `.cts`) and `volcano/functions/<name>/index.ts` (or `index.mts`, `index.cts`).
-- It does not find `.tsx` files, declaration files (`*.d.ts`), or a handler nested deeper, such as `volcano/functions/<name>/src/index.ts`.
-- Types are stripped, not checked: a type error doesn't fail the deploy. Run `tsc --noEmit` yourself before deploying, with `typescript` and `@types/node` installed and a `tsconfig.json` whose `include` covers `volcano/functions/**/*` (so `.mts` and `.cts` handlers are checked too).
+Volcano compiles TypeScript, JSX included, when it builds the function, so you deploy `.ts` or `.tsx` source with no build step of your own. `.ts`, `.mts` and `.cts` need `volcano` CLI 0.76.0 or later, and `.tsx` needs 0.78.0 or later (`volcano --version`); older CLIs skip those files without deploying them.
+- The CLI finds `volcano/functions/<name>.ts` (or `.mts`, `.cts`, `.tsx`) and `volcano/functions/<name>/index.ts` (or `index.mts`, `index.cts`, `index.tsx`).
+- Keep one TypeScript handler per function. `.tsx` ranks last: `hello.ts` beside `hello.tsx`, or `index.ts` beside `index.tsx`, deploys the `.ts` file, so rename or delete it to deploy the `.tsx`. `hello.ts` beside `hello.mts` stops the deploy.
+- It does not find declaration files (`*.d.ts`) or a handler nested deeper, such as `volcano/functions/<name>/src/index.ts`.
+- Types are stripped, not checked: a type error doesn't fail the deploy. Run `tsc --noEmit` yourself before deploying, with `typescript` and `@types/node` installed and a `tsconfig.json` whose `include` covers `volcano/functions/**/*` (so `.mts`, `.cts` and `.tsx` handlers are checked too). For `.tsx`, also install `@types/react` and set `"jsx": "react-jsx"`.
+- `.tsx` compiles JSX with React's automatic runtime, so don't import React, but declare `react` (and `react-dom` for `react-dom/server`) in `package.json`. A directory function's own `tsconfig.json` can choose other JSX settings, such as `"jsxImportSource": "preact"`; a single-file handler uploads without one.
 - Declare every npm package a handler imports, such as `@volcano.dev/sdk`, in `volcano/functions/package.json` (or the function directory's own `package.json`). Volcano installs it at build time; an undeclared import fails at runtime with `Cannot find package`.
 - A JavaScript, Python or Ruby handler with the same name deploys instead of the TypeScript one.
+
+```tsx
+// volcano/functions/welcome-page/index.tsx — returns server-rendered HTML
+import { renderToStaticMarkup } from 'react-dom/server';
+
+function Welcome({ name }: { name: string }) {
+  return <h1>Welcome, {name}!</h1>;
+}
+
+export const handler = async (event: { name?: string }) => ({
+  statusCode: 200,
+  headers: { 'content-type': 'text/html; charset=utf-8' },
+  body: '<!doctype html>' + renderToStaticMarkup(<Welcome name={event.name ?? 'friend'} />),
+});
+```
+Beside it, `volcano/functions/welcome-page/package.json` declares the packages Volcano installs:
+
+```json
+{ "dependencies": { "react": "^19.0.0", "react-dom": "^19.0.0" } }
+```
 
 ### Basic handler
 ```js

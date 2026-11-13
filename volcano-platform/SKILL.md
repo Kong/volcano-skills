@@ -99,7 +99,7 @@ Note: `volcano-config.yaml` comes with `volcano init javascript` (with or withou
 - **One function per file:** `hello.js` → function named `hello`.
 - **One function per directory:** `api/index.js` → function named `api` (the directory name).
 - Entries starting with `_` are **skipped** as function candidates but bundled as shared code when imported.
-- TypeScript (CLI 0.76.0+): `hello.ts`/`.mts`/`.cts` → `hello`; `api/index.ts` → `api` when the directory has no JavaScript, Python or Ruby entry. Volcano compiles it at build time; `.tsx`, `*.d.ts` and nested entries like `api/src/index.ts` are not found.
+- TypeScript (CLI 0.76.0+; `.tsx` needs CLI 0.78.0+): `hello.ts`/`.mts`/`.cts`/`.tsx` → `hello`; `api/index.ts` (or `index.tsx`) → `api` when the directory has no JavaScript, Python or Ruby entry. Volcano compiles it, JSX included, at build time; `*.d.ts` and nested entries like `api/src/index.ts` are not found.
 - Supported runtimes: `nodejs22.x` (minimum), `nodejs24.x` (default). Also Python and Ruby.
 
 There is **no router, no OpenAPI dispatcher, no single entry point**. Each file is an independent function with its own URL.
