@@ -99,7 +99,7 @@ Note: `volcano-config.yaml` comes with `volcano init javascript` (with or withou
 - **One function per file:** `hello.js` → function named `hello`.
 - **One function per directory:** `api/index.js` → function named `api` (the directory name).
 - Entries starting with `_` are **skipped** as function candidates but bundled as shared code when imported.
-- TypeScript (CLI 0.76.0+): `hello.ts`/`.mts`/`.cts` → `hello`; `api/index.ts` → `api` when the directory has no JavaScript, Python or Ruby entry. Volcano compiles it at build time; `.tsx`, `*.d.ts` and nested entries like `api/src/index.ts` are not found.
+- TypeScript (CLI 0.76.0+; `.tsx` needs CLI 0.78.0+): `hello.ts`/`.mts`/`.cts`/`.tsx` → `hello`; `api/index.ts` (or `index.tsx`) → `api` when the directory has no JavaScript, Python or Ruby entry. Volcano compiles it, JSX included, at build time; `*.d.ts` and nested entries like `api/src/index.ts` are not found.
 - Supported runtimes: `nodejs22.x` (minimum), `nodejs24.x` (default). Also Python and Ruby.
 
 There is **no router, no OpenAPI dispatcher, no single entry point**. Each file is an independent function with its own URL.
@@ -1043,7 +1043,7 @@ the CLI, a missing command), file it after the task with `volcano-feedback`.
 - Do NOT use `pg`/`pg-pool`/`DATABASE_URL` as a replacement for the SDK client — use `VOLCANO_DATABASE` and the SDK for all standard CRUD. Direct Postgres access is a discouraged, narrowly-scoped last resort ONLY for query-builder gaps that are provably impossible otherwise (joins/upserts/multi-statement transactions), NOT a general-purpose data layer or a reason to introduce an ORM as project architecture, and ONLY after rewriting `application_name` to `volcano_user_access:{user_id}` (raw `DATABASE_URL` bypasses RLS) — see `volcano-database`'s "Direct Postgres Access" section.
 - Do NOT use `jsonwebtoken` or `bcryptjs` directly — Volcano Auth handles tokens and password hashing.
 - Do NOT assume `__volcano_auth` is always present — it is injected only when the payload is an object and the request carries a valid token.
-- Do NOT expect `volcano deploy` or `volcano functions deploy` to run your own build (Model B) — its built `.js` files must exist under `volcano/functions/` on disk before deploy. TypeScript handlers placed directly in `volcano/functions/` need no build of yours with CLI 0.76.0+; Volcano compiles them.
+- Do NOT expect `volcano deploy` or `volcano functions deploy` to run your own build (Model B) — its built `.js` files must exist under `volcano/functions/` on disk before deploy. TypeScript handlers placed directly in `volcano/functions/` need no build of yours with CLI 0.76.0+ (`.tsx` with CLI 0.78.0+); Volcano compiles them.
 - Do NOT put more than one SQL statement in a migration file, and do NOT wrap one in `BEGIN; ... COMMIT;` — `volcano migrations deploy` executes each file as a single statement and rejects multi-statement bodies (`ERROR: Multiple statements are not supported`). Split a multi-step schema change into several sequentially-numbered single-statement files instead.
 - Do NOT `require`/`import` an npm package (including `@volcano.dev/sdk`) from a native-JS (Model A) or TypeScript handler in `volcano/functions/` without declaring it in a `package.json` — the packager never uploads `node_modules`, so an undeclared dependency fails at runtime with `Cannot find package`. Declare every imported package in a manifest so the runtime installs it.
 
