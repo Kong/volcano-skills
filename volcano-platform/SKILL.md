@@ -353,6 +353,27 @@ Never hardcode secrets in handler code.
   statements (create table, add indexes, enable RLS, add policies) is
   several sequentially-numbered files, not one — see "Canonical migration
   with RLS" below.
+- **Outside a transaction:** a tracked run (Git auto deploy with
+  `apply_migrations` on, or the migration-runs API) runs each file in a
+  transaction, where Postgres refuses statements such as
+  `CREATE INDEX CONCURRENTLY` (an index build that does not block writes)
+  with SQLSTATE `25001`. Put such a statement alone in a file whose first
+  line is `-- volcano:no-transaction`, with no filename comment above it, for
+  example `013_posts_title_index.sql`:
+
+  ```sql
+  -- volcano:no-transaction
+  CREATE INDEX CONCURRENTLY IF NOT EXISTS posts_title_idx ON posts (title);
+  ```
+
+  Nothing rolls a marked file back. Keep it to one statement, make it safe to
+  run again with `IF NOT EXISTS` or `IF EXISTS`, and name the index: before
+  the file runs again, Volcano drops the invalid index a failed build left
+  under that name, and afterwards it checks the index is valid. A run refuses
+  the marker on any other line, and an unnamed concurrent index, with
+  `invalid_file`. Only tracked runs honor the marker; the CLI's migration
+  commands are not tracked runs and ignore it. See
+  [Run a statement outside a transaction](https://docs.volcano.dev/platform/guides/migrations#run-a-statement-outside-a-transaction).
 
 **Deploy:**
 ```sh
