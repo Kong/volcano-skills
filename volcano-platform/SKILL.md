@@ -398,7 +398,7 @@ Volcano automatically installs these SQL helper functions in **every project dat
 
 **`auth.role()` has three distinct values, not two:**
 - `'authenticated'` — a real signed-up user (email/password or OAuth).
-- `'anonymous'` — a guest user created via `signUpAnonymous()`. They DO have a valid JWT and a real `auth.uid()`; RLS still applies to them like any authenticated caller.
+- `'anonymous'` — a guest user created via `signInAnonymously()`. They DO have a valid JWT and a real `auth.uid()`; RLS still applies to them like any authenticated caller.
 - `'anon'` — no token at all (the SQL function's fallback default, and also the underlying Postgres role name for unauthenticated access).
 
 A policy that checks `auth.role() = 'anon'` to gate out guests is a common mistake — guest sessions report `'anonymous'`, not `'anon'`. Prefer `auth.uid() IS NOT NULL` (or `auth.is_authenticated()`) when the intent is "any signed-in caller, including guests."

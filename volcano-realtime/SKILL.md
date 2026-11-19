@@ -293,7 +293,7 @@ message plus one for each subscriber it reaches, and again if it reruns after
 a crash; with no subscribers it costs nothing. Clients cannot publish on that channel; they send with
 `durable.messages.send`. The connection needs a user session, so sign the
 browser in first; for a visitor who has no account, use an anonymous user
-(`signUpAnonymous`, see `volcano-auth`). The function must be
+(`signInAnonymously`, see `volcano-auth`). The function must be
 `authenticated`, which admits both. The bare anon key never connects: with a
 `public` function it can only `list` and `send`. Anonymous sign-in takes only
 the anon key, so either way anyone can start executions; validate their
@@ -415,7 +415,7 @@ try {
 - `invalid apikey` / `anon key not found` — wrong `anonKey` for the target
   project (or the wrong `apiUrl`).
 - Missing/invalid token — realtime requires a user session; pass a real
-  `accessToken` (`signIn` first, or `signUpAnonymous` for a visitor without an
+  `accessToken` (`signIn` first, or `signInAnonymously` for a visitor without an
   account). The anon key alone never connects, in local or cloud.
 
 ## Verification Checklist
