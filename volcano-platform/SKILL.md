@@ -344,6 +344,7 @@ Never hardcode secrets in handler code.
 ### Migration conventions
 - **Location:** `volcano/migrations/` (no subdirectories).
 - **Filename:** `NNN_description.sql` — numeric prefix for alphabetical ordering (e.g., `001_init.sql`, `002_add_posts.sql`). Ordering is alphabetical; the numeric prefix is a convention, not enforced.
+- **Dependencies:** assign prefixes in dependency order. Create each referenced table before its SQL helper, and the helper before any policy that calls it.
 - **Idempotency:** use `CREATE TABLE IF NOT EXISTS`, `DROP POLICY IF EXISTS` before `CREATE POLICY`, and `CREATE OR REPLACE FUNCTION`.
 - **One statement per file:** `volcano migrations deploy` executes each file as a single SQL
   statement — it does not split on `;` or batch multiple statements, and
@@ -460,6 +461,36 @@ CREATE POLICY posts_delete_own ON posts
 ```
 
 For public-read patterns, add a policy (its own file) with `USING (status = 'published')` alongside the owner policies.
+
+### A policy that depends on a SQL helper
+
+Suppose comments inherit read access from the post they belong to. After the
+`posts` migrations above, add these files in order. The helper runs as the
+caller, so the query against `public.posts` applies its existing RLS policies.
+
+```sql
+-- 020_create_post_comments.sql
+CREATE TABLE IF NOT EXISTS public.post_comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    post_id UUID NOT NULL REFERENCES public.posts(id),
+    body TEXT NOT NULL
+);
+
+-- 021_post_comments_enable_rls.sql
+ALTER TABLE public.post_comments ENABLE ROW LEVEL SECURITY;
+
+-- 022_can_read_post.sql
+CREATE OR REPLACE FUNCTION public.can_read_post(wanted_id UUID)
+RETURNS BOOLEAN LANGUAGE SQL STABLE SECURITY INVOKER
+RETURN EXISTS (SELECT 1 FROM public.posts WHERE id = wanted_id);
+
+-- 023_post_comments_select_drop.sql
+DROP POLICY IF EXISTS comments_readable_post ON public.post_comments;
+
+-- 024_post_comments_select_create.sql
+CREATE POLICY comments_readable_post ON public.post_comments
+    FOR SELECT USING (public.can_read_post(post_id));
+```
 
 ## volcano-config.yaml
 
