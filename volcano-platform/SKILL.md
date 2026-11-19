@@ -467,6 +467,9 @@ For public-read patterns, add a policy (its own file) with `USING (status = 'pub
 Suppose comments inherit read access from the post they belong to. After the
 `posts` migrations above, add these files in order. The helper runs as the
 caller, so the query against `public.posts` applies its existing RLS policies.
+The foreign key prevents even the owner from deleting a post while it has
+comments. If deleting a post should also delete its comments, add
+`ON DELETE CASCADE` to the `post_id` foreign key in migration 020.
 
 ```sql
 -- 020_create_post_comments.sql

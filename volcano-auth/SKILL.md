@@ -313,6 +313,8 @@ const { data, error } = await volcano.auth.callOAuthAPI('github', {
 Anonymous sign-in is off by default. For a project that accepts guests, configure both settings under `auth.signup` in `volcano-config.yaml` and deploy the config before calling the SDK. Hosting returns HTTP 403 if either setting is off.
 
 ```yaml
+# volcano-config.yaml
+version: 1
 auth:
   signup:
     enable_signup: true
