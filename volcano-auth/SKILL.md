@@ -309,13 +309,29 @@ const { data, error } = await volcano.auth.callOAuthAPI('github', {
 ```
 
 ## Anonymous Users
+
+Anonymous sign-in is off by default. For a project that accepts guests, configure both settings under `auth.signup` in `volcano-config.yaml` and deploy the config before calling the SDK. Hosting returns HTTP 403 if either setting is off.
+
+```yaml
+# volcano-config.yaml
+version: 1
+auth:
+  signup:
+    enable_signup: true
+    enable_anonymous_signins: true
+```
+
+In JavaScript and TypeScript, use `auth.signInAnonymously()`. SDK 2.2.0 keeps `signUpAnonymous()` as a deprecated alias.
+
 ```ts
-// Create
-const { user, session, error } = await volcano.auth.signUpAnonymous({
+const { user, session, error } = await volcano.auth.signInAnonymously({
   preferred_theme: 'dark', // optional metadata
 });
+```
 
-// Convert to a full account (preserves the user.id and all owned data)
+To convert the guest to a full account, keep the same client session. The user ID and owned data are preserved.
+
+```ts
 const { user, error } = await volcano.auth.convertAnonymous({
   email: 'alice@example.com',
   password: 'secure-password-123',
