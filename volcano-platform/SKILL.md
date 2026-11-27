@@ -346,14 +346,8 @@ Never hardcode secrets in handler code.
 - **Filename:** `NNN_description.sql` — numeric prefix for alphabetical ordering (e.g., `001_init.sql`, `002_add_posts.sql`). Ordering is alphabetical; the numeric prefix is a convention, not enforced.
 - **Dependencies:** assign prefixes in dependency order. Create each referenced table before its SQL helper, and the helper before any policy that calls it.
 - **Idempotency:** use `CREATE TABLE IF NOT EXISTS`, `DROP POLICY IF EXISTS` before `CREATE POLICY`, and `CREATE OR REPLACE FUNCTION`.
-- **One statement per file:** `volcano migrations deploy` executes each file as a single SQL
-  statement — it does not split on `;` or batch multiple statements, and
-  rejects a multi-statement body outright (`ERROR: Multiple statements are
-  not supported`). Do NOT wrap a file in `BEGIN; ... COMMIT;`, and do NOT put
-  more than one statement in one file. A schema change that needs several
-  statements (create table, add indexes, enable RLS, add policies) is
-  several sequentially-numbered files, not one — see "Canonical migration
-  with RLS" below.
+- **Tracked apply.** Builder's `volcano_deploy` migration target runs `databases migration apply`. Tracked apply wraps each ordinary file and its history entry in one transaction. In new migrations, group statements that must succeed together, such as creating a table, enabling RLS and adding its policies. Preserve files already applied and put later changes in new files.
+- **Legacy deploy.** `volcano migrations deploy` accepts one SQL statement per file. If the project uses this command, split a multi-statement change across numbered files in dependency order. If the same files must work with both commands, use the legacy layout.
 - **Outside a transaction:** a tracked run (Git auto deploy with
   `apply_migrations` on, or the migration-runs API) runs each file in a
   transaction, where Postgres refuses statements such as
@@ -406,8 +400,7 @@ A policy that checks `auth.role() = 'anon'` to gate out guests is a common mista
 
 ### Canonical migration with RLS
 
-One statement per file, numbered sequentially — each `-- <filename>` comment
-below marks a separate file, not a section of one file:
+The example uses the legacy deploy layout. For tracked apply, group the statements that must succeed together as described above. Each filename comment below starts a separate legacy migration.
 
 ```sql
 -- 001_create_posts_table.sql
@@ -1089,14 +1082,14 @@ the CLI, a missing command), file it after the task with `volcano-feedback`.
 - Do NOT use `jsonwebtoken` or `bcryptjs` directly — Volcano Auth handles tokens and password hashing.
 - Do NOT assume `__volcano_auth` is always present — it is injected only when the payload is an object and the request carries a valid token.
 - Do NOT expect `volcano deploy` or `volcano functions deploy` to run your own build (Model B) — its built `.js` files must exist under `volcano/functions/` on disk before deploy. TypeScript handlers placed directly in `volcano/functions/` need no build of yours with CLI 0.76.0+ (`.tsx` with CLI 0.78.0+); Volcano compiles them.
-- Do NOT put more than one SQL statement in a migration file, and do NOT wrap one in `BEGIN; ... COMMIT;` — `volcano migrations deploy` executes each file as a single statement and rejects multi-statement bodies (`ERROR: Multiple statements are not supported`). Split a multi-step schema change into several sequentially-numbered single-statement files instead.
+- Leave transaction management to the migration runner. Tracked apply wraps ordinary files, and legacy `volcano migrations deploy` accepts a single statement per file.
 - Do NOT `require`/`import` an npm package (including `@volcano.dev/sdk`) from a native-JS (Model A) or TypeScript handler in `volcano/functions/` without declaring it in a `package.json` — the packager never uploads `node_modules`, so an undeclared dependency fails at runtime with `Cannot find package`. Declare every imported package in a manifest so the runtime installs it.
 
 ## Verification Checklist
 - Each deployed function was smoke-tested, not just deployed — `volcano functions invoke <name>` (runs as the local user) for a basic check, and the SDK recipe for multi-user/RLS isolation (see "Verify a local deploy").
 - Function handlers exist under `volcano/functions/` and each exports `handler`.
 - Shared code uses `_`-prefix directories (`_shared/`, `_lib/`).
-- `volcano/migrations/` contains `.sql` files with numeric-prefix alphabetical naming, each with exactly one SQL statement (no `BEGIN`/`COMMIT`, no multiple `;`-terminated statements in one file).
+- Migration filenames sort in dependency order. Verify the layout for the command in use: group related new statements for tracked apply, use one statement per file for legacy deploy, and isolate nontransactional statements in their own marked files for tracked apply.
 - RLS policies use `auth.uid()` (with schema prefix), not bare `uid()`.
 - `volcano-config.yaml` (if present) has `version: 1`. There is no minimum
   section requirement — a manifest can declare only `variables`, only
